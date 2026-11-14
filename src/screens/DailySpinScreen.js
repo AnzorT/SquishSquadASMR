@@ -8,6 +8,7 @@ import ShadowText from '../components/candy/ShadowText';
 import CreatureThumbnail from '../components/CreatureThumbnail';
 import RigCreature from '../components/RigCreature';
 import IntroBackground from '../squad/IntroBackground';
+import { Lettering, PageBg } from '../royal';
 import { BtnText, CandyBtn, CurrencyIcon, F, GREEN_RING, PINK_RING } from '../squad/ui';
 import { MAX_AD_SPINS, WHEEL, SLICE, prizeCard } from '../dailySpin';
 import useRewardedAd from '../components/useRewardedAd';
@@ -254,10 +255,12 @@ export default function DailySpinScreen({ onSpin, onDone, bonusLeft = 0, adsFree
   }, []);
 
   const mittens = useMemo(() => (creatures || []).find((c) => String(c.id) === '1' || c.name === 'Mittens'), [creatures]);
-  const k = Math.min(1, (W - 24) / (S + 6));
+  // landscape (REDESIGN_V7 step 4): the wheel on the left, sized by the height; the rest beside it
+  const wide = W > H;
+  const k = wide ? Math.min(1, (H - 40) / (S + 14)) : Math.min(1, (W - 24) / (S + 6));
   // Mittens under the wheel: 150px when there's room, smaller (or none) on
   // short screens
-  const mascot = H >= 860 ? 150 : H >= 760 ? 110 : 0;
+  const mascot = wide ? 0 : H >= 860 ? 150 : H >= 760 ? 110 : 0;
 
   const land = useCallback(
     (index) =>
@@ -334,19 +337,24 @@ export default function DailySpinScreen({ onSpin, onDone, bonusLeft = 0, adsFree
   const card = phase === 'prize' ? prizeCard(result) : null;
   const popScale = pop.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0.7, 1.06, 1] });
 
+  const wheel = (
+    <View style={{ width: (S + 6) * k, height: (S + 14) * k, marginTop: wide ? 0 : 24 * k, alignItems: 'center' }}>
+      <View style={{ width: S, height: S, marginTop: (S * k - S) / 2 + 3 * k, transform: [{ scale: k }] }}>
+        <Wheel rot={rot} hubLabel={phase === 'spinning' ? '…' : 'SPIN'} onHub={onHub} />
+      </View>
+    </View>
+  );
+  const Bg = wide ? SpinWideBg : IntroBackground;
   return (
-    <IntroBackground>
-      <Glows w={W} h={H} />
-      <View style={styles.column}>
+    <Bg>
+      {wide ? null : <Glows w={W} h={H} />}
+      <View style={wide ? styles.wRow : styles.column}>
+        {wide ? wheel : null}
+        <View style={wide ? styles.wSide : styles.wNone}>
         <Text style={styles.hi}>{`HI ${(name || 'friend').toUpperCase()}!`}</Text>
-        <OutlinedTitle text="DAILY SPIN" fill="pink" size={34} outline={3} ring={2} drop={5} letterSpacing={0} />
+        {wide ? <Lettering text="Daily Spin" variant="gold" size={38} /> : <OutlinedTitle text="DAILY SPIN" fill="pink" size={34} outline={3} ring={2} drop={5} letterSpacing={0} />}
         <Text style={styles.sub}>One free spin every day</Text>
-
-        <View style={{ width: (S + 6) * k, height: (S + 14) * k, marginTop: 24 * k, alignItems: 'center' }}>
-          <View style={{ width: S, height: S, marginTop: (S * k - S) / 2 + 3 * k, transform: [{ scale: k }] }}>
-            <Wheel rot={rot} hubLabel={phase === 'spinning' ? '…' : 'SPIN'} onHub={onHub} />
-          </View>
-        </View>
+        {wide ? (phase === 'idle' ? <Text style={[styles.sub, { marginTop: 14 }]}>Tap SPIN in the middle of the wheel!</Text> : null) : wheel}
 
         {mascot ? (
           <View style={{ marginTop: 8 }}>
@@ -399,6 +407,7 @@ export default function DailySpinScreen({ onSpin, onDone, bonusLeft = 0, adsFree
             </CandyBtn>
           </View>
         ) : null}
+        </View>
       </View>
 
       {card ? (
@@ -438,11 +447,25 @@ export default function DailySpinScreen({ onSpin, onDone, bonusLeft = 0, adsFree
           </Animated.View>
         </View>
       ) : null}
-    </IntroBackground>
+    </Bg>
+  );
+}
+
+// the new look's page behind the wheel in landscape
+function SpinWideBg({ children }) {
+  return (
+    <View style={styles.wRoot}>
+      <PageBg />
+      {children}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wRoot: { flex: 1, backgroundColor: '#24123f' },
+  wRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 40, paddingHorizontal: 24 },
+  wSide: { width: 360, alignItems: 'center', gap: 6 },
+  wNone: { alignItems: 'center', gap: 4 },
   column: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingTop: 30, paddingBottom: 20, gap: 4 },
   hi: { fontFamily: F.black, fontSize: 12, letterSpacing: 2, color: PURPLE },
   sub: { fontFamily: F.heavy, fontSize: 13, color: PURPLE },

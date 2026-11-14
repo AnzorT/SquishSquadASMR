@@ -6,7 +6,7 @@
 // including SquishyToy.js) gets evaluated.
 import 'fast-text-encoding';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Alert, Image, AppState, StyleSheet } from 'react-native';
+import { View, Alert, Image, AppState, Linking, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import mobileAds from 'react-native-google-mobile-ads';
@@ -83,6 +83,10 @@ import {
 } from './src/firebase/firestore';
 import { isNewId, lobbySeeded, ownedIdList, selectedId as selectedIdOf } from './src/squad/lobby';
 import GameScreen from './src/game/GameScreen';
+import RoyalGallery from './src/royal/Gallery';
+import SettingsRoyal from './src/screens/royal/SettingsRoyal';
+import GameFrame from './src/royal/GameFrame';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import ClassicBack from './src/game/ClassicBack';
 import { gamePlayer, idOfKey } from './src/game/player';
 import { NEW_DESIGN, NEW_DESIGN_DURING_TUTORIAL } from './src/game/flags';
@@ -102,7 +106,7 @@ import * as billing from './src/billing';
 import { setOfferProducts, setPricing } from './src/economy';
 import { adSpinsLeft, hasSpunToday, todayKey, tzOffsetMinutes } from './src/dailySpin';
 import callFunction from './src/firebase/callFunction';
-import { dailyGift as squadDailyGift, startSquad } from './src/squad/api';
+import { dailyGift as squadDailyGift, levelClaim as squadLevelClaim, levelClaimAll as squadLevelClaimAll, move as squadMove, startSquad } from './src/squad/api';
 import sfx from './src/audio/sfx';
 
 // GLTFParser's constructor (three.js, used by SquishyToy.js's Glorp build
@@ -131,7 +135,16 @@ const APP_TOAST_AT = { position: 'absolute', left: 0, right: 0, bottom: 150, hei
 // one empty object, so a memoized screen sees the same prop every render
 const NO_ACHIEVEMENTS = {};
 
-const SLIDE_IN = new Set(['crib', 'create', 'achievements', 'stats', 'streak', 'loading', 'squishdoku', 'sort', 'stack', 'hop', 'road']);
+// REDESIGN_V7: screens remodelled in the new look, landscape (App's `landscape`)
+const LANDSCAPE_SCREENS = new Set(['splash', 'auth', 'verify', 'shop', 'settings', 'achievements', 'stats', 'road', 'wheel', 'streak', 'toy', 'loading', 'squishdoku', 'sort', 'stack', 'hop']);
+// the mini-games' frame (src/royal/GameFrame.js): each game's name, a line and its tips beside the game
+const GAME_FRAME = {
+  squishdoku: { title: 'Squishdoku', line: '600 puzzle levels', tips: ['One creature in every row, column and coloured patch.', 'No two creatures may touch, not even corner to corner.', 'Tap a cell to place one. Use the ✕ to mark cells.'] },
+  sort: { title: 'Squish Sort', line: 'Fridge & cupboard', tips: ['Remember who sits where.', 'The doors shut, it shakes and everyone tumbles out.', 'Put each squishy back in its place.'] },
+  stack: { title: 'Squish Stack', line: 'Tower puzzles', tips: ['Tap a cushion to lift its top squishy, tap another to drop it.', 'A big one can never sit on a smaller one.', 'Move them one at a time until they match the goal.'] },
+  hop: { title: 'Squish Hop', line: 'Cushion hopping', tips: ['Swipe or tap a cushion next to you to hop.', 'The cushion you leave puffs away: no going back.', 'Clear every cushion, then hop onto the ★.'] },
+};
+const SLIDE_IN = new Set(['shop', 'settings', 'crib', 'create', 'achievements', 'stats', 'streak', 'loading', 'squishdoku', 'sort', 'stack', 'hop', 'road']);
 // creature pictures fetched into the image cache at a time (see below)
 const PREFETCH_AT_ONCE = 6;
 // Screens over Home that need it truly hidden (Freeze, display: none) rather
@@ -385,6 +398,16 @@ export default function App() {
   // What the levels are (config/levels: the road, the curve, what earns XP):
   // into src/playerXp.js before the screens redraw, as the roster's counts
   const [levelsCfg, setLevelsCfg] = useState(null);
+  // debug builds: com.plushcrush.app://royal opens the new look's kit (src/royal/Gallery.js, REDESIGN_V7 step 0)
+  const [royal, setRoyal] = useState(false);
+  useEffect(() => {
+    if (!__DEV__) return undefined;
+    const on = ({ url }) => /:\/\/royal/.test(url || '') && setRoyal(true);
+    Linking.getInitialURL().then((url) => on({ url })).catch(() => {});
+    const sub = Linking.addEventListener('url', on);
+    return () => sub.remove();
+  }, []);
+  const closeRoyal = useCallback(() => setRoyal(false), []);
   useEffect(() => {
     if (!authUser) return undefined;
     return subscribeToLevels((cfg) => {
@@ -691,6 +714,18 @@ export default function App() {
   // MAIN MENU pill back. SHOP is Home's Shop tab, as before.
   const newDesign = NEW_DESIGN && (NEW_DESIGN_DURING_TUTORIAL || !tutorialActive(profile));
   const [classicHome, setClassicHome] = useState(false);
+  // the Menu's gear: Settings in the new look (REDESIGN_V7 step 3; the old Lobby retires)
+  const openSettingsPage = useCallback(() => setScreen('settings'), []);
+  // screens opened from Settings (Achievements, Stats, the level road) go back to it, not to the Menu
+  const fromSettingsRef = useRef(false);
+  const openFromSettings = useCallback((name) => {
+    fromSettingsRef.current = true;
+    if (name === 'road') setRoadAuto(null);
+    setScreen(name);
+  }, []);
+  const settingsAchievements = useCallback(() => openFromSettings('achievements'), [openFromSettings]);
+  const settingsStats = useCallback(() => openFromSettings('stats'), [openFromSettings]);
+  const settingsRoad = useCallback(() => openFromSettings('road'), [openFromSettings]);
   const openClassic = useCallback(() => {
     setClassicHome(true);
     setMainTab('squish');
@@ -706,10 +741,21 @@ export default function App() {
     setMainTab('squish');
     setScreen((s) => (s === 'crib' ? 'home' : s));
   }, []);
-  const openGameShop = useCallback(() => openShopAt('chests'), [openShopAt]);
+  // the Menu's SHOP (and its coin / gem pills): the Shop as a landscape screen of its own, back to the Menu (REDESIGN_V7)
+  const openGameShop = useCallback(() => {
+    setShopTab('chests');
+    setShopKey((k) => k + 1);
+    setScreen('shop');
+  }, []);
   // the Menu's games page: Squish Time (with the Menu's creature) or one of the app's games
+  // a game started in the Menu's Game Park: the Menu opens there again when the game is left
+  const parkReturnRef = useRef(false);
+  const parkStarted = useCallback(() => {
+    parkReturnRef.current = false;
+  }, []);
   const handleGamePlay = useCallback(
-    (mode, key) => {
+    (mode, key, from) => {
+      parkReturnRef.current = from === 'park';
       if (mode === 'squishdoku') openSquishdoku();
       else if (mode === 'sort') openSort();
       else if (mode === 'stack') openStack();
@@ -723,7 +769,26 @@ export default function App() {
     const id = idOfKey(key);
     if (id) selectSquishy(id);
   }, [selectSquishy]);
-  const gamePlayerNow = useMemo(() => gamePlayer(profile, { level: xpView(profile).level, hidden }), [profile, hidden]);
+  // the Menu's Level Pass: coins and gems are claimed here; a chest opens the level road (its chest smash) on that level
+  const handleGameClaim = useCallback(async ({ lv, all }) => {
+    const waiting = roadView(profileRef.current).filter((n) => n.claimable).map((n) => n.lv);
+    const lvs = all ? waiting : waiting.filter((l) => l === lv);
+    if (!lvs.length) return { ok: false, error: 'nothing_to_claim' };
+    if (lvs.some((l) => (roadPrize(l) || {}).k === 'chest')) {
+      setRoadAuto(lvs);
+      setScreen('road');
+      return { road: true };
+    }
+    try {
+      if (lvs.length > 1) await squadLevelClaimAll();
+      else await squadLevelClaim(lvs[0]);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e?.message || 'failed' };
+    }
+  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const gamePlayerNow = useMemo(() => gamePlayer(profile, { level: xpView(profile).level, hidden }), [profile, hidden, levelsCfg]);
 
   const handleCreatureCreated = useCallback(
     // Photo path: upload the resized JPEG to Storage, then write a
@@ -843,6 +908,17 @@ export default function App() {
     },
     [authUser, buying, flashApp]
   );
+  // the menu's pages ask the app for what needs the phone or the server (webgame/app/bridge.js App.ask, REDESIGN_V7):
+  // 'squad' { move, args }: a squad server move; 'buy' { key }: a Play purchase; 'price' { keys }: the store prices
+  const handleGameAsk = useCallback(
+    async (what, p) => {
+      if (what === 'squad') return squadMove(p.move, p.args || {});
+      if (what === 'buy') return purchase(p.key);
+      if (what === 'price') return Object.fromEntries((p.keys || []).map((k) => [k, priceOf(k)]));
+      throw new Error('unknown_ask');
+    },
+    [purchase, priceOf],
+  );
   // a creation: the half-price product while the 10-day streak's reward is
   // waiting, else the 15%-off one while the Daily Spin prize is (each is
   // used up by its own product; the half price is the better deal)
@@ -911,6 +987,12 @@ export default function App() {
   // the new design's Menu (and house) is on screen: Home's squish tab, or a Crib request
   const gameHome = newDesign && ((!classicHome && mainTab === 'squish') || stage === 'crib');
   const onGame = gameHome && (stage === 'home' || stage === 'crib');
+  // REDESIGN_V7: the screens already in the new landscape look turn the phone sideways; the rest are still portrait.
+  // One place decides (the Menu's own lock and its unlock on leaving used to fight a landscape screen opened from it).
+  const landscape = onGame || (newDesign && LANDSCAPE_SCREENS.has(stage));
+  useEffect(() => {
+    ScreenOrientation.lockAsync(landscape ? ScreenOrientation.OrientationLock.LANDSCAPE : ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+  }, [landscape]);
 
   // LEVEL UP (src/components/LevelBits.js): once a level is reached past the
   // tutorial's 2 and 3 (it has its own cards for those), on the lobby with
@@ -994,6 +1076,14 @@ export default function App() {
   // exit), with Home already under it; the screen switch follows the slide.
   const layerRef = useRef(null);
   const goHome = useCallback(() => {
+    // back from a screen Settings opened: to Settings
+    if (fromSettingsRef.current) {
+      fromSettingsRef.current = false;
+      const layer0 = layerRef.current;
+      if (layer0) layer0.exit(() => setScreen('settings'));
+      else setScreen('settings');
+      return;
+    }
     const layer = layerRef.current;
     if (layer) layer.exit(() => setScreen('home'));
     else setScreen('home');
@@ -1071,7 +1161,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider style={styles.app}>
-      <StatusBar style={statusBarStyle} />
+      <StatusBar style={statusBarStyle} hidden={landscape} />
       {/* the splash moves on once sign-in is known and, signed in, the
           profile and the catalog are here */}
       {stage === 'splash' && <SplashScreen onFinish={() => setSplashDone(true)} ready={authChecked && (!authUser || (!!profile && creatures.length > 0))} creatures={creatures} />}
@@ -1082,12 +1172,16 @@ export default function App() {
           <GameScreen
             uid={authUser.uid}
             player={gamePlayerNow}
+            startScreen={parkReturnRef.current ? 'park' : 'menu'}
+            onStarted={parkStarted}
             wantHouse={stage === 'crib'}
             onHouseShown={gameHouseShown}
             onShop={openGameShop}
-            onSettings={openClassic}
+            onSettings={openSettingsPage}
             onPlay={handleGamePlay}
             onSelect={handleGameSelect}
+            onClaim={handleGameClaim}
+            onAsk={handleGameAsk}
           />
         ) : (
           <View style={{ flex: 1, backgroundColor: '#24123f' }} />
@@ -1208,24 +1302,66 @@ export default function App() {
           {/* the games and the level road slide in as placeholders and are
               built once the slide is over (ScreenLayer) */}
           {stage === 'squishdoku' && (
+            <GameFrame {...GAME_FRAME.squishdoku}>
             <WhenScreenReady placeholder={<ScreenBones kind="hub" />}>
               <SquishdokuScreen profile={profile} creatures={creatures} hidden={hidden} uid={authUser?.uid} adsFree={adsFree} haptics={vibrationEnabled} onBack={goHome} />
             </WhenScreenReady>
+            </GameFrame>
           )}
           {stage === 'sort' && (
+            <GameFrame {...GAME_FRAME.sort}>
             <WhenScreenReady placeholder={<ScreenBones kind="hub" />}>
               <SortScreen profile={profile} creatures={creatures} hidden={hidden} uid={authUser?.uid} adsFree={adsFree} haptics={vibrationEnabled} onBack={goHome} />
             </WhenScreenReady>
+            </GameFrame>
           )}
           {stage === 'stack' && (
+            <GameFrame {...GAME_FRAME.stack}>
             <WhenScreenReady placeholder={<ScreenBones kind="hub" />}>
               <StackScreen profile={profile} creatures={creatures} hidden={hidden} uid={authUser?.uid} adsFree={adsFree} haptics={vibrationEnabled} onBack={goHome} />
             </WhenScreenReady>
+            </GameFrame>
           )}
           {stage === 'hop' && (
+            <GameFrame {...GAME_FRAME.hop}>
             <WhenScreenReady placeholder={<ScreenBones kind="map" />}>
               <HopScreen profile={profile} creatures={creatures} hidden={hidden} uid={authUser?.uid} adsFree={adsFree} haptics={vibrationEnabled} onBack={goHome} />
             </WhenScreenReady>
+            </GameFrame>
+          )}
+          {stage === 'settings' && (
+            <SettingsRoyal
+              onBack={goHome}
+              nickname={profile?.nickname ?? 'Squisher'}
+              onSaveNickname={handleSaveNickname}
+              onSubmitFeedback={handleSubmitFeedback}
+              onLogout={handleLogout}
+              onReplayTutorial={replayTutorial}
+              onOpenStats={settingsStats}
+              onOpenAchievements={settingsAchievements}
+              onOpenRoad={settingsRoad}
+              tester={tester}
+              wallet={{ ...walletOf(profile), level: xpNow.level }}
+              fpsOn={fpsOverlay}
+              onToggleFps={toggleFps}
+            />
+          )}
+          {stage === 'shop' && (
+            <ShopScreen
+              royal
+              openKey={shopKey}
+              startTab={shopTab}
+              creatures={creatures}
+              profile={profile}
+              offers={offers}
+              hidden={hidden}
+              setRewards={setRewards}
+              rainbow={rainbow}
+              onSeenOffer={seenOffer}
+              onBuyProduct={purchase}
+              priceOf={priceOf}
+              onBack={goHome}
+            />
           )}
           {stage === 'stats' && (
             <StatsScreen creatures={counted} customCreatures={customCreatures} profile={profile} onBack={goHome} />
@@ -1308,6 +1444,7 @@ export default function App() {
       {tester && fpsOverlay ? <FpsCounter /> : null}
       {/* the guided tutorial's coach marks, over everything */}
       <TutorialGuide onAction={tutorial.onAction} />
+      {__DEV__ && royal ? <RoyalGallery onClose={closeRoyal} /> : null}
     </SafeAreaProvider>
   );
 }

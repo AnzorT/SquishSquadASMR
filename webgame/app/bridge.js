@@ -17,6 +17,7 @@
   var ls = window.localStorage;
   var rawSet = Storage.prototype.setItem;
   var quiet = 0; // > 0 while this file writes, so its own writes aren't reported back to the app
+  var asks = {}, askSeq = 0; // App.ask: the requests waiting for the app's answer
 
   function readJSON(k) { try { return JSON.parse(ls.getItem(k)); } catch (e) { return null; } }
   function write(k, v) { quiet++; try { rawSet.call(ls, k, typeof v === 'string' ? v : JSON.stringify(v)); } catch (e) { /* storage full */ } quiet--; }
@@ -44,6 +45,7 @@
       if (msg.type === 'state') { App.state = Object.assign({}, App.state, msg.state); applyLive(msg.state || {}); }
       if (msg.type === 'config') App.config = msg.config || {};
       if (msg.type === 'screen') App.screen = msg.screen;
+      if (msg.type === 'answer' && asks[msg.id]) asks[msg.id](msg);
       App.emit(msg.type, msg);
     },
     // Android back button: close what's on top (the house, a game, the games page, the picker), like its own back
@@ -58,6 +60,17 @@
       App.send('backUnhandled');
       return false;
     },
+    // A request to the app (REDESIGN_V7): the app does it (a server move, a purchase, an ad…) and answers.
+    // → Promise of the app's result; rejects with an Error whose message is the app's error code.
+    // what: 'squad' { move, args } · 'buy' { key } · 'price' { keys } (more as the pages need them; GameScreen onAsk)
+    ask: function (what, payload, timeoutMs) {
+      var id = ++askSeq;
+      return new Promise(function (resolve, reject) {
+        var t = setTimeout(function () { delete asks[id]; reject(new Error('timeout')); }, timeoutMs || 60000);
+        asks[id] = function (m) { clearTimeout(t); delete asks[id]; if (m.ok) resolve(m.result); else reject(new Error(m.error || 'failed')); };
+        App.send('ask', { id: id, what: what, payload: payload === undefined ? null : payload });
+      });
+    },
     // roster id <-> key
     idOf: function (key) { var i = KEYS.indexOf(key); return i < 0 ? null : i; },
     keyOf: function (id) { return KEYS[id] || null; },
@@ -65,7 +78,9 @@
   window.SquishApp = App;
 
   // ---- 1. the app's player -> the engines' localStorage (before they load) ----
-  var lastCoins = null, lastSel = null;
+  // seeded: the app's player has been written in. Until then nothing the engines save is the player's choice (on a
+  // late start the menu saves its demo pick, Mittens, first) and none of it may go to the app as one.
+  var lastCoins = null, lastSel = null, seeded = false;
   function seed(st) {
     if (!st || !App.inApp && !window.__squishOutbox) return; // a plain browser keeps the prototype's own demo save
     var p = readJSON(PROFILE) || {};
@@ -91,6 +106,7 @@
       var sid = App.idOf(st.sel), lb = readJSON(LOBBY) || { seen: [] };
       if (sid != null) { lb.sel = sid; lastSel = sid; write(LOBBY, lb); }
     }
+    if (st.sel || st.owned || typeof st.coins === 'number') seeded = true;   // (an empty state: the app's data isn't here yet)
     if (typeof st.house === 'string' && st.house) write(HOUSE, st.house);
   }
   seed(App.state);
@@ -101,18 +117,18 @@
   Storage.prototype.setItem = function (k, v) {
     rawSet.call(this, k, v);
     if (quiet || this !== ls) return;
-    if (k === PROFILE) {
+    if (k === PROFILE && seeded) {
       var p = null; try { p = JSON.parse(v); } catch (e) { /* not ours */ }
       if (p && typeof p.coins === 'number' && p.coins !== lastCoins) {
         var delta = lastCoins == null ? 0 : p.coins - lastCoins;
         lastCoins = p.coins;
         App.send('coins', { coins: p.coins, delta: delta });
       }
-    } else if (k === LOBBY) {
+    } else if (k === LOBBY && seeded) {
       // the creature picked on the menu (CREATURES): the app keeps it as the player's selected squishy
       var lb = null; try { lb = JSON.parse(v); } catch (e) { /* not ours */ }
       if (lb && lb.sel != null && lb.sel !== lastSel) { lastSel = lb.sel; App.send('select', { id: lb.sel, key: App.keyOf(lb.sel) }); }
-    } else if (k === HOUSE) {
+    } else if (k === HOUSE && seeded) {
       // the house saves on every change: tell the app once things settle
       clearTimeout(houseT);
       houseT = setTimeout(function () { App.send('house', { data: ls.getItem(HOUSE) }); }, 1500);
@@ -144,6 +160,27 @@
       try { window.SquishProfile.set({ level: st.level }); } finally { quiet--; }
       if (window.__sh && window.__sh.setLv) try { window.__sh.setLv(st.level); } catch (e) { /* house not mounted */ }
     }
+  }
+
+  // Android's WebView runs the app's injectedJavaScriptBeforeContentLoaded when the page starts, which can be after
+  // this file has run. Then window.__SQUISH_INIT__ arrives late: take it when it lands (the start screen, the config,
+  // the player), and tell the menu if it should open in the Game Park.
+  if (!window.__SQUISH_INIT__) {
+    var lateInit;
+    try {
+      Object.defineProperty(window, '__SQUISH_INIT__', { configurable: true, enumerable: true, get: function () { return lateInit; }, set: function (v) {
+        lateInit = v; if (!v) return;
+        if (!App.screen && v.screen) App.screen = v.screen;
+        if (v.config && !Object.keys(App.config || {}).length) App.config = v.config;
+        if (v.state) {
+          App.state = Object.assign({}, v.state, App.state); seed(v.state); applyLive(v.state);
+          // the engines cache what they read before: tell them the save changed (as another tab would), so the menu
+          // shows the app's character, collection and wallet, not the demo save it started with
+          [PROFILE, COLLECTION, LOBBY, HOUSE].forEach(function (k) { try { window.dispatchEvent(new StorageEvent('storage', { key: k })); } catch (e) { /* old WebView */ } });
+        }
+        if (v.screen === 'park' && window.SquishMenu && window.SquishMenu._x) window.SquishMenu.mounted(window.SquishMenu._x);
+      } });
+    } catch (e) { /* defined already */ }
   }
 
   window.addEventListener('error', function (e) { App.send('error', { message: String(e.message || e), file: e.filename, line: e.lineno }); });

@@ -5,7 +5,8 @@
 import callFunction from '../firebase/callFunction';
 import { tzOffsetMinutes } from '../dailySpin';
 
-async function move(name, args = {}) {
+// (exported for the menu's pages: webgame App.ask('squad', { move, args }) → App.js handleGameAsk)
+export async function move(name, args = {}) {
   const res = await callFunction('squad', { move: name, ...args, tzOffsetMinutes: tzOffsetMinutes() });
   if (res && res.error) throw new Error(res.error);
   return res;

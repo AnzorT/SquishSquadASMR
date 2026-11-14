@@ -5,7 +5,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler, Platform, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
-import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
 import { gameCoins, loadHouse, saveHouse, subscribeToGameConfig } from './gameData';
 
@@ -19,7 +18,11 @@ const toJs = (v) => JSON.stringify(v).split(LS).join('\\u2028').split(PS).join('
 
 // player: what the game shows of the player (src/game/player.js gamePlayer): level, coins, gems, owned creature keys,
 // their collection entries, the selected one, the creatures not out (groups switched off), the app's games list.
-export default function GameScreen({ uid, player, wantHouse, onHouseShown, onShop, onSettings, onPlay, onSelect }) {
+// startScreen: 'park' opens the menu in its Game Park (back from a game started there), else the menu.
+// onClaim({ lv, all }): a Level Pass claim; resolves { ok, error } or { road: true } (a chest: the app opened its level road).
+// onAsk(what, payload): a page's request (App.ask in webgame/app/bridge.js); resolves its result, rejects with an error code.
+// page: { name, opts? } — open that menu page (a new object each time it should open).
+export default function GameScreen({ uid, player, startScreen = 'menu', onStarted, wantHouse, onHouseShown, onShop, onSettings, onPlay, onSelect, onClaim, onAsk, page }) {
   const web = useRef(null);
   const ready = useRef(false);
   const queue = useRef([]);
@@ -47,13 +50,7 @@ export default function GameScreen({ uid, player, wantHouse, onHouseShown, onSho
     };
   }, []);
 
-  // landscape while the game is on screen; the rest of the app is portrait
-  useEffect(() => {
-    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
-    return () => {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
-    };
-  }, []);
+  // (landscape: App.js decides the orientation for every screen, REDESIGN_V7)
 
   const send = useCallback((msg) => {
     if (!ready.current || !web.current) {
@@ -67,9 +64,12 @@ export default function GameScreen({ uid, player, wantHouse, onHouseShown, onSho
   const state = player;
   const startRef = useRef(null);
   if (!startRef.current && house !== undefined && config) {
-    startRef.current = { screen: 'menu', state: { ...state, house: house || undefined }, config };
+    startRef.current = { screen: startScreen === 'park' ? 'park' : 'menu', state: { ...state, house: house || undefined }, config };
   }
   const start = startRef.current;
+  useEffect(() => {
+    if (start && onStarted) onStarted();
+  }, [start, onStarted]);
 
   useEffect(() => {
     if (start) send({ type: 'state', state });
@@ -82,6 +82,11 @@ export default function GameScreen({ uid, player, wantHouse, onHouseShown, onSho
     send({ type: 'screen', screen: 'house' });
     onHouseShown && onHouseShown();
   }, [wantHouse, start, send, onHouseShown]);
+
+  // the app asks for a menu page (e.g. the Shop)
+  useEffect(() => {
+    if (page && page.name && start) send({ type: 'page', name: page.name, opts: page.opts || null });
+  }, [page, start, send]);
 
   // Android back: the game closes what's on top (house, a game, the games page); nothing open -> leave the app
   useEffect(() => {
@@ -117,8 +122,21 @@ export default function GameScreen({ uid, player, wantHouse, onHouseShown, onSho
           else if (p.what === 'settings') onSettings && onSettings();
           break;
         case 'play':
-          // p.mode: 'squish' (Squish Time) or an app game id ('squishdoku', 'sort', 'stack', 'hop')
-          onPlay && onPlay(p.mode, p.key);
+          // p.mode: 'squish' (Squish Time) or an app game id ('squishdoku', 'sort', 'stack', 'hop'); p.from: 'park' or 'menu'
+          onPlay && onPlay(p.mode, p.key, p.from);
+          break;
+        case 'ask':
+          // a page's request: do it, answer with its id
+          Promise.resolve()
+            .then(() => (onAsk ? onAsk(p.what, p.payload || {}) : Promise.reject(new Error('unavailable'))))
+            .then((result) => send({ type: 'answer', id: p.id, ok: true, result: result === undefined ? null : result }))
+            .catch((err) => send({ type: 'answer', id: p.id, ok: false, error: (err && err.message) || 'failed' }));
+          break;
+        case 'claim':
+          // the Level Pass: CLAIM on one level (p.lv) or CLAIM ALL (p.all)
+          Promise.resolve(onClaim ? onClaim(p) : { ok: false, error: 'unavailable' })
+            .catch((err) => ({ ok: false, error: (err && err.message) || 'failed' }))
+            .then((r) => send({ type: 'claimed', lv: p.lv, all: !!p.all, ...(r || {}) }));
           break;
         case 'select':
           onSelect && onSelect(p.key);
@@ -133,7 +151,7 @@ export default function GameScreen({ uid, player, wantHouse, onHouseShown, onSho
           break;
       }
     },
-    [uid, send, onShop, onSettings, onPlay, onSelect]
+    [uid, send, onShop, onSettings, onPlay, onSelect, onClaim, onAsk]
   );
 
   // the page's process died (low memory): start it again

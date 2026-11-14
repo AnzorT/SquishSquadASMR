@@ -18,6 +18,7 @@ import { todayKey } from '../dailySpin';
 import sfx from '../audio/sfx';
 import { fmtNum } from '../format';
 import { roadView, xpView } from '../playerXp';
+import { Lettering, Orb, PageBg } from '../royal';
 
 // The level road (PLAYER_XP.md): the player's level and XP bar, and a prize
 // at every level on the road (config/levels `road`), each claimed once
@@ -271,13 +272,19 @@ function LevelRoadScreen({ profile, levels, creatures, hidden = HIDDEN, autoClai
     [nodes.length, view.level, group, busy, toNext, claim, onIcon],
   );
 
+  // landscape (REDESIGN_V7 step 3): the level card and CLAIM ALL on the left, the road on the right, on the new look's page
+  const wide = winW > winH;
+  const Bg = wide ? WideBg : CandyBackground;
   return (
-    <CandyBackground style={{ paddingTop: insets.top }}>
+    <Bg style={wide ? null : { paddingTop: insets.top }}>
+      <View style={wide ? styles.wSide : null}>
       <View style={styles.header}>
-        <RoundButton size={36} onPress={onBack}>
-          <BackGlyph />
-        </RoundButton>
-        <OutlinedTitle text="LEVEL ROAD" fill="pink" size={winW < 380 ? 16 : 20} outline={3} ring={2} drop={5} />
+        {wide ? <Orb icon="back" onPress={onBack} /> : (
+          <RoundButton size={36} onPress={onBack}>
+            <BackGlyph />
+          </RoundButton>
+        )}
+        {wide ? <Lettering text="Level Road" variant="gold" size={26} /> : <OutlinedTitle text="LEVEL ROAD" fill="pink" size={winW < 380 ? 16 : 20} outline={3} ring={2} drop={5} />}
         <View style={styles.purses}>
           <Purse ref={coinPurse} amount={w.coins} />
           <Purse ref={gemPurse} gem amount={w.gems} />
@@ -309,7 +316,9 @@ function LevelRoadScreen({ profile, levels, creatures, hidden = HIDDEN, autoClai
           </CandyBtn>
         ) : null}
       </View>
+      </View>
       <FlatList
+        style={wide ? styles.wList : null}
         data={nodes}
         keyExtractor={(n) => String(n.lv)}
         renderItem={renderItem}
@@ -339,11 +348,24 @@ function LevelRoadScreen({ profile, levels, creatures, hidden = HIDDEN, autoClai
         </View>
       )}
       {drop && <ChestDrop key={drop.key} group={drop.group} size={drop.size} onReveal={() => setDrop((d) => d && { ...d, reveal: true })} onDone={() => setDrop(null)} />}
-    </CandyBackground>
+    </Bg>
+  );
+}
+
+// the new look's page behind the road in landscape
+function WideBg({ children }) {
+  return (
+    <View style={styles.wRoot}>
+      <PageBg />
+      {children}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wRoot: { flex: 1, flexDirection: 'row', backgroundColor: '#24123f' },
+  wSide: { width: '42%', paddingTop: 6 },
+  wList: { flex: 1, paddingTop: 10 },
   lock: { width: 12, height: 13, alignItems: 'center' },
   lockShackle: { width: 6.6, height: 5.2, marginTop: 0.6, borderWidth: 1.7, borderBottomWidth: 0, borderColor: '#9a87b5', borderTopLeftRadius: 3.3, borderTopRightRadius: 3.3 },
   lockBody: { width: 9.2, height: 6.5, borderRadius: 1.8, backgroundColor: '#9a87b5' },

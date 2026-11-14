@@ -20,6 +20,8 @@ import { CHEST_COINS, STREAK_BONUS, STREAK_DAYS, dailyView, streakReward, streak
 import sfx from '../audio/sfx';
 import { Bone, BoneCard, Reveal } from '../components/Skeleton';
 import { useScreenReady } from '../components/ScreenLayer';
+import { Lettering, Orb, PageBg } from '../royal';
+import { useWindowDimensions } from 'react-native';
 
 // The daily streak's own screen (the rules are src/progression.js: the
 // streak grows each day the daily chest is opened, every chest pays that
@@ -327,6 +329,52 @@ function StreakScreen({ profile, mascot, intro = false, onClose, onOpenDaily }) 
     ? `${v.streak} ${v.streak === 1 ? 'day' : 'days'} in a row! Don’t let the fire go out!`
     : `${name} wants to light the fire. Open today’s chest!`;
 
+  // landscape, the new look (REDESIGN_V7 step 4): the hero, today and the buttons on the left, the prizes on the right
+  const win = useWindowDimensions();
+  if (win.width > win.height) {
+    const footer = (
+      <View style={styles.wFoot}>
+        {!v.chestDone ? (
+          <CandyButton variant="gold" size="lg" pulse label={intro ? 'LET’S GO!' : 'DAILY CHALLENGES'} onPress={onOpenDaily} />
+        ) : intro ? (
+          <CandyButton variant="blue" size="lg" label="CONTINUE" onPress={onClose} />
+        ) : null}
+        {intro && !v.chestDone ? (
+          <Pressable onPress={onClose} hitSlop={10} style={({ pressed }) => [styles.later, pressed && { opacity: 0.6 }]}>
+            <HaloText style={styles.laterText}>Later</HaloText>
+          </Pressable>
+        ) : null}
+      </View>
+    );
+    return (
+      <View style={styles.wRoot}>
+        <PageBg />
+        <View style={styles.wLeft}>
+          <View style={styles.wHead}>
+            {intro ? null : <Orb icon="back" onPress={onClose} />}
+            <Lettering text="Daily Streak" variant="gold" size={26} />
+          </View>
+          <ScrollView contentContainerStyle={{ gap: 10, paddingBottom: 8 }} showsVerticalScrollIndicator={false}>
+            <Hero streak={v.streak} mascot={null} line={line} />
+            <TodayCard v={v} todayDay={todayDay} />
+          </ScrollView>
+          {footer}
+        </View>
+        <ScrollView style={styles.wRight} contentContainerStyle={{ gap: 12, paddingVertical: 14, paddingRight: 8 }} showsVerticalScrollIndicator={false}>
+          <View style={styles.sectionHead}>
+            <HaloText style={styles.sectionTitle}>THE DAILY PRIZES</HaloText>
+            <HaloText style={styles.sectionNote}>{`Every chest: ${CHEST_COINS} coins + 1 token + the day’s prize`}</HaloText>
+          </View>
+          <View style={styles.grid}>
+            {tiles.map((d, i) => (
+              <DayTile key={d.n} day={d} enter={enter} i={i} />
+            ))}
+          </View>
+          <Jackpot day={jackpot} enter={enter} />
+        </ScrollView>
+      </View>
+    );
+  }
   return (
     <CandyBackground sparkles style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -374,6 +422,12 @@ function StreakScreen({ profile, mascot, intro = false, onClose, onOpenDaily }) 
 }
 
 const styles = StyleSheet.create({
+  // landscape (REDESIGN_V7)
+  wRoot: { flex: 1, flexDirection: 'row', backgroundColor: '#24123f', paddingHorizontal: 16, gap: 18 },
+  wLeft: { width: '40%', paddingTop: 10, paddingBottom: 10 },
+  wHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
+  wFoot: { alignItems: 'center', gap: 6, paddingTop: 6 },
+  wRight: { flex: 1 },
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   headerSide: { width: 36 },

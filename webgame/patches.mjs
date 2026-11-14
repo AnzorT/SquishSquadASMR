@@ -120,6 +120,106 @@ export const PATCHES = [
     find: "if (page && page.contains(mid)) openGames(); }, 0);",
     replace: "if (page && page.contains(mid)) openGames(opts._yard ? 'yard' : undefined); }, 0);",
   },
+  // ---- round 11 (2026-11-14, the user's requests): app/menu.js does the new parts; these hand it the menu's insides ----
+  {
+    file: 'main-menu.js',
+    why: 'app/menu.js gets the menu\'s insides (its layers, creature, state, helpers) and is told when the menu is up',
+    find: '    draw(); layout(); mountRig();',
+    replace: String.raw`    opts._x = { root, frame, world, scene, hots, stage, name, veil, hud, ov, fade, cre, selId, mountRig, nameDraw, hudDraw, draw, layout, toast, pageOpen, closePage, games, open, playGame, fitFT, Q, Lb, Sc,
+      get geo() { return geo; }, get k() { return k; }, get busy() { return busy; }, set busy(v) { busy = v; }, get inside() { return inside; },
+      get ctrl() { return ctrl; }, get sh() { return sh; }, get st() { return st; }, set preview(v) { preview = v; } };
+    draw(); layout(); mountRig();
+    if (window.SquishMenu && window.SquishMenu.mounted) window.SquishMenu.mounted(opts._x);`,
+  },
+  {
+    file: 'main-menu.js',
+    why: 'CREATURES is CHARACTERS (the user)',
+    find: "tab('creatures', 'CREATURES', ",
+    replace: "tab('creatures', 'CHARACTERS', ",
+  },
+  {
+    file: 'main-menu.js',
+    why: 'no GAMES tab (the user): PLAY is the way to the games',
+    find: "+ tab('games', 'GAMES', 'M6 9h12a3 3 0 0 1 3 3v2a3 3 0 0 1-5.4 1.8L14.5 14h-5l-1.1 1.8A3 3 0 0 1 3 14v-2a3 3 0 0 1 3-3Z M8 11v3 M6.5 12.5h3', 'v-vel')",
+    replace: '',
+  },
+  {
+    file: 'main-menu.js',
+    why: 'no "Let\'s play / Mini Games" board (the user): PLAY stays, on its own',
+    find: String.raw`+ '<div class="mm-card mm-p v-vel">' + STARG + gems() + '<div class="k">LET\'S PLAY</div><div class="ttl">' + ft('Mini Games', 'gold', 21) + '</div>'`,
+    replace: String.raw`+ '<div class="mm-card sq-solo">'`,
+  },
+  {
+    file: 'main-menu.js',
+    why: 'the board\'s "All 5 games ready!" line goes with it',
+    find: String.raw`+ '<div class="sub">' + (nOpen === G.length ? 'All ' + G.length + ' games ready!' : nOpen + ' ready · ' + (G.length - nOpen) + ' open at Lv ' + Sc.ROOMS.backyard.lv) + '</div>'`,
+    replace: '',
+  },
+  {
+    file: 'main-menu.js',
+    why: 'and so do its game icons',
+    find: String.raw`+ '<div class="icons">' + G.slice(0, 8).map(g => '<i class="' + (open(g) ? '' : 'lk') + '" title="' + esc(g.name) + '">' + (g.icon || squishIcon()) + '</i>').join('') + '</div>'`,
+    replace: '',
+  },
+  {
+    file: 'main-menu.js',
+    why: 'PLAY on its own: bigger, with a glint running across it',
+    find: String.raw`'<button class="mm-play mm-p tip v-gold" data-act="play" aria-label="Play">' + ft('PLAY', 'whiteB', 30) + '</button></div>'`,
+    replace: String.raw`'<button class="mm-play mm-p tip v-gold" data-act="play" aria-label="Play"><span class="sq-glint"></span>' + ft('PLAY', 'whiteB', 34) + '</button></div>'`,
+  },
+  {
+    file: 'main-menu.js',
+    why: 'no "Cozy home" / "Next: room" pills (the user); the crest is alive (app/menu.js) and opens the Level Pass',
+    find: String.raw`+ '<div class="mm-lv"><div class="tag"><div class="h mm-p tip v-gold" data-act="house">' + st.tierName + '</div>' + (st.next ? '<div class="n mm-p tip v-vel" data-act="house"><span class="tx-w" style="display:flex;align-items:center;gap:4px">' + LOCK + 'Next: ' + st.next.name + ' · Lv ' + st.next.lv + '</span></div>' : '<div class="n mm-p tip v-vel" data-act="house"><span class="tx-w">Every room is open!</span></div>') + '</div><div data-act="house">' + crest(st.L) + '</div></div>';`,
+    replace: String.raw`+ '<div class="mm-lv"><div class="sq-crest" data-act="level" role="button" aria-label="Level Pass">' + (window.SquishMenu ? window.SquishMenu.crest(st.L, crest) : crest(st.L)) + '</div></div>';`,
+  },
+  {
+    file: 'main-menu.js',
+    why: 'CHARACTERS opens the full Characters screen (app/menu.js), not the small picker',
+    find: "if (t === 'creatures') openPicker();",
+    replace: "if (t === 'creatures') { if (!(window.SquishMenu && window.SquishMenu.characters(opts._x))) openPicker(); }",
+  },
+  {
+    file: 'main-menu.js',
+    why: 'PLAY walks to the Game Park (app/menu.js); the crest opens the Level Pass',
+    find: "        if (a === 'play') openGames();",
+    replace: "        if (a === 'level') { if (window.SquishMenu) window.SquishMenu.levels(opts._x); else goHome('living'); }\n        else if (a === 'play') { if (!(window.SquishMenu && window.SquishMenu.play(opts._x))) openGames(); }",
+  },
+  {
+    file: 'main-menu-scene.js',
+    why: 'no "Lv n · room" sign hanging on each locked part of the house (the user: not needed). The boards stay, so locked still shows.',
+    find: '  function lockSign(x, y, lv, name, sc) {\n',
+    replace: '  function lockSign(x, y, lv, name, sc) {\n    if (window.SquishMenu) return \'\';\n',
+  },
+  {
+    file: 'main-menu-scene.js',
+    why: 'a road from the creature\'s pad to the left edge, where it joins the Game Park\'s road (the user: connect them)',
+    find: '    // the pad the creature stands on (a soft lit stone)\n',
+    replace: '    if (window.SquishMenu && window.SquishMenu.houseRoad) g += window.SquishMenu.houseRoad(st, c0, c1, mix);\n    // the pad the creature stands on (a soft lit stone)\n',
+  },
+  {
+    file: 'main-menu-scene.js',
+    why: 'no stone pad (the user: "the carpet") under the creature: it stands on the path',
+    find: "    g += '<ellipse cx=\"500\" cy=\"420\" rx=\"118\" ry=\"24\" fill=\"url(#mmPadGlow)\"/>",
+    replace: "    if (!window.SquishMenu) g += '<ellipse cx=\"500\" cy=\"420\" rx=\"118\" ry=\"24\" fill=\"url(#mmPadGlow)\"/>",
+  },
+  {
+    file: 'main-menu-scene.js',
+    why: 'the front-left bush stood where that road runs: it moves to the roadside, below it',
+    find: 'g += bush(40, 420, 1.4, st, 21) + ',
+    replace: 'g += bush(40, 466, 1.4, st, 21) + ',
+  },
+  {
+    file: 'main-menu-scene.js',
+    why: 'the Game Park (left of the house): the same sky, grass, trees and weather, drawn by app/menu.js',
+    find: '    let g = defs + sky(st) + ground(st);',
+    replace: String.raw`    if (st.park && window.SquishMenu && window.SquishMenu.parkArt) {
+      let pg = defs + window.SquishMenu.parkArt(st, { sky, ground, tree, bush, palm, weather, mix, rnd, SS });
+      const pu = 'mm' + (++UID) + '_'; pg = pg.replace(/(id="|url\(#)mm/g, '$1' + pu);
+      return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 460" preserveAspectRatio="xMidYMax slice" width="100%" height="100%" style="display:block">' + pg + '</svg>';
+    }
+    let g = defs + sky(st) + ground(st);`,
+  },
 ];
 
 export function applyPatches(rel, text) {

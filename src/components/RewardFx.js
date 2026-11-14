@@ -213,9 +213,10 @@ export function ChestDrop({ group, size, onReveal, onDone }) {
   const scaleY = squash.interpolate({ inputRange: [0, 1], outputRange: [1, 0.8] });
   // the art is 480 × 400 with the chest about half its width, its middle at
   // 58% of the height; the smash's chest sits at about 61% of the screen
-  const w = Math.min(width * 0.78, 400);
+  // (landscape: sized by the height, so it doesn't run off the bottom)
+  const w = Math.min(width * 0.78, 400, height * 0.62);
   const h = (w * 400) / 480;
-  const cy = height * 0.61;
+  const cy = height * (width > height ? 0.56 : 0.61);
   return (
     <Animated.View style={[StyleSheet.absoluteFill, { opacity: out }]}>
       <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, { opacity: scrim }]} />

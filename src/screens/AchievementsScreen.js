@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, PanResponder } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, PanResponder, useWindowDimensions } from 'react-native';
 import Pressable from '../components/Pressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +18,7 @@ import { Bone, Reveal, useProgressive } from '../components/Skeleton';
 import { useScreenReady } from '../components/ScreenLayer';
 import sfx from '../audio/sfx';
 import { fmtNum } from '../format';
+import { Lettering, Orb, PageBg, Plaque, Stage, FONT as RFONT } from '../royal';
 
 // Achievements, as the v3 design's carousel: one big badge at a time under
 // spinning rays and a pulsing halo, neighbours fanned out smaller to either
@@ -301,6 +302,38 @@ function AchievementsScreen({ creatures = [], profile = null, customCount = 0, o
     badges.push(<Badge key={entries[i].key} entry={entries[i]} index={i} move={move} fade={fade} z={50 - Math.abs(i - index)} live={i === index} onSelect={select} />);
   }
 
+  // landscape, the new look (REDESIGN_V7 step 3): the badge carousel on the left, its details on the right
+  const wide = useWindowDimensions().width > useWindowDimensions().height;
+  if (wide)
+    return (
+      <View style={styles.wRoot}>
+        <PageBg />
+        <Stage>
+          <View style={styles.wHead}>
+            <Orb icon="back" onPress={onBack} />
+            <Lettering text="Achievements" variant="gold" size={30} />
+            <View style={styles.wTotal}>
+              <CandyProgress pct={(doneCount / Math.max(1, entries.length)) * 100} height={12} />
+            </View>
+            <Text style={styles.wCount}>{`${doneCount} / ${entries.length}`}</Text>
+          </View>
+          <View style={styles.wStage} {...pan.panHandlers}>
+            <View style={styles.center} pointerEvents="none">
+              <RaysSpin size={330} durationMs={12000} rayDeg={9} gapDeg={13} opacity={0.4} fadeStart={0.14} fadeEnd={0.62} />
+              <Halo />
+            </View>
+            <View style={styles.center}>{ready ? badges : null}</View>
+            <Orb icon="left" onPress={() => go(index - 1)} style={[styles.wArrow, { left: 8, opacity: index === 0 ? 0.4 : 1 }]} />
+            <Orb icon="right" onPress={() => go(index + 1)} style={[styles.wArrow, { right: 8, opacity: index === entries.length - 1 ? 0.4 : 1 }]} />
+          </View>
+          {current ? (
+            <Plaque variant="vel" radius={22} rim={3.5} ring={2} lip={4} style={styles.wPanel}>
+              <Details key={current.key} entry={current} index={index} total={entries.length} />
+            </Plaque>
+          ) : null}
+        </Stage>
+      </View>
+    );
   return (
     <CandyBackground style={{ paddingTop: insets.top }}>
       <View style={styles.header}>
@@ -376,6 +409,14 @@ function AchievementsScreen({ creatures = [], profile = null, customCount = 0, o
 const SLOT = BADGE + RING * 2;
 
 const styles = StyleSheet.create({
+  // landscape (REDESIGN_V7), in the design's 393-tall units
+  wRoot: { ...StyleSheet.absoluteFillObject, backgroundColor: '#24123f' },
+  wHead: { position: 'absolute', left: 16, right: 16, top: 12, height: 46, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  wTotal: { flex: 1, marginLeft: 12, maxWidth: 300 },
+  wCount: { fontFamily: RFONT.bodyBlack, fontSize: 15, color: '#ffe27a', textShadowColor: '#3d1268', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 0.1 },
+  wStage: { position: 'absolute', left: 16, width: 470, top: 66, bottom: 10, overflow: 'hidden' },
+  wArrow: { position: 'absolute', top: '46%', marginTop: -20, zIndex: 60 },
+  wPanel: { position: 'absolute', right: 24, top: 82, bottom: 24, left: 506, paddingHorizontal: 16, justifyContent: 'center' },
   fill: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   count: {

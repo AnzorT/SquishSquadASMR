@@ -47,7 +47,7 @@ const all = new Set();
 const add = s => s.forEach(f => all.add(f));
 add(await run('menu', 'App.dc.html', VIEWPORTS.design, [
   ['loaded', wait(9000)],
-  ['games', async p => { await p.click('.mm-tab >> nth=3'); await p.waitForTimeout(2500); }],
+  ['park', async p => { await p.click('.mm-play'); await p.waitForTimeout(5000); }],
 ]));
 add(await run('menu-pixel9', 'App.dc.html', VIEWPORTS.pixel9, [['loaded', wait(9000)]]));
 add(await run('house', 'App.dc.html?screen=house', VIEWPORTS.design, [['loaded', wait(30000)]]));

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useGameDims } from '../royal/GameFrame';
 import { Animated, AppState, BackHandler, Easing, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import sfx from '../audio/sfx';
@@ -29,7 +30,7 @@ import { saveSquishdoku } from '../firebase/firestore';
 // stack/roster.js castOf, drawn by their cut-outs).
 
 export default function RegularGame({ startLv, profile, uid, roster, cast = [], head = false, buddyKey, buddyUri, haptics: hapticsOn = true, onExit }) {
-  const { width, height } = useWindowDimensions();
+  const { width, height } = useGameDims(); // (the game panel in landscape: REDESIGN_V7)
   const insets = useSafeAreaInsets();
   // the board's creatures: the player's own (all of them if they own none)
   const castRef = useRef(cast);

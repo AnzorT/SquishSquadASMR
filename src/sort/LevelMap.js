@@ -1,4 +1,5 @@
 import React, { memo, useEffect, useMemo, useRef } from 'react';
+import { useGameDims } from '../royal/GameFrame';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
@@ -109,7 +110,7 @@ const Node = memo(function Node({ lv, tier, x, y, state, stars, delay, onPress, 
 // list: [{ band, tier, … }] a level each; bannerOf(level) names its band,
 // iconOf(level) draws its picture (or null)
 function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelves, iconOf }) {
-  const { width } = useWindowDimensions();
+  const { width } = useGameDims(); // (the game panel in landscape: REDESIGN_V7)
   const scroll = useRef(null);
   const cur = rec.lv;
   const LEVELS = list.length;

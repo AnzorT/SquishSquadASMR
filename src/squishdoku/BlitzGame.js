@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useGameDims } from '../royal/GameFrame';
 import { Animated, AppState, BackHandler, Easing, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useRewardedAd from '../components/useRewardedAd';
@@ -28,7 +29,7 @@ const ROOM = 'dance';
 const BOARDS = BLITZ_SIZES.length;
 export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, head = false, buddyKey, buddyUri, haptics: hapticsOn = true, onExit }) {
   const RUN_MS = blitzMs(head);
-  const { width, height } = useWindowDimensions();
+  const { width, height } = useGameDims(); // (the game panel in landscape: REDESIGN_V7)
   const insets = useSafeAreaInsets();
   const castRef = useRef(cast);
   castRef.current = cast;

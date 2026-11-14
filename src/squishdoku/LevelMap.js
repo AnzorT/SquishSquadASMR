@@ -1,4 +1,5 @@
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { useGameDims } from '../royal/GameFrame';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import sfx from '../audio/sfx';
@@ -124,7 +125,7 @@ const Node = memo(function Node({ lv, x, y, state, stars, perfect, heads, delay,
 });
 
 function LevelMap({ rec, roster, onPlay, justUnlocked }) {
-  const { width } = useWindowDimensions();
+  const { width } = useGameDims(); // (the game panel in landscape: REDESIGN_V7)
   const scroll = useRef(null);
   const cur = Math.min(rec.lv, LEVELS); // the next level to beat
   const [chapter, setChapter] = useState(() => chapterOf(justUnlocked || cur));

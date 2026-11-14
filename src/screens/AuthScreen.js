@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, KeyboardAvoidingView, ScrollView, Platform, StyleSheet, Animated, Easing, LayoutAnimation, UIManager } from 'react-native';
+import { View, Text, TextInput, KeyboardAvoidingView, ScrollView, Platform, StyleSheet, Animated, Easing, LayoutAnimation, UIManager, useWindowDimensions } from 'react-native';
 import Pressable from '../components/Pressable';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -167,6 +167,8 @@ function Tick() {
 }
 
 export default function AuthScreen() {
+  const winA = useWindowDimensions();
+  const wide = winA.width > winA.height;
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [ageInput, setAgeInput] = useState('');
   const [blocked, setBlocked] = useState(false);
@@ -258,12 +260,22 @@ export default function AuthScreen() {
     setBlocked(false);
   };
 
+  // landscape (REDESIGN_V7): Mittens, the title and the line on the left; the card, scrolling, on the right
   return (
     <IntroBackground>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <RigCreature creatureKey="mittens" style={styles.mittens} />
-          <ShadowText
+      <KeyboardAvoidingView style={[styles.flex, wide && styles.wideRow]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {wide ? (
+          <View style={styles.wideHero}>
+            <RigCreature creatureKey="mittens" style={styles.mittensWide} />
+            <ShadowText style={styles.title} shadows={[[0, 4, PURPLE], [2.5, 0, PURPLE], [-2.5, 0, PURPLE], [0, -2.5, PURPLE]]}>
+              Squish Squad
+            </ShadowText>
+            <Text style={styles.sub}>Log in or make an account to save your squad.</Text>
+          </View>
+        ) : null}
+        <ScrollView style={wide ? styles.wideCard : null} contentContainerStyle={[styles.scrollContent, wide && styles.scrollWide]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          {wide ? null : <RigCreature creatureKey="mittens" style={styles.mittens} />}
+          {wide ? null : <ShadowText
             style={styles.title}
             shadows={[
               [0, 4, PURPLE],
@@ -273,9 +285,9 @@ export default function AuthScreen() {
             ]}
           >
             Squish Squad
-          </ShadowText>
+          </ShadowText>}
           {/* one line for both modes: it stays put while the card changes */}
-          <Text style={styles.sub}>Log in or make an account to save your squad.</Text>
+          {wide ? null : <Text style={styles.sub}>Log in or make an account to save your squad.</Text>}
 
           <View style={styles.cardLip}>
             <View style={styles.card}>
@@ -387,6 +399,11 @@ const SOCIALS = [
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  wideRow: { flexDirection: 'row' },
+  wideHero: { width: '40%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  mittensWide: { width: 150, height: 150, marginBottom: -6 },
+  wideCard: { flex: 1 },
+  scrollWide: { paddingVertical: 18, paddingRight: 28, paddingLeft: 6 },
   mittens: { width: 130, height: 130, alignSelf: 'center', marginBottom: -6 },
   orRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
   orLine: { flex: 1, height: 2, borderRadius: 1, backgroundColor: '#ece0f8' },

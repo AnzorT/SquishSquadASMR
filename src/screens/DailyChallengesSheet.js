@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { useWindowDimensions, View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Rect, Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -75,6 +75,8 @@ function Section({ title, right, rows, onClaim }) {
 
 function DailyChallengesSheet({ visible, profile, onClose, onClaim, onClaimChest, onOpenCrib }) {
   const insets = useSafeAreaInsets();
+  const winD = useWindowDimensions();
+  const wideNow = winD.width > winD.height; // landscape (REDESIGN_V7)
   const [clock, setClock] = useState(() => new Date());
   useEffect(() => {
     if (!visible) return undefined;
@@ -90,7 +92,8 @@ function DailyChallengesSheet({ visible, profile, onClose, onClaim, onClaimChest
   return (
     <View style={styles.overlay}>
       <Pressable style={[StyleSheet.absoluteFill, styles.scrim]} onPress={onClose} />
-      <View style={[styles.ring, { top: insets.top + 50, bottom: 56 + insets.bottom }]}>
+      {/* landscape (REDESIGN_V7): a panel in the middle, the screen's height */}
+      <View style={[styles.ring, wideNow ? { top: 12, bottom: 12, left: '22%', right: '22%' } : { top: insets.top + 50, bottom: 56 + insets.bottom }]}>
         <View style={styles.rim}>
           <ScrollView style={styles.panel} contentContainerStyle={styles.panelContent} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>

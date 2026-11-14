@@ -50,7 +50,7 @@ const REACT_SWAP = [
 ];
 
 // loaded by every page, in this order, before support.js (roster.js is written by the build from webgame/data)
-const APP_SCRIPTS = ['boot.js', 'roster.js', 'bridge.js', 'config.js', 'games.js'];
+const APP_SCRIPTS = ['boot.js', 'roster.js', 'bridge.js', 'config.js', 'games.js', 'menu.js'];
 
 const clean = s => s.split('?')[0].split('#')[0].replace(/^\.\//, '');
 
@@ -129,7 +129,9 @@ export async function build(out = OUT) {
       if (rel.endsWith('.html')) {
         const tag = /<script src="(\.\/)?support\.js"><\/script>/;
         if (!tag.test(t)) throw new Error(rel + ': no <script src="support.js"> to put app/boot.js in front of');
-        t = t.replace(tag, m => APP_SCRIPTS.map(f => `<script src="app/${f}"></script>\n`).join('') + m);
+        // + the menu's pages (webgame/app/pages/*.js, REDESIGN_V7), after menu.js
+        const pages = fs.existsSync(path.join(APP_DIR, 'pages')) ? fs.readdirSync(path.join(APP_DIR, 'pages')).filter(f => f.endsWith('.js')).sort().map(f => 'pages/' + f) : [];
+        t = t.replace(tag, m => APP_SCRIPTS.concat(pages).map(f => `<script src="app/${f}"></script>\n`).join('') + m);
       }
       fs.writeFileSync(to, t);
     } else fs.copyFileSync(from, to);

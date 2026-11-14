@@ -40,6 +40,7 @@
   .banner { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 50px; line-height: 1; letter-spacing: 1px; color: #fff; }
   #bottom { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 16px calc(var(--inset-bottom, 0px) + 28px); display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none; transition: opacity 0.3s; }
   #hint { padding: 8px 18px; border-radius: 999px; background: rgba(255,255,255,0.94); color: #45107a; font-weight: 900; font-size: 14px; white-space: nowrap; box-shadow: 0 3px 0 rgba(90,40,10,0.25); animation: c2Rise 0.3s ease-out both; }
+  #reveal.on { display: flex; }
   #reveal { position: absolute; inset: 0; z-index: 20; overflow: hidden; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; box-sizing: border-box; background: radial-gradient(circle at 50% 42%, rgba(120,40,200,0.55) 0, rgba(28,6,56,0.92) 70%); animation: c2Fade 0.3s ease-out both; }
   #rays { position: absolute; left: 50%; top: 40%; width: 820px; height: 820px; margin: -410px 0 0 -410px; border-radius: 50%; background: repeating-conic-gradient(rgba(255,230,140,0.32) 0 8deg, rgba(255,255,255,0) 8deg 20deg); -webkit-mask-image: radial-gradient(circle, #000 15%, transparent 62%); mask-image: radial-gradient(circle, #000 15%, transparent 62%); animation: c2Rays 14s linear infinite; pointer-events: none; }
   #rvUp { position: relative; padding: 4px 14px; border-radius: 999px; background: #fff; font-weight: 900; font-size: 12px; letter-spacing: 1px; animation: c2Rise 0.4s 0.25s ease-out both; }
@@ -66,6 +67,27 @@
   #cpNote { font-weight: 900; font-size: 13px; color: #ffe27a; text-align: center; }
   #collect { position: relative; overflow: hidden; width: 230px; height: 64px; border: 3px solid #fff; border-radius: 24px; background: linear-gradient(180deg,#d8ffc2 0%,#6fe07a 55%,#26a94e 100%); box-shadow: 0 0 0 2.5px #17652f, 0 6px 0 2.5px #17652f, 0 12px 20px rgba(20,80,40,0.35); font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 26px; letter-spacing: 1px; color: #fff; text-shadow: 0 2.5px 0 #17652f, 2px 0 0 #17652f, -2px 0 0 #17652f; animation: c2Rise 0.4s 0.7s ease-out both; }
   #collect:active { transform: translateY(4px); }
+  /* ---- landscape (REDESIGN_V7: the whole app is sideways now) ---- */
+  @media (orientation: landscape) {
+    #top { padding-top: calc(var(--inset-top, 0px) + 12px); gap: 5px; }
+    #name { font-size: 24px; }
+    #bottom { padding-bottom: calc(var(--inset-bottom, 0px) + 14px); }
+    #bannerWrap { top: 24%; }
+    /* the reveal in two columns: the card on the left, what came with it and COLLECT on the right */
+    #reveal { display: none; flex-direction: row; flex-wrap: nowrap; gap: 0 36px; padding: 16px 36px; }
+    #reveal.on { display: grid; grid-template-columns: auto 300px; grid-template-rows: auto auto auto auto auto auto; align-content: center; justify-content: center; column-gap: 44px; row-gap: 10px; }
+    #reveal.on > #rays { grid-column: 1; grid-row: 1 / span 6; }
+    #reveal.on > #card { grid-column: 1; grid-row: 1 / span 6; align-self: center; width: 232px; padding: 12px 12px 14px; }
+    #reveal.on #art { width: 168px; height: 168px; }
+    #reveal.on #rvName { font-size: 26px; }
+    #reveal.on > #rvUp, #reveal.on > #rvNew, #reveal.on > #rvCopies, #reveal.on > #loot, #reveal.on > #rvPity, #reveal.on > #collect { grid-column: 2; justify-self: center; }
+    #reveal.on > #rvUp { grid-row: 1; }
+    #reveal.on > #rvNew { grid-row: 2; }
+    #reveal.on > #rvCopies { grid-row: 3; width: 280px; }
+    #reveal.on > #loot { grid-row: 4; }
+    #reveal.on > #rvPity { grid-row: 5; text-align: center; }
+    #reveal.on > #collect { grid-row: 6; margin-top: 6px; }
+  }
 </style>
 <script src="chest-sfx.js"></script>
 <script src="chest-models.js"></script>
@@ -214,7 +236,8 @@
     $('rvDupe').textContent = 'Duplicate';
     $('rvPity').style.display = rw.luck ? '' : 'none';
     // restart the card's entrance animations
-    $('reveal').style.display = 'none'; void $('reveal').offsetWidth; $('reveal').style.display = 'flex';
+    // (a class, not an inline display: the landscape layout is a grid)
+    $('reveal').classList.remove('on'); $('reveal').style.display = 'none'; void $('reveal').offsetWidth; $('reveal').style.display = ''; $('reveal').classList.add('on');
     // where COLLECT ends up (after its entrance), for the app's tutorial
     setTimeout(() => { const r = $('collect').getBoundingClientRect(); post({ type: 'reveal', collect: { x: r.left, y: r.top, w: r.width, h: r.height } }); }, 1150);
   }
@@ -256,7 +279,7 @@
     // `wait`: no final/reward yet, fill() brings them. Says 'shown' once the scene is painted.
     start(o) {
       clearTimeout(revealT); clearTimeout(bannerT);
-      $('bannerWrap').innerHTML = ''; $('reveal').style.display = 'none';
+      $('bannerWrap').innerHTML = ''; $('reveal').style.display = 'none'; $('reveal').classList.remove('on');
       document.documentElement.style.setProperty('--inset-top', (o.insetTop || 0) + 'px');
       document.documentElement.style.setProperty('--inset-bottom', (o.insetBottom || 0) + 'px');
       const gk = GROUPS[o.group] ? o.group : 'ocean', start = TI[o.size] ?? 0, final = Math.max(start, TI[o.final] ?? start);

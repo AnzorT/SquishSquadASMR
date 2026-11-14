@@ -1,5 +1,5 @@
 import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { View, Text, StyleSheet, PanResponder, Animated, Easing, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, PanResponder, Animated, Easing, Dimensions, useWindowDimensions } from 'react-native';
 import Pressable from '../components/Pressable';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,7 +38,8 @@ import { fmtNum } from '../format';
 
 // Stage size: the full screen width (capped for tablets). The creature's
 // own size inside it is MODEL_TUNING.visual in SquishyToy.js.
-const STAGE_SIZE = Math.min(Math.round(Dimensions.get('window').width), 420);
+// (the screen's shorter side: in landscape, REDESIGN_V7 step 5, the height)
+const STAGE_SIZE = Math.min(Math.round(Math.min(Dimensions.get('window').width, Dimensions.get('window').height)), 420);
 const RIPPLE_LIFETIME_MS = 620;
 // 60s window where an ad-watch doubles squish rewards.
 const BONUS_MS = 60000;
@@ -777,6 +778,9 @@ function SquishScreen({
   // the guided tutorial is on: its coach marks replace the stage's own hints
   hideHints = false,
 }) {
+  // landscape (REDESIGN_V7 step 5): live, so a turn of the phone after it opens is caught
+  const win = useWindowDimensions();
+  const wideScreen = win.width > win.height;
   const insets = useSafeAreaInsets();
   const toyRef = useRef(null);
   const soundRef = useRef(null);
@@ -1199,7 +1203,7 @@ function SquishScreen({
   ).current;
 
   return (
-    <SkyBackground style={styles.container}>
+    <SkyBackground style={[styles.container, wideScreen && styles.containerWide]}>
       <View style={styles.stageArea}>
         <View style={[styles.topLeft, { top: insets.top + 14 }]}>
           <TutTarget name="back">
@@ -1242,10 +1246,12 @@ function SquishScreen({
         </TutTarget>
       </View>
 
+      {/* landscape (REDESIGN_V7 step 5): the bonus and the boosts in a panel at the right, no banner ad */}
+      <View style={wideScreen ? styles.sidePanel : null}>
       <BonusBanner endsAt={bonusEndsAt} multiplier={bonusMultiplier} coinAnim={bonusCoinAnim} />
 
-      <View style={styles.bottomPanel}>
-        <View style={styles.bottomRow}>
+      <View style={wideScreen ? styles.sideInner : styles.bottomPanel}>
+        <View style={wideScreen ? styles.sideCol : styles.bottomRow}>
           {[2, 3, 4].map((m) => (
             <WatchAdButton
               key={m}
@@ -1260,7 +1266,8 @@ function SquishScreen({
       </View>
 
       {/* the same full-width strip as Home's (none with Remove Ads) */}
-      {adsFree ? <View style={{ height: insets.bottom }} /> : <AdStrip />}
+      </View>
+      {wideScreen ? null : adsFree ? <View style={{ height: insets.bottom }} /> : <AdStrip />}
 
       {doubleFlash && (
         <View style={styles.flashOverlay} pointerEvents="none">
@@ -1298,6 +1305,11 @@ function SquishScreen({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  containerWide: { flexDirection: 'row' },
+  sidePanel: { width: 210, justifyContent: 'center', paddingRight: 14, paddingLeft: 4, gap: 10 },
+  sideInner: { borderRadius: 22, backgroundColor: 'rgba(70,10,130,0.35)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)', padding: 10 },
+  // (the boost buttons stretch to fill (flex: 1): a column needs a height for them)
+  sideCol: { gap: 10, height: 230 },
   // Bottom panel no longer carries a tall hint list, so the stage claims
   // whatever's left instead of a fixed 70/30 split (see bottomPanel below).
   stageArea: { flex: 1, position: 'relative', alignItems: 'center', justifyContent: 'center' },

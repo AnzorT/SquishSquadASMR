@@ -14,6 +14,8 @@ import AdStrip from '../components/AdStrip';
 import { Bone, Reveal } from '../components/Skeleton';
 import { useScreenReady } from '../components/ScreenLayer';
 import { fmtNum } from '../format';
+import { InkText, Lettering, PageBg, PageHeader, Plaque, Stage, FONT as RFONT } from '../royal';
+import { useWindowDimensions } from 'react-native';
 
 // The player's stats, opened from Home's chart button (they used to sit at
 // the bottom of Settings): their favourite creature, a grid of totals, and
@@ -144,6 +146,51 @@ function StatsScreen({ creatures = [], customCreatures = [], profile = null, onB
     { label: 'BIGGEST BOOST', value: p.maxMult ? `×${p.maxMult}` : '—', color: '#1695d6' },
   ];
 
+  // landscape, the new look (REDESIGN_V7 step 3): favourite + most squished on the left, the totals as tiles on the right
+  const win = useWindowDimensions();
+  if (win.width > win.height)
+    return (
+      <View style={styles.wRoot}>
+        <PageBg />
+        <Stage>
+          <PageHeader title="Your Stats" onBack={onBack} />
+          <Plaque variant="vel" radius={22} rim={3.5} ring={2} lip={4} style={styles.wLeft}>
+            <View style={styles.favRow}>
+              <View style={styles.favArt}>{favorite ? <Art entry={favorite} size={72} /> : null}</View>
+              <View style={styles.flex}>
+                <Text style={styles.wKicker}>FAVORITE</Text>
+                {favorite ? <Lettering text={nameOf(favorite)} variant="gold" size={20} style={{ alignItems: 'flex-start' }} /> : null}
+                <Text style={styles.wSub}>{favorite ? `${formatDuration(favorite.ms)} of squishing` : 'Squish a creature to find your favorite!'}</Text>
+              </View>
+            </View>
+            {top.length ? <Text style={[styles.wKicker, { marginTop: 4 }]}>MOST SQUISHED</Text> : null}
+            {top.slice(0, 3).map((entry, i) => (
+              <View key={entry.id} style={styles.wRank}>
+                <InkText size={14}>{String(i + 1)}</InkText>
+                <View style={styles.rankArt}>
+                  <Art entry={entry} size={30} />
+                </View>
+                <View style={styles.flex}>
+                  <View style={styles.rankTop}>
+                    <Text style={styles.wRankName} numberOfLines={1}>{nameOf(entry)}</Text>
+                    <Text style={styles.wRankTime}>{formatDuration(entry.ms)}</Text>
+                  </View>
+                  <CandyProgress pct={(entry.ms / top[0].ms) * 100} height={7} ring={candyColors.pinkRing} fill={['#ffa8e6', '#ff4fbf']} />
+                </View>
+              </View>
+            ))}
+          </Plaque>
+          <View style={styles.wGrid}>
+            {tiles.map((t) => (
+              <Plaque key={t.label} variant="vel" radius={18} rim={3} ring={2} lip={4} style={styles.wTile}>
+                <Lettering text={t.value} variant="gold" size={22} />
+                <Text style={styles.wTileLabel} numberOfLines={1}>{t.label}</Text>
+              </Plaque>
+            ))}
+          </View>
+        </Stage>
+      </View>
+    );
   return (
     <CandyBackground style={{ paddingTop: insets.top }}>
       <View style={styles.header}>
@@ -213,6 +260,17 @@ function StatsScreen({ creatures = [], customCreatures = [], profile = null, onB
 const TILE_GAP = 10;
 
 const styles = StyleSheet.create({
+  // landscape (REDESIGN_V7), in the design's 393-tall units
+  wRoot: { ...StyleSheet.absoluteFillObject, backgroundColor: '#24123f' },
+  wLeft: { position: 'absolute', left: 22, top: 72, bottom: 22, width: 300, paddingHorizontal: 16, paddingVertical: 12, alignItems: 'stretch', justifyContent: 'flex-start', gap: 6 },
+  wKicker: { fontFamily: RFONT.bodyBlack, fontSize: 10, letterSpacing: 1.4, color: '#ffe27a' },
+  wSub: { fontFamily: RFONT.body, fontSize: 11.5, color: '#eadcff' },
+  wRank: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 3 },
+  wRankName: { flex: 1, fontFamily: RFONT.display, fontSize: 13.5, color: '#ffffff' },
+  wRankTime: { fontFamily: RFONT.bodyHeavy, fontSize: 11, color: '#ffe9a8' },
+  wGrid: { position: 'absolute', left: 340, right: 22, top: 72, bottom: 22, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'space-between', justifyContent: 'space-between' },
+  wTile: { width: '23.5%', height: 136, gap: 6, paddingHorizontal: 8 },
+  wTileLabel: { fontFamily: RFONT.bodyBlack, fontSize: 9.5, letterSpacing: 1, color: '#eadcff' },
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
   body: { paddingHorizontal: 16, paddingTop: 6, gap: 12 },

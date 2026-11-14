@@ -21,6 +21,42 @@ pixel for pixel. Nothing is redrawn in React Native.
 - Players in the guided tutorial stay on the Lobby and the old Crib until it's done: the tutorial points at them
   (`src/game/flags.js`).
 
+## Round 11 (2026-11-14): the menu as a game lobby
+
+`webgame/app/menu.js` does all of it; `webgame/patches.mjs` (the "round 11" block) hands it the menu's insides
+(`opts._x`) and swaps the pieces of the HUD. Nothing of the design's own code is redrawn.
+
+- **HUD:** no "Cozy home" / "Next: room" pills, no GAMES tab, no "Let's play / Mini Games" board. PLAY stands on its own
+  (bigger, with a glint). CREATURES is **CHARACTERS**. The coin and gem pills have room between the icon and the number.
+- **The level crest is alive:** its wings flap now and then, the star flips, a shine sweeps the medal, sparkles
+  twinkle (LEVEL sits on a gold banner under the medal), a pink ring shows the XP to the next level, and a pink badge counts the prizes waiting. Tapping it opens the
+  **Level Pass**: a track of every level (the road's prize, plus what the level opens: rooms, the yard games, the
+  house's next look), a preview of the picked level, your character riding the track at your XP, CLAIM / CLAIM ALL.
+  Coins and gems are claimed right there (the app calls `levelClaim` / `levelClaimAll`); a level with a chest opens the
+  app's level road on it (its chest smash).
+- **PLAY:** the character turns, walks left, and the camera follows it to the **Game Park**, a new part of the map left of
+  the house. It's drawn with the scene's own sky, grass, trees and weather (`MainMenuScene.svg({ ...st, park: true })`),
+  so it changes with the level and season like the house does. A tree and bushes stand on the seam. The games line up in a
+  carousel under rays and a halo: one big card at a time, as wide as the gap between the two arrows: the game's name, its
+  clip across the whole card, then a line about it, your progress and PLAY; swipe, the arrows or the dots change it.
+  One straight road joins the two places: from the house's path to its left edge (`SquishMenu.houseRoad`, patched into
+  the scene's `path()`), carried on across the park, with one line of stepping stones like the house path's own,
+  evenly spaced from the house's path to the park. No stone pad under the character (house or park), and no
+  "Lv n" signs on the house's locked parts (their boards still show they're locked). The middle one plays a 5-second clip of the real game: `webgame/app/previews/<id>.mp4` + its
+  first frame `<id>.jpg`, recorded on the emulator. Squish Time's clip is Frybo; for any other character the card
+  squishes that character's picture instead. The park remembers the last game picked. Back (or Android back) walks home.
+  A game started in the park comes back to the park.
+- **CHARACTERS:** a full screen. Your character's live rig on a lit pad (left) with its nameplate, rarity, group, stage
+  and finish, and CHOOSE (it then stands in front of the house). On the right is every character that's out, yours first,
+  the others as silhouettes with a lock, with filters for All / Mine / each group. A locked one can be tapped to meet it,
+  and "Find it in chests" opens the shop.
+
+**Re-recording a clip:** `adb shell screenrecord --time-limit 12 /sdcard/x.mp4` while playing (the emulator records at
+720x1280). Cut 5 s into a 1000x400 (2.5:1) clip, H.264 baseline, no audio: the whole board or scene (a 520-660 px tall band; pan it slowly
+top to bottom and back for a tall board: ffmpeg `crop` with a `cos(2*PI*t/5)` y) shown whole in the middle, and the
+sides filled with the game's own edge colours stretched out (a smooth gradient on sky backgrounds, the floor on the
+wood ones), so it isn't zoomed in and there's no blur. Grab a frame as the .jpg. Keep each under ~400 KB.
+
 ## Build
 
 ```
@@ -103,7 +139,10 @@ messages (`webgame/app/bridge.js`).
 scripts run:
 
 - `level` (the XP level), `coins`, `gems`, `owned` (creature keys), `col` (their finishes and growth stages), `sel`
-  (the selected creature), `hiddenKeys` (creatures in groups switched off), `games` (the Mini Games list), `house`
+  (the selected creature), `hiddenKeys` (creatures in groups switched off), `games` (the Mini Games list), `house`,
+  `xp` (`{ level, into, need, per }`: the crest's ring) and `road` (the level road: `{ lv, k, n, t, got, claimable }`)
+- Android's WebView can run the app's `injectedJavaScriptBeforeContentLoaded` after the page's first scripts, so
+  `window.__SQUISH_INIT__` may arrive late. `app/bridge.js` catches it whenever it lands.
 - `house` is the saved layout, `users/{uid}/crib/house6`
 
 **App → game** (`SquishApp.receive`):
@@ -122,7 +161,8 @@ scripts run:
 | `coins {coins, delta}` | Writes the delta to `users/{uid}.coins` (catalog buys) |
 | `house {data}` | Saves the layout |
 | `open {what: 'shop' or 'settings'}` | Opens the shop or settings |
-| `play {mode, key}` | `mode` 'squish': Squish Time with that creature; 'squishdoku', 'sort', 'stack', 'hop': that game |
+| `play {mode, key, from}` | `mode` 'squish': Squish Time with that creature; 'squishdoku', 'sort', 'stack', 'hop': that game. `from: 'park'`: the app opens the menu in the Game Park again afterwards (start `screen: 'park'`) |
+| `claim {lv, all}` | The Level Pass: claim one level's prize (or all waiting). The app answers `claimed {ok, error}` or `claimed {road: true}` (a chest: it opened the level road) |
 | `select {key}` | The creature picked on the Menu (CREATURES) becomes the selected squishy (`lobby.sel`) |
 | `backUnhandled` | Android back on the bare menu: leave the app |
 | `error` | Logged |

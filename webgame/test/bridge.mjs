@@ -122,33 +122,89 @@ const back = await page.evaluate(() => window.SquishApp.back());
 await page.waitForTimeout(1500);
 check(back === true && !(await page.$('.mm-hback')), 'Android back leaves the house');
 
-// PLAY: the design's Mini Games page with the app's games (no yard games there)
+// round 11: no GAMES tab, no "Let's play" board, CHARACTERS, a living level crest
+const hudBits = await page.evaluate(() => ({ tabs: [...document.querySelectorAll('.mm-tab')].map(t => t.textContent.trim()), board: !!document.querySelector('.mm-card .k'), pills: !!document.querySelector('.mm-lv .tag'), crest: !!document.querySelector('.sq-crest .sq-cin') }));
+check(hudBits.tabs.join() === 'MY HOUSE,CHARACTERS,SHOP' && !hudBits.board && !hudBits.pills && hudBits.crest, 'the HUD: MY HOUSE / CHARACTERS / SHOP, no board, no tier pills, a live crest', hudBits);
+
+// PLAY: the creature walks left to the Game Park, where the app's games line up (no yard games there)
 await page.click('.mm-play');
-await page.waitForTimeout(1200);
-const cards = await page.evaluate(() => [...document.querySelectorAll('.mm-gc')].map(e => e.dataset.g + ':' + (e.querySelector('.best') || {}).textContent));
-check(JSON.stringify(cards.map(c => c.split(':')[0])) === JSON.stringify(['squish', 'squishdoku', 'sort', 'stack', 'hop']) && cards[1].includes('Level 37 / 600'), 'PLAY lists Squish Time, Squishdoku (Level 37 / 600), Sort, Stack, Hop', cards);
+await page.waitForFunction(() => document.querySelector('.sq-pk.in'), null, { timeout: 15000 });
+await page.waitForTimeout(800);
+const arrows = await page.evaluate(() => { const L = document.querySelector('.sq-arr.l').getBoundingClientRect(), R = document.querySelector('.sq-arr.r').getBoundingClientRect(), C = document.querySelector('.sq-slot.c .sq-gc').getBoundingClientRect(); return { gapL: Math.round(C.left - L.right), gapR: Math.round(R.left - C.right) }; });
+check(arrows.gapL >= 0 && arrows.gapL < 16 && arrows.gapR >= 0 && arrows.gapR < 16, 'the game card spans from the left arrow to the right arrow', arrows);
+const lay = await page.evaluate(() => { const c = document.querySelector('.sq-slot.c .sq-gc'), r = e => c.querySelector(e).getBoundingClientRect(), C = c.getBoundingClientRect(), t = r('.ttl'), w = r('.win'), go = r('.go'), ds = r('.info'); return { titleAbove: t.bottom <= w.top + 1, fullWidth: w.width >= C.width - 30, clipAbove: w.bottom <= Math.min(go.top, ds.top) + 1, live: !!document.querySelector('.sq-gc .live') }; });
+check(lay.titleAbove && lay.fullWidth && lay.clipAbove && !lay.live, 'a game card: its name, then its clip across the card, then the text, level and PLAY (no LIVE tag)', lay);
+const cards = await page.evaluate(() => [...document.querySelectorAll('.sq-slot')].map(e => e.querySelector('.ttl svg').getAttribute('aria-label') + ':' + e.querySelector('.best').textContent));
+check(JSON.stringify(cards.map(c => c.split(':')[0])) === JSON.stringify(['Squish Time', 'Squishdoku', 'Squish Sort', 'Squish Stack', 'Squish Hop']) && cards[1].includes('Level 37 / 600'), 'PLAY walks to the Game Park: Squish Time, Squishdoku (Level 37 / 600), Sort, Stack, Hop', cards);
+// Squish Time (in the middle first) asks the app for the squish screen, with the menu's creature, from the park
 await page.evaluate(() => { window.__sent.length = 0; });
-await page.click('.mm-gc[data-g="squishdoku"] .go');
-await page.waitForTimeout(300);
+await page.click('.sq-slot.c .go', { force: true });
+await page.waitForTimeout(700);
+const playMsg = await page.evaluate(() => window.__sent.find(m => m.type === 'play'));
+check(playMsg && playMsg.payload.mode === 'squish' && playMsg.payload.from === 'park' && ['mittens', 'nimbo', 'mallow', 'biscuit'].includes(playMsg.payload.key), 'Squish Time asks the app to squish the menu\'s creature (from the park)', playMsg);
+// the next game: Squishdoku
+await page.click('.sq-arr.r', { force: true });
+await page.waitForTimeout(700);
+await page.evaluate(() => { window.__sent.length = 0; });
+await page.click('.sq-slot.c .go', { force: true });
+await page.waitForTimeout(700);
 const sdk = await page.evaluate(() => window.__sent.find(m => m.type === 'play'));
 check(sdk && sdk.payload.mode === 'squishdoku', 'PLAY on Squishdoku asks the app for Squishdoku', sdk);
-// Squish Time asks the app for the squish screen, with the menu's creature
-await page.evaluate(() => { window.__sent.length = 0; });
-await page.click('.mm-pg .go >> nth=0');
-await page.waitForTimeout(500);
-const playMsg = await page.evaluate(() => window.__sent.find(m => m.type === 'play'));
-check(playMsg && playMsg.payload.mode === 'squish' && ['mittens', 'nimbo', 'mallow', 'biscuit'].includes(playMsg.payload.key), 'Squish Time asks the app to squish the menu\'s creature', playMsg);
+// (Playwright's open-source Chromium has no H.264: there the clip's first frame stays up instead; the phone's WebView plays it)
+const clip = await page.evaluate(() => { const v = document.querySelector('.sq-slot.c video'); return { h264: document.createElement('video').canPlayType('video/mp4; codecs="avc1.42E01E"'), src: v && v.getAttribute('src'), poster: !!document.querySelector('.sq-slot.c img[data-fb]') }; });
+check(clip.h264 ? clip.src === 'app/previews/squishdoku.mp4' : clip.poster, clip.h264 ? 'the game in the middle plays its clip' : 'the game in the middle shows its clip\'s first frame (no H.264 in this browser)', clip);
+// back walks home
+await page.click('.sq-pk [data-x]', { force: true });
+await page.waitForFunction(() => !document.querySelector('.sq-pk') && !document.querySelector('.sq-parkL') && !document.querySelector('.mm-hud.mm-gone'), null, { timeout: 15000 });
+check(true, 'back from the park walks home and the HUD comes back');
+// the road from the house's pad runs to its left edge, where the park's road carries on
+const road = await page.evaluate(() => { const svg = document.querySelector('.mm-scene svg'); return !!svg && /M-60 401 H452/.test(svg.innerHTML); });
+check(road, 'the house picture has the road to the Game Park');
 
-// the creature picked on the menu (CREATURES) goes to the app
-await page.click('.mm-pg [data-x]');
-await page.waitForTimeout(600);
-await page.click('.mm-tab[data-tab="creatures"]');
+// the Level Pass: the crest opens it; CLAIM asks the app
+await page.click('.sq-crest', { force: true });
 await page.waitForTimeout(900);
+const pass = await page.evaluate(() => ({ open: !!document.querySelector('.sq-lvtrack'), n: document.querySelectorAll('.sq-lc').length }));
+check(pass.open && pass.n >= 30, 'the crest opens the Level Pass (30+ levels)', pass);
+await page.click('.mm-page2 [data-x]', { force: true });
+await page.waitForTimeout(600);
+
+// the character chosen on CHARACTERS goes to the app
+await page.click('.mm-tab[data-tab="creatures"]');
+await page.waitForTimeout(1500);
 await page.evaluate(() => { window.__sent.length = 0; });
-await page.click('.mm-pick .it[data-id="1"]');
+await page.click('.sq-cc[data-id="1"]', { force: true });
+await page.waitForTimeout(500);
+await page.click('.sq-cs [data-sel]', { force: true });
 await page.waitForTimeout(400);
 const sel = await page.evaluate(() => window.__sent.find(m => m.type === 'select'));
-check(sel && sel.payload.key === 'mittens', 'picking Mittens on the menu tells the app', sel);
+check(sel && sel.payload.key === 'mittens', 'choosing Mittens on CHARACTERS tells the app', sel);
+await page.click('.mm-page2 [data-x]', { force: true });
+await page.waitForTimeout(600);
+
+// REDESIGN_V7 step 0: the menu's page framework, and a page asking the app for something
+const pageFw = await page.evaluate(async () => {
+  window.SquishMenu.pages.__test = (x, o, P) => { const pg = P.page(x, { title: 'Test Page', note: 'a note', right: P.pill(P.coinImg(), 5) }); pg.pg.insertAdjacentHTML('beforeend', '<div id="tp">' + o.word + '</div>'); };
+  const opened = window.SquishMenu.open('__test', { word: 'hi' });
+  const shown = (document.querySelector('#tp') || {}).textContent === 'hi' && !!document.querySelector('.mm-page2 .mm-pgh .mm-orb');
+  window.SquishApp.back();
+  await new Promise(r => setTimeout(r, 400));
+  return { opened, shown, closed: !document.querySelector('#tp') };
+});
+check(pageFw.opened && pageFw.shown && pageFw.closed, 'a menu page opens over the menu with its header, and Android back closes it', pageFw);
+const ask = await page.evaluate(async () => {
+  window.__sent.length = 0;
+  const p1 = window.SquishApp.ask('squad', { move: 'freeChest' });
+  const m1 = window.__sent.find(s => s.type === 'ask');
+  window.SquishApp.receive({ type: 'answer', id: m1.payload.id, ok: true, result: { coins: 5 } });
+  const r1 = await p1;
+  const p2 = window.SquishApp.ask('buy', { key: 'gems_s' });
+  const m2 = window.__sent.filter(s => s.type === 'ask')[1];
+  window.SquishApp.receive({ type: 'answer', id: m2.payload.id, ok: false, error: 'not_enough_gems' });
+  let e2 = null; try { await p2; } catch (e) { e2 = e.message; }
+  return { what: m1.payload.what, move: m1.payload.payload.move, r1, e2 };
+});
+check(ask.what === 'squad' && ask.move === 'freeChest' && ask.r1 && ask.r1.coins === 5 && ask.e2 === 'not_enough_gems', 'App.ask: a page asks the app and gets its answer, or its error code', ask);
 
 // the yard games: only from the backyard's YARD GAMES button
 await page.click('.mm-tab[data-tab="house"]');
@@ -184,6 +240,20 @@ await page2.addInitScript(init => {
 await page2.goto(pathToFileURL(path.join(DIR, 'App.dc.html')).href);
 const inHouse = await page2.waitForFunction(() => window.__sh && window.__sh.byId && window.__sh.byId.size > 500 && document.querySelector('.mm-hback'), null, { timeout: 90000 }).then(() => true, () => false);
 check(inHouse, 'a house request sent before the menu has loaded still walks into the house');
+
+// the app's start data arriving after the page's first scripts (it happens on Android): nothing the menu saved before
+// is sent to the app as the player's pick, and the menu shows the app's character once the data lands
+const page3 = await browser.newPage({ viewport: { width: 852, height: 393 } });
+page3.on('pageerror', e => errors.push(e.message));
+await page3.route(/^https?:/, r => { errors.push('internet: ' + r.request().url()); r.abort(); });
+await page3.addInitScript(init => { window.__sent = []; window.__late = init; window.ReactNativeWebView = { postMessage: m => window.__sent.push(JSON.parse(m)) }; }, INIT);
+await page3.goto(pathToFileURL(path.join(DIR, 'App.dc.html')).href);
+await page3.waitForFunction(() => document.querySelector('.mm-tab'), null, { timeout: 30000 });
+await page3.evaluate(() => { const k = 'squishsquad.lobby.v1'; const v = JSON.parse(localStorage.getItem(k) || '{}'); v.sel = 1; localStorage.setItem(k, JSON.stringify(v)); });
+await page3.evaluate(() => { window.__SQUISH_INIT__ = window.__late; });
+await page3.waitForTimeout(800);
+const late = await page3.evaluate(() => ({ picks: window.__sent.filter(m => m.type === 'select').length, shown: window.SquishSquad.ROSTER[window.SquadLobby.selected()].key }));
+check(late.picks === 0 && late.shown === 'nimbo', 'start data arriving late: no stray pick goes to the app, and the menu shows the app character', late);
 
 check(!errors.length, 'no page errors, no internet', errors.slice(0, 5));
 await browser.close();

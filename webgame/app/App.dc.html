@@ -43,7 +43,8 @@ class Component extends DCLogic {
   }
   componentWillUnmount() { this._dead = true; clearTimeout(this._hT); if (this._off) this._off(); }
   // Squish Time on the games page: the squish game is the app's own screen. key = the creature playing (roster key).
-  onPlay = (mode, id) => { if (window.SquishApp) window.SquishApp.send('play', { mode, id, key: window.SquishApp.keyOf(id) }); };
+  // from: 'park' when it was started in the Game Park (app/menu.js), so the app can open the menu there again after the game
+  onPlay = (mode, id) => { if (window.SquishApp) window.SquishApp.send('play', { mode, id, key: window.SquishApp.keyOf(id), from: window.SquishMenu && window.SquishMenu.inPark() ? 'park' : 'menu' }); };
   onShop = () => { if (window.SquishApp) window.SquishApp.send('open', { what: 'shop' }); };
   onSettings = () => { if (window.SquishApp) window.SquishApp.send('open', { what: 'settings' }); };
   renderVals() {

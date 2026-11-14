@@ -1,5 +1,5 @@
 import React, { forwardRef, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Dimensions, Easing, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Dimensions, Easing, Image, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Pressable from '../components/Pressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,7 +17,10 @@ import { BtnText, CandyBtn, CoinIcon, F, GemIcon, GOLD_RING, PINK_RING, Ringed, 
 import ChestsTabV6, { ChestSheetBody, OddsSheetBody } from './ShopChests';
 import ChestSmash from '../components/ChestSmash';
 import { ChestDrop, FlyLayer, centerOf, flyReward, usePurse } from '../components/RewardFx';
-import { DealsTab, GemsTab as GemsTabV6 } from './ShopDeals';
+import { DealsTab, GemsTab as GemsTabV6, RoyalShop } from './ShopDeals';
+import ShopChestsRoyal from './royal/ShopChestsRoyal';
+import { Icon, InkText, Lettering, Orb, PageBg, PageHeader, Plaque, Stage, FONT as RFONT, INK as RINK } from '../royal';
+import { COIN, GEM } from '../squad/currencyArt';
 import Freeze from '../components/Freeze';
 import TutTarget from '../tutorial/Target';
 import { report as tutReport } from '../tutorial/store';
@@ -102,6 +105,26 @@ export const Purse = forwardRef(function Purse({ cur, amount, onPress, plus = tr
     </Animated.View>
   );
 });
+
+// The coin / gem counter in the new look (REDESIGN_V7): the menu's pill, counting up as a reward flies in.
+const RoyalPurse = forwardRef(function RoyalPurse({ cur, amount, onPress }, ref) {
+  const { icon, scale, shown } = usePurse(ref, amount);
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Plaque variant="vel" tips onPress={onPress} style={styles.rPill}>
+        <View ref={icon} collapsable={false}>
+          <Image source={cur === 'gems' ? GEM[0] : COIN[0]} style={styles.rPillImg} />
+        </View>
+        <InkText size={13.5}>{fmt(shown)}</InkText>
+      </Plaque>
+    </Animated.View>
+  );
+});
+const R_TABS = [
+  ['chests', 'Chests', 'M4 10h16v9H4Z M4 10l2-5h12l2 5 M12 10v4'],
+  ['deals', 'Deals', 'M3 12V4h8l10 10-8 8Z M7.5 7.5h.01'],
+  ['gems', 'Gems', 'M6 3h12l4 6-10 12L2 9Z M2 9h20 M9 3l3 6 3-6'],
+];
 
 // The segmented tab switch (Chests / Squishies / Gems here).
 // `onPick(k)`: called on the tap itself (before onTab), for a caller that
@@ -242,7 +265,7 @@ const GemsTab = memo(function GemsTab({ firstBought, adsFree, priceOf, onPack, o
 
 // --- the sheet ---------------------------------------------------------------------
 
-function Sheet({ sheet, profile, catalog, artIds, setRewards, rainbow, wallet: w, onClose, onBroke, onBuyGroup }) {
+function Sheet({ sheet, profile, catalog, artIds, setRewards, rainbow, wallet: w, onClose, onBroke, onBuyGroup, royal }) {
   const up = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     up.setValue(0);
@@ -272,6 +295,21 @@ function Sheet({ sheet, profile, catalog, artIds, setRewards, rainbow, wallet: w
       </>
     );
   }
+  if (royal)
+    // the new look: a pearl panel in the middle with a close orb (REDESIGN_V7)
+    return (
+      <View style={[StyleSheet.absoluteFill, styles.rSheetWrap]}>
+        <Pressable silent style={styles.scrim} onPress={onClose} />
+        <Animated.View style={{ opacity: up, transform: [{ scale: up.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }}>
+          <Plaque variant="pearl" radius={24} rim={3.5} ring={2} lip={4} style={styles.rSheet}>
+            <ScrollView style={styles.rSheetScroll} contentContainerStyle={{ paddingBottom: 6, gap: 10 }} showsVerticalScrollIndicator={false}>
+              {sheet.type === 'gchest' ? <ChestSheetBody gk={sheet.gk} size={sheet.size} profile={profile} artIds={artIds} setRewards={setRewards} rainbow={rainbow} catalog={catalog} wallet={w} onBuy={onBuyGroup} /> : body}
+            </ScrollView>
+          </Plaque>
+          <Orb icon="close" size={36} onPress={onClose} style={styles.rSheetX} />
+        </Animated.View>
+      </View>
+    );
   return (
     <View style={StyleSheet.absoluteFill}>
       <Pressable silent style={styles.scrim} onPress={onClose} />
@@ -337,7 +375,8 @@ export const ShopPageBones = memo(function ShopPageBones() {
 // groups and creatures not out yet; `setRewards`: whether set rewards stay
 // out of chests; `rainbow`: Rainbow chests earned once per group ('chest')
 // or sold ('shop') (config/roster)
-function ShopScreen({ profile, creatures, offers = null, hidden = HIDDEN, setRewards = SET_REWARDS, rainbow = RAINBOW, onSeenOffer, onBuyProduct, priceOf, onBack, startTab = 'chests', openKey = 0, onImmersive }) {
+// royal: the new look, landscape (REDESIGN_V7: the Menu's SHOP opens it as a screen of its own)
+function ShopScreen({ profile, creatures, offers = null, hidden = HIDDEN, setRewards = SET_REWARDS, rainbow = RAINBOW, onSeenOffer, onBuyProduct, priceOf, onBack, startTab = 'chests', openKey = 0, onImmersive, royal = false }) {
   const insets = useSafeAreaInsets();
   // the tab's content is built a couple of frames after the Shop opens
   // (placeholders until then), so its first frame is up at once
@@ -647,6 +686,71 @@ function ShopScreen({ profile, creatures, offers = null, hidden = HIDDEN, setRew
     .join(',');
   const buyNoAds = useCallback(() => (adsFree ? flash('Ads are already off') : onBuyProduct('removeAds')), [adsFree, flash, onBuyProduct]);
 
+  if (royal)
+    return (
+      <View style={styles.rRoot}>
+        <PageBg />
+        <RoyalShop.Provider value>
+          <Freeze freeze={!!smash && !!smash.chest && !!smash.up && !drop}>
+            <Stage>
+              <PageHeader
+                title="Shop"
+                note={tab === 'chests' ? 'Chests open at once' : tab === 'deals' ? 'Offers change every day' : 'Gems open the best chests'}
+                onBack={onBack}
+                right={
+                  <View style={styles.rPurses}>
+                    <RoyalPurse ref={coinPurse} cur="coins" amount={w.coins} onPress={() => goTab('gems')} />
+                    <RoyalPurse ref={gemPurse} cur="gems" amount={w.gems} onPress={() => goTab('gems')} />
+                  </View>
+                }
+              />
+              <View style={styles.rTabs}>
+                {R_TABS.map(([k, label, d]) => {
+                  const on = k === tab;
+                  return (
+                    <Plaque key={k} variant={on ? 'gold' : 'vel'} tips radius={16} onPress={() => goTab(k)} style={styles.rTab}>
+                      <Icon d={d} size={20} color={on ? RINK : '#ffffff'} width={2.4} drop={!on} />
+                      {on ? <Text style={styles.rTabOn}>{label}</Text> : <InkText size={16}>{label}</InkText>}
+                      {badges[k] ? (
+                        <View style={styles.rBadge}>
+                          <Text style={styles.rBadgeT}>{badges[k]}</Text>
+                        </View>
+                      ) : null}
+                    </Plaque>
+                  );
+                })}
+              </View>
+              <View style={styles.rBody}>
+                {built && tab === 'chests' ? (
+                  <ShopChestsRoyal profile={profile} day={day} artIds={artIds} hidden={hidden} setRewards={setRewards} rainbow={rainbow} onFree={freeGroup} onAd={adGroup} onDeal={dealGroup} onOpenSheet={openGroupSheet} onBuy={buyGroup} onOdds={openOdds} />
+                ) : null}
+                {built && tab === 'deals' ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rShelf}>
+                    <DealsTab wide config={offers} profile={profile} day={day} hidden={hidden} priceOf={priceOf} onBuyOffer={buyOffer} onClaimStreak={claimStreak} onClaimPass={claimPass} onNoAds={buyNoAds} onSeen={seeOffer} toast={flash} />
+                  </ScrollView>
+                ) : null}
+                {built && tab === 'gems' ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rShelf}>
+                    <GemsTabV6 wide config={offers} profile={profile} priceOf={priceOf} onPack={buyPack} onSwap={swap} />
+                  </ScrollView>
+                ) : null}
+              </View>
+              <Sheet royal sheet={sheet} profile={profile} catalog={catalog} artIds={artIds} setRewards={setRewards} rainbow={rainbow} wallet={w} onBuyGroup={buyGroup} onClose={() => setSheet(null)} onBroke={() => goTab('gems')} />
+            </Stage>
+          </Freeze>
+        </RoyalShop.Provider>
+        {/* (high up, by the header: at the bottom it sat behind the cards' buttons) */}
+        {toast && <Toast key={toast.key} text={toast.text} bottom={Dimensions.get('window').height - 70} onDone={() => setToast(null)} />}
+        <FlyLayer ref={fly} />
+        {smash && (
+          <View style={[StyleSheet.absoluteFill, drop && !drop.reveal && styles.unseen]} pointerEvents={drop ? 'none' : 'box-none'}>
+            <ChestSmash chest={smash.chest} first={smash.first} catalog={catalog} onCollect={collectSmash} onShown={smashShown} />
+          </View>
+        )}
+        {drop && <ChestDrop key={drop.key} group={drop.group} size={drop.size} onReveal={() => setDrop((d) => d && { ...d, reveal: true })} onDone={() => setDrop(null)} />}
+      </View>
+    );
+
   return (
     <CandyBackground style={{ paddingTop: insets.top }}>
       {/* asleep under an open chest: the server's answers (the purchase, the
@@ -752,6 +856,22 @@ function Toast({ text, bottom, onDone }) {
 
 const card = { borderWidth: 3, borderColor: '#ffffff', borderBottomWidth: 3 };
 const styles = StyleSheet.create({
+  // the new look (REDESIGN_V7), in the design's 393-tall units (Stage)
+  rRoot: { flex: 1, backgroundColor: '#24123f' },
+  rPurses: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  rPill: { height: 30, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 4, paddingRight: 14 },
+  rPillImg: { width: 28, height: 28, marginLeft: -10, marginVertical: -6, resizeMode: 'contain' },
+  rTabs: { position: 'absolute', left: 22, top: 84, width: 132, gap: 16 },
+  rTab: { height: 48, flexDirection: 'row', gap: 8, paddingHorizontal: 12, justifyContent: 'flex-start' },
+  rTabOn: { fontFamily: RFONT.display, fontSize: 16, color: RINK, includeFontPadding: false },
+  rBadge: { position: 'absolute', right: -8, top: -8, minWidth: 20, height: 20, paddingHorizontal: 5, borderRadius: 10, backgroundColor: '#ff3fa8', borderWidth: 2, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
+  rBadgeT: { fontFamily: RFONT.bodyBlack, fontSize: 10, color: '#ffffff', includeFontPadding: false },
+  rBody: { position: 'absolute', left: 162, right: 0, top: 70, bottom: 0 },
+  rShelf: { paddingLeft: 14, paddingRight: 24 },
+  rSheetWrap: { alignItems: 'center', justifyContent: 'center' },
+  rSheet: { width: 540, maxHeight: 340, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 14 },
+  rSheetScroll: { alignSelf: 'stretch' },
+  rSheetX: { position: 'absolute', right: -12, top: -12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 10 },
   purses: { marginLeft: 'auto', flexDirection: 'row', gap: 6 },
   purse: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 9, paddingRight: 4, paddingVertical: 3 },

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, View, Text, StyleSheet } from 'react-native';
+import { Animated, Easing, View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import CreatureThumbnail from '../components/CreatureThumbnail';
 import ShadowText from '../components/candy/ShadowText';
@@ -107,12 +107,15 @@ export default function SplashScreen({ onFinish, ready = false, creatures = [] }
     };
   }, [due, fill, start]);
   const translateX = fill.interpolate({ inputRange: [0, 1], outputRange: [-TRACK_W, 0] });
+  // landscape (REDESIGN_V7): the mascot sized by the screen's height, so title and bar fit under it
+  const winH = useWindowDimensions().height;
+  const ms = Math.min(MASCOT, Math.round(winH * 0.42));
 
   return (
     <View style={styles.flex}>
       <IntroBackground>
         <View style={styles.column}>
-          <View style={styles.mascot}>{mittens ? <CreatureThumbnail creature={mittens} size={MASCOT} mood="happy" animate /> : null}</View>
+          <View style={[styles.mascot, { width: ms, height: ms }]}>{mittens ? <CreatureThumbnail creature={mittens} size={ms} mood="happy" animate /> : null}</View>
           <ShadowText
             style={styles.title}
             shadows={[

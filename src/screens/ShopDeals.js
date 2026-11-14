@@ -1,4 +1,5 @@
 import React, { memo, useEffect, useRef, useState } from 'react';
+import { Lettering as RoyalLettering, Plaque as RoyalPlaque } from '../royal';
 import { Animated, Easing, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Defs, G, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
@@ -51,7 +52,16 @@ const DAY = 864e5;
 
 // The candy button: a white-bordered gradient in a ring with a lip, the
 // shine across its top. Sinks into its lip while pressed.
+// The Shop in the new look (REDESIGN_V7, ShopScreen `royal`): its buttons, headings and the landscape layout.
+export const RoyalShop = React.createContext(false);
 function Btn({ look, lip = 5, radius = 16, height, onPress, children, style, disabled }) {
+  const royal = React.useContext(RoyalShop);
+  if (royal)
+    return (
+      <RoyalPlaque variant={look === PURPLE_BTN ? 'vel' : 'gold'} tips radius={radius} onPress={onPress} disabled={disabled} style={[{ height, flexDirection: 'row', gap: 8, paddingHorizontal: 12 }, style]}>
+        {children}
+      </RoyalPlaque>
+    );
   return (
     <Pressable disabled={disabled} onPress={onPress} style={({ pressed }) => [style, pressed && { transform: [{ translateY: lip - 1 }] }]}>
       <View style={{ borderRadius: radius + 2.5, backgroundColor: look.rim, padding: 2.5, paddingBottom: 2.5 + lip }}>
@@ -71,6 +81,16 @@ const BtnLabel = ({ children, look, size = 18 }) => (
 
 // A section's heading: white candy letters outlined in plum, a note at the right.
 function Heading({ title, note, icon }) {
+  const royal = React.useContext(RoyalShop);
+  if (royal)
+    return (
+      <View style={styles.headingWide}>
+        {String(title).split(' ').map((w, i) => (
+          <RoyalLettering key={i} text={w} variant="gold" size={22} />
+        ))}
+        {note ? <Text style={styles.headingWideNote}>{note}</Text> : null}
+      </View>
+    );
   return (
     <View style={styles.heading}>
       {icon}
@@ -664,7 +684,9 @@ function Pass({ pass, profile, price, onClaim, onBuy }) {
 
 // `buyOffer(offer, extra)`, `priceOf(key)`, `claimStreak(from)`, `claimPass(i, from)`, `seeOffer(id)`
 // (`from`: { view, img }, the prize's icon its coins or gems fly out of)
-export const DealsTab = memo(function DealsTab({ config, profile, day, hidden, priceOf, onBuyOffer, onClaimStreak, onClaimPass, onNoAds, onSeen, toast }) {
+export const DealsTab = memo(function DealsTab({ config, profile, day, hidden, priceOf, onBuyOffer, onClaimStreak, onClaimPass, onNoAds, onSeen, toast, wide = false }) {
+  // landscape (REDESIGN_V7): the cards side by side, each in a column of its own
+  const col = (el, key) => (wide && el ? <View key={key} style={styles.wideCol}>{el}</View> : el);
   const C = offersOf(config);
   const hot = lineup(day, hidden);
   const now = Date.now();
@@ -715,24 +737,24 @@ export const DealsTab = memo(function DealsTab({ config, profile, day, hidden, p
   const shown = useProgressive(first.length + 1 + rest.length, 1, 1);
   const shownRest = Math.max(0, shown - first.length - 1);
   return (
-    <View style={styles.tab}>
-      {first.slice(0, shown).map(card)}
-      {shown > first.length && (
+    <View style={wide ? styles.tabWide : styles.tab}>
+      {first.slice(0, shown).map((o, i) => col(card(o, i), o.id))}
+      {shown > first.length && col(
         <Streak
           streak={C.streak}
           profile={profile}
           day={day}
           hot={hot}
           onClaim={(today, done, i, from) => (today ? onClaimStreak(from) : toast(done ? 'Already claimed' : `Come back on day ${i + 1}`))}
-        />
+        />, 'streak'
       )}
       {rest.slice(0, shownRest).map((o, i) => (
         <React.Fragment key={o.id}>
           {o.kind === 'bundle' && o.id === bundles[0]?.id ? <Heading title="Special offers" note="Limited bundles" /> : null}
-          {card(o, i)}
+          {col(card(o, i), o.id)}
         </React.Fragment>
       ))}
-      {adsFree && offers.some((o) => o.kind === 'noads') ? <NoAdsOwned /> : null}
+      {adsFree && offers.some((o) => o.kind === 'noads') ? col(<NoAdsOwned />, 'noads') : null}
     </View>
   );
 });
@@ -750,12 +772,12 @@ const PACK_LOOK = [
 ];
 const PILE = [[0], [-0.6, 0.6], [-1, 0, 1], [-1.4, -0.45, 0.45, 1.4], [-1.6, -0.8, 0, 0.8, 1.6], [-2, -1, 0, 1, 2]];
 
-function Pack({ p, pi, dbl, price, onPress }) {
+function Pack({ p, pi, dbl, price, onPress, wide }) {
   const look = PACK_LOOK[Math.min(pi, PACK_LOOK.length - 1)];
   const pl = PILE[Math.min(PILE.length - 1, Math.max(0, (p.icons || pi + 1) - 1))];
   const big = pi >= 3;
   return (
-    <Pressable style={({ pressed }) => [styles.packSlot, pressed && { transform: [{ scale: 0.97 }] }]} onPress={onPress}>
+    <Pressable style={({ pressed }) => [styles.packSlot, wide && { width: 172 }, pressed && { transform: [{ scale: 0.97 }] }]} onPress={onPress}>
       <View style={[styles.packRing, { backgroundColor: look.rim }]}>
         <LinearGradient colors={look.bg} style={styles.pack}>
           {p.tag ? <RaysSpin size={200} color="#ffffff" opacity={0.55} durationMs={18000} style={{ top: -60, alignSelf: 'center' }} /> : null}
@@ -799,16 +821,16 @@ function Pack({ p, pi, dbl, price, onPress }) {
 
 const SWAP_TAGS = ['', '+12%', '+25%'];
 
-export const GemsTab = memo(function GemsTab({ config, profile, priceOf, onPack, onSwap }) {
+export const GemsTab = memo(function GemsTab({ config, profile, priceOf, onPack, onSwap, wide = false }) {
   const C = offersOf(config);
   const first = profile?.gemFirst || {};
   const anyDouble = C.packs.some((p) => !first[p.product]);
   // the packs one a frame as the page is built, then the swaps
   const packsShown = useProgressive(C.packs.length + 1, 1, 1);
   return (
-    <View style={styles.tab}>
+    <View style={wide ? styles.tabWide : styles.tab}>
       {anyDouble && (
-        <View style={styles.cardWrap}>
+        <View style={wide ? [styles.cardWrap, styles.wideCol] : styles.cardWrap}>
           <View style={[styles.cardRing, { backgroundColor: '#a04a00' }]}>
             <LinearGradient colors={['#fffbe0', '#ffe27a', '#ffb000']} locations={[0, 0.55, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.card, styles.double]}>
               <ShineSweep durationMs={2800} strength={0.6} />
@@ -828,15 +850,15 @@ export const GemsTab = memo(function GemsTab({ config, profile, priceOf, onPack,
         </View>
       )}
       <Heading title="Gem packs" note="Gems open the best chests" />
-      <View style={styles.packs}>
+      <View style={wide ? [styles.packs, styles.packsWide] : styles.packs}>
         {C.packs.slice(0, packsShown).map((p, pi) => {
           const key = productKey(p.product);
-          return <Pack key={p.product} p={p} pi={pi} dbl={!first[p.product]} price={key ? priceOf(key) : ''} onPress={() => key && onPack(key)} />;
+          return <Pack key={p.product} p={p} pi={pi} wide={wide} dbl={!first[p.product]} price={key ? priceOf(key) : ''} onPress={() => key && onPack(key)} />;
         })}
       </View>
       {packsShown > C.packs.length && <Heading title="Swap gems for coins" />}
       {packsShown > C.packs.length && (
-        <View style={styles.swaps}>
+        <View style={wide ? [styles.swaps, styles.swapsWide] : styles.swaps}>
           {SWAPS.map((w, i) => (
             <View key={i} style={styles.swapSlot}>
               <View style={[styles.swapRing]}>
@@ -873,6 +895,13 @@ export const GemsTab = memo(function GemsTab({ config, profile, priceOf, onPack,
 
 const styles = StyleSheet.create({
   tab: { gap: 18, paddingTop: 4 },
+  // landscape (REDESIGN_V7): the sections side by side in a row that scrolls sideways
+  tabWide: { flexDirection: 'row', alignItems: 'center', gap: 18, paddingTop: 10, paddingBottom: 8 },
+  wideCol: { width: 330 },
+  headingWide: { width: 120, alignItems: 'center', gap: 0 },
+  headingWideNote: { fontFamily: F.black, fontSize: 11, color: '#eadcff', textAlign: 'center', marginTop: 4 },
+  packsWide: { flexWrap: 'nowrap', justifyContent: 'flex-start', gap: 16 },
+  swapsWide: { width: 330 },
   row4: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   row6: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   img22: { width: 22, height: 22 },
@@ -913,7 +942,8 @@ const styles = StyleSheet.create({
   flameNum: { position: 'absolute', left: 0, right: 0, bottom: '9%', alignItems: 'center' },
   flameNumText: { fontFamily: F.display, fontSize: 30, color: '#ffffff', includeFontPadding: false },
   // all seven in one row (user, 2026-10-25), day 7 a little wider
-  dayGrid: { flexDirection: 'row', gap: 4 },
+  // (a height of its own: its cells grow into it, and in the landscape Shop it had none, so the claim button sat on them)
+  dayGrid: { flexDirection: 'row', gap: 4, minHeight: 84 },
   daySlot: { flex: 1, minWidth: 0 },
   daySlotLast: { flex: 1.35 },
   dayRing: { flex: 1, borderRadius: 14, padding: 2, paddingBottom: 4 },

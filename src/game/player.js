@@ -1,6 +1,7 @@
 // What the new design's game (src/game/GameScreen.js, webgame/) shows of the player, from the app's profile:
 // the game knows creatures by key (the design's roster numbers them its own way), the app by id (functions/squad.js).
-import { BY_ID, ROSTER, isOut, owns, wallet } from '../squad/data';
+import { BY_ID, ROSTER, isOut, owns, shownSize, wallet } from '../squad/data';
+import { levelsConfig, roadView, xpView } from '../playerXp';
 import { selectedId } from '../squad/lobby';
 import { LEVELS as SDK_LEVELS, record as sdkRecord } from '../squishdoku/levels';
 import { record as sortRecord } from '../sort/levels';
@@ -44,7 +45,15 @@ export function gamePlayer(profile, { level, hidden }) {
     hiddenKeys: ROSTER.filter((c) => !visible(c)).map((c) => c.key),
     games: menuGames(p),
     gamesNote: 'every game pays coins and XP',
+    // the menu's level crest (XP ring) and its Level Pass (webgame/app/menu.js)
+    xp: { ...levelXp(p), per: levelsConfig().xpPerLevel },
+    road: roadView(p).map((n) => ({ lv: n.lv, k: n.r.k, n: n.r.n || 0, t: n.r.t ? shownSize(n.r.t) : null, got: n.got, claimable: n.claimable })),
   };
 }
+
+const levelXp = (p) => {
+  const { level, into, need } = xpView(p);
+  return { level, into, need };
+};
 
 export const idOfKey = (key) => (ROSTER.find((c) => c.key === key) || {}).id || null;
