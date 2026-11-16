@@ -1092,10 +1092,6 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
           <PauseCard
             visible={paused}
             onResume={() => acts.current.resume()}
-            onRestart={() => {
-              setPaused(false);
-              replay();
-            }}
             onQuit={() => acts.current.leave()}
           />
           <HintCard visible={hintAsk} adReady={ad.ready} adsFree={adsFree} onWatch={() => acts.current.watchHint()} onClose={() => setHintAsk(false)} />

@@ -14,7 +14,7 @@ The third mini-game, asked for on 2026-10-24. It's the Tower of Hanoi with squis
 - **Weight:** squishies lower in a tower are squished a little by the ones on top of them.
 - **Goal:** everyone onto the ★ cushion, or, from level 9, the cushions must match the GOAL card. The card is always on screen.
 - **Moves and par:** the par is the fewest moves there are (worked out exactly, see Code). The meter shows the stars you can still get if every move from now on is the best one.
-- **UNDO** takes back the last move, but the move still counts. **RESTART** puts everyone back where this puzzle started; the moves go back to 0 and the clock keeps going. The pause card's **NEW PUZZLE** deals a fresh one.
+- **RESTART** puts everyone back where this puzzle started; the moves go back to 0. (Since 2026-11-16 there's no UNDO, no clock, and no NEW PUZZLE on the pause card, which has RESUME and QUIT: see the end.)
 
 ## Stars, hints, clock
 - **Stars:**
@@ -172,3 +172,4 @@ The user's marked-up screenshots of a level:
 - "put the goal at the bottom left", "the 2 buttons put them at the bottom on the same row": the goal card bottom left,
   RESTART and HINT side by side bottom right.
 - "remove the dashed lines": the dashed outline round the cushions is gone (its soft glow stays).
+- "remove the new puzzle button from the menu": the pause card has RESUME and QUIT only.

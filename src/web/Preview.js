@@ -72,7 +72,7 @@ const CARDS = {
   'sort-pause': (v) => <SORT.PauseCard visible={v} onResume={noop} onRestart={noop} onQuit={noop} />,
   'sort-rules': (v) => <SORT.RulesCard visible={v} onClose={noop} />,
   'stack-result': (v) => <STACK.ResultCard visible={v} res={{ ...res, moves: 9, par: 7 }} spec={{ lv: 9, tier: 1 }} onNext={noop} onReplay={noop} onHub={noop} />,
-  'stack-pause': (v) => <STACK.PauseCard visible={v} onResume={noop} onRestart={noop} onQuit={noop} />,
+  'stack-pause': (v) => <STACK.PauseCard visible={v} onResume={noop} onQuit={noop} />,
   'stack-hint': (v) => <STACK.HintCard visible={v} adReady onWatch={noop} onClose={noop} />,
   'stack-rules': (v) => <STACK.RulesCard visible={v} onClose={noop} />,
   'hop-result': (v) => <HOP.ResultCard visible={v} res={{ ...res, hops: 14, takebacks: 2 }} spec={{ lv: 9, tier: 1, room: 'living' }} nextRoom="Kitchen" onNext={noop} onReplay={noop} onHub={noop} />,
