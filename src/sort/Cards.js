@@ -6,7 +6,7 @@ import { RaysSpin } from '../components/candy/Decor';
 import { CoinIcon } from '../squad/ui';
 import sfx from '../audio/sfx';
 import { CountUp, FxLayer, PopIn, Rock, SlideIn } from '../squishdoku/fx';
-import { Overlay, XpGain, XpPlus } from '../squishdoku/Overlays';
+import { Overlay, Split, XpGain, XpPlus } from '../squishdoku/Overlays';
 import { BtnLabel, Head, SdButton } from '../squishdoku/ui';
 import { F, INK } from '../squishdoku/theme';
 import { BLITZ_ROUNDS, HEARTS, TIER_NAMES, clock } from './levels';
@@ -38,7 +38,7 @@ export function Star({ earned, delay, big }) {
       ) : null}
       <Animated.View style={{ opacity: t.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 1, 1] }), transform: [{ scale }, { rotate }] }}>
         <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path d={STAR_D} fill={earned ? '#b86200' : 'rgba(69,16,122,0.25)'} transform="translate(0 1.2)" strokeLinejoin="round" />
+          <Path d={STAR_D} fill={earned ? '#b86200' : 'rgba(107,68,38,0.25)'} transform="translate(0 1.2)" strokeLinejoin="round" />
           <Path d={STAR_D} fill={earned ? '#ffd23a' : 'rgba(255,255,255,0.7)'} stroke="#ffffff" strokeWidth={1.6} strokeLinejoin="round" />
           {earned ? <Path d="M8 9.6 L10.4 9.2 L11.3 7" stroke="#fff6c4" strokeWidth={1.4} strokeLinecap="round" fill="none" /> : null}
         </Svg>
@@ -76,6 +76,7 @@ export function ResultCard({ visible, res, spec, theme, last, onNext, onReplay, 
           <Star key={i} earned={i < res.stars} delay={380 + i * STEP} big={i === 1} />
         ))}
       </View>
+      <Split />
       <SlideIn trigger={key} delay={coinsAt - 150} dy={20} style={styles.rewardRow}>
         <CoinIcon size={26} />
         <CountUp value={res.coins} delay={coinsAt} ms={800} style={styles.coins} prefix="+" onTick={() => sfx.play('sd_coinTick')} />
@@ -89,7 +90,7 @@ export function ResultCard({ visible, res, spec, theme, last, onNext, onReplay, 
       ) : null}
       <SlideIn trigger={key} delay={380 + 2 * STEP + 300} dy={30} style={styles.btnRow}>
         <SdButton kind="white" onPress={onHub} sound="sd_select" faceStyle={styles.smallFace}>
-          <BtnLabel kind="purple" size={15}>
+          <BtnLabel kind="white" size={15}>
             MENU
           </BtnLabel>
         </SdButton>
@@ -115,17 +116,18 @@ export function FailCard({ visible, reason, uri, onRetry, onHub }) {
   return (
     <Overlay visible={visible} tint="rgba(80,0,30,0.5)">
       <PopIn trigger={visible} delay={60}>
-        <OutlinedTitle text={reason === 'time' ? "TIME'S UP!" : 'OH NO!'} size={32} fill="pink" />
+        <OutlinedTitle text={reason === 'time' ? "TIME'S UP!" : 'OH NO!'} size={32} fill="gold" />
       </PopIn>
       <PopIn trigger={visible} delay={220}>
         <Rock deg={8} ms={1800}>
           <Head uri={uri} size={86} dim ring="#ffffff" bg="#efe9f5" />
         </Rock>
       </PopIn>
+      <Split />
       <Text style={styles.body}>{reason === 'time' ? 'The clock ran out. You saw where they go. Try again!' : `${HEARTS} mistakes. You saw where they go. Try again!`}</Text>
       <SlideIn trigger={visible} delay={380} style={styles.btnRow}>
         <SdButton kind="white" onPress={onHub} sound="sd_select" faceStyle={styles.smallFace}>
-          <BtnLabel kind="purple" size={15}>
+          <BtnLabel kind="white" size={15}>
             MENU
           </BtnLabel>
         </SdButton>
@@ -142,8 +144,9 @@ export function FailCard({ visible, reason, uri, onRetry, onHub }) {
 export function PauseCard({ visible, onResume, onRestart, onQuit }) {
   return (
     <Overlay visible={visible}>
-      <OutlinedTitle text="PAUSED" size={30} fill="pink" />
+      <OutlinedTitle text="PAUSED" size={30} fill="gold" />
       <Text style={styles.body}>The clock is stopped.</Text>
+      <Split />
       <View style={styles.col}>
         <SdButton kind="green" onPress={onResume} sound="sd_resume" faceStyle={styles.wideFace}>
           <BtnLabel kind="green" size={18}>
@@ -156,7 +159,7 @@ export function PauseCard({ visible, onResume, onRestart, onQuit }) {
           </BtnLabel>
         </SdButton>
         <SdButton kind="white" onPress={onQuit} sound="sd_boardOut" faceStyle={styles.wideFace}>
-          <BtnLabel kind="purple" size={16}>
+          <BtnLabel kind="white" size={16}>
             QUIT
           </BtnLabel>
         </SdButton>
@@ -181,7 +184,7 @@ const TWISTS = [
 export function RulesCard({ visible, onClose }) {
   return (
     <Overlay visible={visible}>
-      <OutlinedTitle text="HOW TO PLAY" size={26} fill="pink" />
+      <OutlinedTitle text="HOW TO PLAY" size={26} fill="gold" />
       <View style={styles.rules}>
         {RULES.map(([n, title, line]) => (
           <View key={title} style={styles.rule}>
@@ -195,6 +198,7 @@ export function RulesCard({ visible, onClose }) {
           </View>
         ))}
       </View>
+      <Split />
       <Text style={styles.twistHead}>LATER LEVELS ADD TWISTS</Text>
       {TWISTS.map(([name, line]) => (
         <Text key={name} style={styles.twist}>
@@ -220,7 +224,7 @@ export function RulesCard({ visible, onClose }) {
 }
 
 const styles = StyleSheet.create({
-  sub: { fontFamily: F.display, fontSize: 12, letterSpacing: 0.6, color: '#8a5fc0', textAlign: 'center' },
+  sub: { fontFamily: F.display, fontSize: 12, letterSpacing: 0.6, color: '#9a6a3a', textAlign: 'center' },
   hint: { fontFamily: F.heavy, fontSize: 11.5, color: '#b86200', textAlign: 'center' },
   stars: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 4, marginBottom: 8 },
   rewardRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -234,11 +238,11 @@ const styles = StyleSheet.create({
   body: { fontFamily: F.heavy, fontSize: 14, color: INK, textAlign: 'center', paddingHorizontal: 6 },
   rules: { alignSelf: 'stretch', gap: 8, marginTop: 4 },
   rule: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  ruleNum: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#ff5cc6', borderWidth: 2.5, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
+  ruleNum: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#ff8a3d', borderWidth: 2.5, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
   ruleNumText: { fontFamily: F.display, fontSize: 15, color: '#ffffff', includeFontPadding: false },
-  ruleTitle: { fontFamily: F.display, fontSize: 15, color: '#8e1580' },
+  ruleTitle: { fontFamily: F.display, fontSize: 15, color: '#8a3a0e' },
   ruleLine: { fontFamily: F.heavy, fontSize: 12, lineHeight: 16, color: INK },
-  twistHead: { marginTop: 6, fontFamily: F.display, fontSize: 12, letterSpacing: 1, color: '#8a5fc0' },
+  twistHead: { marginTop: 6, fontFamily: F.display, fontSize: 12, letterSpacing: 1, color: '#9a6a3a' },
   twist: { alignSelf: 'stretch', fontFamily: F.heavy, fontSize: 11.5, lineHeight: 15.5, color: INK },
   twistName: { fontFamily: F.display, fontSize: 11.5, color: '#e01e4a' },
 });

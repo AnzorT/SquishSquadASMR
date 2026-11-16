@@ -1,3 +1,4 @@
+import { useWide } from '../royal/GameFrame';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, AppState, BackHandler, Easing, Image, PanResponder, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -87,7 +88,7 @@ const Meter = memo(function Meter({ stars }) {
 const BeatPill = memo(function BeatPill({ next }) {
   return (
     <View style={[styles.pill, styles.beatPill]}>
-      <Text style={[styles.pillText, { color: '#8e1580' }]}>BEAT</Text>
+      <Text style={[styles.pillText, { color: '#8a3a0e' }]}>BEAT</Text>
       {[0, 1, 2].map((k) => (
         <View key={k} style={[styles.beatDot, { backgroundColor: BEAT_COL[(next + k) % 3] }, k === 0 && styles.beatNow]} />
       ))}
@@ -132,6 +133,7 @@ const Rug = memo(function Rug({ B }) {
 });
 
 export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, haptics: hapticsOn = true, onExit }) {
+  const wide = useWide(); // landscape (REDESIGN_V8)
   const insets = useSafeAreaInsets();
   const haptics = useRef(makeHaptics(hapticsOn)).current;
   const ad = useRewardedAd();
@@ -872,13 +874,13 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
   const ph0 = PH[spec.phase] || PH.day;
   const nextRoom = lv < LEVELS ? ROOMS[stageOf(lv + 1).room].name : null;
 
-  return (
-    <View style={styles.fill} onLayout={onRoot}>
-      {root ? <Room room={spec.room} phase={spec.phase} width={root.w} height={root.h} /> : null}
-
+  // landscape (REDESIGN_V8, the games sideways): the top bar and the goal strip in a column on the left, the board in
+  // the middle on the room's floor, UNDO / RESTART / HINT down the right
+  const hudEl = (
+    <>
       {/* the Crib's top bar: back, the room's title, the time of day */}
-      <View style={[styles.hud, { paddingTop: insets.top + 6 }]}>
-        <CribButton face="pink" icon="back" size={44} onPress={() => (phaseRef.current === 'play' ? acts.current.pause() : acts.current.leave())} />
+      <View style={[styles.hud, wide ? styles.wHud : { paddingTop: insets.top + 6 }]}>
+        <CribButton face="orange" icon="back" size={44} onPress={() => (phaseRef.current === 'play' ? acts.current.pause() : acts.current.leave())} />
         <View style={styles.titleBox}>
           <RoomTitle title={room.name} />
           <View style={styles.subRow}>
@@ -888,9 +890,12 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
             </View>
           </View>
         </View>
-        {room.dance ? null : <PhasePill sun={ph0.sun} label={ph0.label} />}
+        {room.dance || wide ? null : <PhasePill sun={ph0.sun} label={ph0.label} />}
       </View>
-
+    </>
+  );
+  const areaEl = (
+    <>
       {/* the board on the floor */}
       <View ref={areaRef} collapsable={false} style={styles.area} onLayout={onArea} {...responder.panHandlers}>
         {B && hopper ? (
@@ -927,9 +932,12 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
           </>
         ) : null}
       </View>
-
+    </>
+  );
+  const stripEl = (
+    <>
       {/* the goal, the stars still possible, what's left, and a tip */}
-      <View style={styles.strip}>
+      <View style={[styles.strip, wide && styles.wStrip]}>
         <Animated.View style={[styles.goalCard, { transform: [{ translateX: shakeX }] }]}>
           <Text style={styles.goalLabel}>GOAL</Text>
           <View style={styles.goalRow}>
@@ -961,11 +969,14 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
           </Text>
         </View>
       </View>
-
+    </>
+  );
+  const ctrlEl = (
+    <>
       {/* undo, restart, hint */}
-      <View style={[styles.controls, { paddingBottom: Math.max(insets.bottom, 6) + 6 }]}>
+      <View style={[styles.controls, wide ? styles.wControls : { paddingBottom: Math.max(insets.bottom, 6) + 6 }]}>
         <SdButton kind="white" onPress={() => acts.current.undo()} disabled={!(playing || phase === 'stuck') || view.hops === 0} sound={null} faceStyle={styles.ctrlFace} style={styles.ctrl}>
-          <BtnLabel kind="purple" size={15}>
+          <BtnLabel kind="white" size={15}>
             UNDO
           </BtnLabel>
         </SdButton>
@@ -980,6 +991,28 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
           </BtnLabel>
         </SdButton>
       </View>
+    </>
+  );
+  return (
+    <View style={styles.fill} onLayout={onRoot}>
+      {root ? <Room room={spec.room} phase={spec.phase} width={root.w} height={root.h} /> : null}
+      {wide ? (
+        <View style={styles.wRow}>
+          <View style={styles.wLeft}>
+            {hudEl}
+            {stripEl}
+          </View>
+          {areaEl}
+          <View style={styles.wRight}>{ctrlEl}</View>
+        </View>
+      ) : (
+        <>
+          {hudEl}
+          {areaEl}
+          {stripEl}
+          {ctrlEl}
+        </>
+      )}
 
       <ResultCard visible={!!result} res={result} spec={spec} nextRoom={nextRoom} onNext={() => goTo(lv + 1)} onReplay={() => goTo(lv)} onHub={() => acts.current.leave()} />
       <StuckCard
@@ -1014,6 +1047,13 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
 
 const GLASS = 'rgba(91,58,41,0.75)';
 const styles = StyleSheet.create({
+  // landscape (REDESIGN_V8)
+  wRow: { flex: 1, flexDirection: 'row' },
+  wLeft: { width: 250, paddingTop: 8, paddingLeft: 10, gap: 8, zIndex: 3 },
+  wRight: { width: 150, justifyContent: 'center', zIndex: 3 },
+  wHud: { paddingHorizontal: 0 },
+  wStrip: { flexDirection: 'column', alignItems: 'stretch' },
+  wControls: { flexDirection: 'column', alignItems: 'stretch', paddingHorizontal: 14, gap: 10 },
   fill: { flex: 1 },
   hud: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, zIndex: 3 },
   titleBox: { flex: 1, minWidth: 0 },
@@ -1034,7 +1074,7 @@ const styles = StyleSheet.create({
   stickerDim: { backgroundColor: 'rgba(255,255,255,0.55)' },
   stickerIn: { flex: 1, borderRadius: 999, backgroundColor: '#f6efff', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   stickerImg: { width: '94%', height: '94%', resizeMode: 'contain' },
-  slotNum: { position: 'absolute', right: -5, top: -5, minWidth: 14, height: 14, paddingHorizontal: 2, borderRadius: 7, backgroundColor: '#ff5cc6', borderWidth: 1.5, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
+  slotNum: { position: 'absolute', right: -5, top: -5, minWidth: 14, height: 14, paddingHorizontal: 2, borderRadius: 7, backgroundColor: '#ff8a3d', borderWidth: 1.5, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
   slotNumText: { fontFamily: F.display, fontSize: 8.5, color: '#ffffff', includeFontPadding: false },
   stripRight: { flex: 1, minWidth: 0, justifyContent: 'center', gap: 5 },
   meterRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },

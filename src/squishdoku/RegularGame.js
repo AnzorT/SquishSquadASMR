@@ -350,7 +350,7 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
   const stage = stageOf(lv);
   const room = ROOMS[stage.room];
   const ph = PH[stage.phase] || PH.day;
-  const barW = Math.min(width - 48, 400);
+  const barW = width > height ? 196 : Math.min(width - 48, 400);
   // the room fills the screen; the board lies on its floor (from layouts, not
   // measure(): the screen slides in)
   const [root, setRoot] = useState(null);
@@ -377,13 +377,14 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
   );
   const hidden = phase === 'paused';
 
-  return (
-    <View style={styles.fill} onLayout={onRoot}>
-      {root ? <Room room={stage.room} phase={stage.phase} width={root.w} height={root.h} /> : null}
-
+  // REDESIGN_V8 (the user: each game laid out sideways): in landscape the top bar and the score / clock sit in a
+  // column on the left, the board in the middle on the room's floor, the buddy and the tools on the right
+  const wide = width > height;
+  const headerEl = (
+    <>
       {/* the Crib's top bar: pause (back once it's over), the room, the time of day */}
-      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <CribButton face="pink" icon={phase === 'play' ? 'pause' : 'back'} size={44} onPress={phase === 'play' ? pause : exit} />
+      <View style={[styles.header, wide ? styles.wHeader : { paddingTop: insets.top + 6 }]}>
+        <CribButton face="orange" icon={phase === 'play' ? 'pause' : 'back'} size={44} onPress={phase === 'play' ? pause : exit} />
         <View style={styles.titleBox}>
           <RoomTitle title={room.name} />
           <View style={styles.chips}>
@@ -398,11 +399,14 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
             ) : null}
           </View>
         </View>
-        {room.dance ? null : <PhasePill sun={ph.sun} label={ph.label} />}
+        {room.dance || wide ? null : <PhasePill sun={ph.sun} label={ph.label} />}
       </View>
-
+    </>
+  );
+  const glassEl = (
+    <>
       {/* the score creatures and the clock, on the Crib's brown glass */}
-      <View style={styles.glass}>
+      <View style={[styles.glass, wide && styles.wGlass]}>
         {game ? <ScoreRow uris={game.score} left={left} perfect={perfect && phase !== 'loading'} size={40} /> : <View style={{ height: 48 }} />}
         {spec.hearts ? (
           <View style={styles.hearts}>
@@ -416,7 +420,10 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
           <TimerBar frac={clk.frac} width={barW} markers={perfect ? [] : markers} warn={warn} label={label} />
         </View>
       </View>
-
+    </>
+  );
+  const boardEl = (
+    <>
       {/* the board on the room's floor */}
       <View style={styles.boardArea} onLayout={onArea}>
         {game && phase !== 'loading' && B ? (
@@ -452,12 +459,15 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
           </View>
         ) : null}
       </View>
-
+    </>
+  );
+  const bottomEl = (
+    <>
       {/* the player's Lobby creature cheering them on, beside the tools */}
-      <View style={[styles.bottom, { marginBottom: Math.max(insets.bottom, 6) + 4 }]}>
+      <View style={[styles.bottom, wide ? styles.wBottom : { marginBottom: Math.max(insets.bottom, 6) + 4 }]}>
         <Buddy ref={buddy} creatureKey={buddyKey} uri={buddyUri} paused={phase === 'paused' || phase === 'result' || phase === 'timeup' || phase === 'nohearts'} size={84} />
         <View style={styles.toolsCol}>
-          <View style={styles.tools}>
+          <View style={[styles.tools, wide && styles.wTools]}>
             <SdButton kind={xTool ? 'white' : 'pink'} onPress={() => xTool && toggleX()} sound={null} faceStyle={styles.toolFace}>
               <BtnLabel kind={xTool ? 'purple' : 'pink'} size={15}>
                 PLACE
@@ -473,6 +483,33 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
           <Text style={styles.hint}>{xTool ? 'Tap or drag to mark ✕\nusing ✕ ends a PERFECT run' : 'Tap to place\nlong-press to mark ✕'}</Text>
         </View>
       </View>
+    </>
+  );
+  return (
+    <View style={styles.fill} onLayout={onRoot}>
+      {root ? <Room room={stage.room} phase={stage.phase} width={root.w} height={root.h} /> : null}
+      {wide ? (
+        <View style={styles.wRow}>
+          <View style={styles.wLeft}>
+            {headerEl}
+            {glassEl}
+            {room.dance ? null : (
+              <View style={styles.wPhase}>
+                <PhasePill sun={ph.sun} label={ph.label} />
+              </View>
+            )}
+          </View>
+          {boardEl}
+          <View style={styles.wRight}>{bottomEl}</View>
+        </View>
+      ) : (
+        <>
+          {headerEl}
+          {glassEl}
+          {boardEl}
+          {bottomEl}
+        </>
+      )}
 
       <FxLayer ref={fx} />
       <PauseCard visible={phase === 'paused'} onResume={resume} onRestart={() => setAttempt((a) => a + 1)} onQuit={exit} />
@@ -551,6 +588,15 @@ const styles = StyleSheet.create({
   perfectLost: { color: '#e9d6ff' },
   barRow: { marginTop: 22 },
   boardArea: { flex: 1, alignSelf: 'stretch', zIndex: 2 },
+  // landscape (REDESIGN_V8)
+  wRow: { flex: 1, flexDirection: 'row' },
+  wLeft: { width: 236, paddingTop: 8, paddingLeft: 10, gap: 6, zIndex: 3 },
+  wRight: { width: 206, justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 10, zIndex: 3 },
+  wHeader: { paddingHorizontal: 0, flexWrap: 'wrap' },
+  wGlass: { alignSelf: 'stretch', marginTop: 2 },
+  wBottom: { flexDirection: 'column', alignItems: 'center', alignSelf: 'auto' },
+  wTools: { flexDirection: 'column', gap: 8 },
+  wPhase: { alignSelf: 'flex-start' },
   makingWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   bottom: { flexDirection: 'row', alignItems: 'flex-end', alignSelf: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 6, borderRadius: 22, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
   toolsCol: { alignItems: 'center', paddingBottom: 2 },
@@ -559,7 +605,7 @@ const styles = StyleSheet.create({
   hint: { fontFamily: F.heavy, fontSize: 11, color: '#ffffff', marginTop: 2, textAlign: 'center', lineHeight: 14 },
   making: { alignItems: 'center', gap: 10 },
   dots: { flexDirection: 'row', gap: 8, height: 30, alignItems: 'flex-end' },
-  dot: { width: 14, height: 14, borderRadius: 7, backgroundColor: '#ff5cc6', borderWidth: 2.5, borderColor: '#ffffff' },
+  dot: { width: 14, height: 14, borderRadius: 7, backgroundColor: '#ff8a3d', borderWidth: 2.5, borderColor: '#ffffff' },
   makingText: { fontFamily: F.display, fontSize: 14, color: '#ffffff', textShadowColor: INK, textShadowRadius: 2, textShadowOffset: { width: 0, height: 1 } },
   bannerWrap: { position: 'absolute', alignSelf: 'center', top: '22%' },
   banner: { fontFamily: F.display, fontSize: 40, color: '#ffffff', textShadowColor: INK, textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 1, letterSpacing: 2 },

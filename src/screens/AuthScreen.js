@@ -12,7 +12,7 @@ import TutTarget from '../tutorial/Target';
 import ShadowText from '../components/candy/ShadowText';
 import IntroBackground from '../squad/IntroBackground';
 import HopDots from '../components/candy/HopDots';
-import { BtnText, CandyBtn, F, PINK, PINK_RING } from '../squad/ui';
+import { BtnText, CandyBtn, F, GOLD, GOLD_RING } from '../squad/ui';
 
 // Log in / Register, from the app shell of "Squish Squad App.html": the
 // white outlined "Squish Squad" title and a line under it, then one white
@@ -34,11 +34,12 @@ import { BtnText, CandyBtn, F, PINK, PINK_RING } from '../squad/ui';
 // collecting personal information.
 const MIN_SIGNUP_AGE = 13;
 
-const PURPLE = '#45107a';
-const LABEL = '#6a3d9a';
-const INK = '#4a1a73';
-const LINE = '#e3cff5';
-const FOCUS = '#c02bd9';
+// REDESIGN_V8: the wood look (the house's Renovate / Catalog buttons) instead of the pink and purple
+const PURPLE = '#6b4426'; // (the title's outline and the line under it: the wood's brown)
+const LABEL = '#8a5a34';
+const INK = '#5b3418';
+const LINE = '#ecd3ae';
+const FOCUS = '#e08a2c';
 
 const GAP = 11; // the card's row gap
 const INPUT_H = 48;
@@ -98,7 +99,7 @@ function Field({ label, style, right, ...input }) {
       <Text style={styles.label}>{label}</Text>
       <View>
         <TextInput
-          placeholderTextColor="#a98bc9"
+          placeholderTextColor="#b9976e"
           {...input}
           onFocus={() => setFocus(true)}
           onBlur={() => setFocus(false)}
@@ -143,7 +144,7 @@ function ModeSwitch({ mode, onChange }) {
           ]}
         >
           <View style={styles.pillRing} />
-          <LinearGradient colors={PINK} locations={[0, 0.55, 1]} style={styles.pillFace} />
+          <LinearGradient colors={GOLD} locations={[0, 0.55, 1]} style={styles.pillFace} />
         </Animated.View>
       ) : null}
       {[
@@ -151,7 +152,7 @@ function ModeSwitch({ mode, onChange }) {
         ['register', 'Register'],
       ].map(([value, label]) => (
         <Pressable key={value} onPress={() => onChange(value)} style={styles.tab}>
-          <Text style={[styles.tabText, { color: mode === value ? '#ffffff' : LABEL }]}>{label}</Text>
+          <Text style={[styles.tabText, { color: mode === value ? INK : LABEL }]}>{label}</Text>
         </Pressable>
       ))}
     </View>
@@ -260,7 +261,54 @@ export default function AuthScreen() {
     setBlocked(false);
   };
 
-  // landscape (REDESIGN_V7): Mittens, the title and the line on the left; the card, scrolling, on the right
+  // landscape (REDESIGN_V7; REDESIGN_V8, the user: "on a horizontal"): Mittens, the title and the line on the left; the
+  // card on the right, laid out sideways so it fits the screen: email and password side by side (and squad name + age
+  // above them to register), the button beside "Keep me signed in", the social buttons in one short row
+  const submitBtn = (
+    <TutTarget name="enter" style={wide ? styles.flex : null}>
+      <CandyBtn kind="gold" onPress={submit} disabled={submitting} padV={wide ? 8 : 10} lip={5} stretch>
+        {/* while it waits on the server: the loading screen's hopping dots */}
+        {submitting ? (
+          <HopDots size={14} style={styles.dots} />
+        ) : (
+          <Animated.View style={labelStyle}>
+            <BtnText ring={GOLD_RING} size={wide ? 18 : 20}>
+              {buttonLabel}
+            </BtnText>
+          </Animated.View>
+        )}
+      </CandyBtn>
+    </TutTarget>
+  );
+  const keepBox = (
+    <Pressable onPress={() => setKeep((v) => !v)} style={styles.keep} hitSlop={6}>
+      {keep ? (
+        <LinearGradient colors={['#ffd23a', '#ff9c0a']} style={styles.box}>
+          <Tick />
+        </LinearGradient>
+      ) : (
+        <View style={styles.box} />
+      )}
+      <Text style={styles.keepText}>Keep me signed in</Text>
+    </Pressable>
+  );
+  const emailField = <Field label="EMAIL" value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="you@example.com" style={wide ? styles.flex : null} />;
+  const passField = (
+    <Field
+      label="PASSWORD"
+      value={password}
+      onChangeText={setPassword}
+      secureTextEntry={!showPass}
+      autoCapitalize="none"
+      placeholder="At least 6 characters"
+      style={wide ? styles.flex : null}
+      right={
+        <Pressable onPress={() => setShowPass((v) => !v)} hitSlop={8} style={styles.eye}>
+          <Text style={styles.eyeText}>{showPass ? 'Hide' : 'Show'}</Text>
+        </Pressable>
+      }
+    />
+  );
   return (
     <IntroBackground>
       <KeyboardAvoidingView style={[styles.flex, wide && styles.wideRow]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -290,7 +338,7 @@ export default function AuthScreen() {
           {wide ? null : <Text style={styles.sub}>Log in or make an account to save your squad.</Text>}
 
           <View style={styles.cardLip}>
-            <View style={styles.card}>
+            <View style={[styles.card, wide && styles.cardWide]}>
               <ModeSwitch mode={mode} onChange={switchMode} />
 
               {blocked ? (
@@ -303,45 +351,29 @@ export default function AuthScreen() {
                       <Field label="AGE" value={ageInput} onChangeText={setAgeInput} keyboardType="number-pad" placeholder="13+" maxLength={3} style={styles.age} />
                     </View>
                   )}
-                  <Field label="EMAIL" value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="you@example.com" />
-                  <Field
-                    label="PASSWORD"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPass}
-                    autoCapitalize="none"
-                    placeholder="At least 6 characters"
-                    right={
-                      <Pressable onPress={() => setShowPass((v) => !v)} hitSlop={8} style={styles.eye}>
-                        <Text style={styles.eyeText}>{showPass ? 'Hide' : 'Show'}</Text>
-                      </Pressable>
-                    }
-                  />
+                  {wide ? (
+                    <View style={styles.row}>
+                      {emailField}
+                      {passField}
+                    </View>
+                  ) : (
+                    <>
+                      {emailField}
+                      {passField}
+                    </>
+                  )}
                   {!!error && <Text style={styles.error}>{error}</Text>}
-                  <TutTarget name="enter">
-                    <CandyBtn kind="pink" onPress={submit} disabled={submitting} padV={10} lip={5} stretch>
-                      {/* while it waits on the server: the loading screen's hopping dots */}
-                      {submitting ? (
-                        <HopDots size={14} style={styles.dots} />
-                      ) : (
-                        <Animated.View style={labelStyle}>
-                          <BtnText ring={PINK_RING} size={20}>
-                            {buttonLabel}
-                          </BtnText>
-                        </Animated.View>
-                      )}
-                    </CandyBtn>
-                  </TutTarget>
-                  <Pressable onPress={() => setKeep((v) => !v)} style={styles.keep} hitSlop={6}>
-                    {keep ? (
-                      <LinearGradient colors={['#ff8fd8', '#c02bd9']} style={styles.box}>
-                        <Tick />
-                      </LinearGradient>
-                    ) : (
-                      <View style={styles.box} />
-                    )}
-                    <Text style={styles.keepText}>Keep me signed in</Text>
-                  </Pressable>
+                  {wide ? (
+                    <View style={styles.wideSubmit}>
+                      {submitBtn}
+                      {keepBox}
+                    </View>
+                  ) : (
+                    <>
+                      {submitBtn}
+                      {keepBox}
+                    </>
+                  )}
                   <View style={styles.orRow}>
                     <View style={styles.orLine} />
                     <Text style={styles.orText}>OR</Text>
@@ -349,7 +381,7 @@ export default function AuthScreen() {
                   </View>
                   <View style={styles.socials}>
                     {SOCIALS.map(([id, label, Icon]) => (
-                      <Pressable key={id} onPress={() => startSocial(id)} style={({ pressed }) => [styles.social, pressed && { transform: [{ translateY: 2 }] }]}>
+                      <Pressable key={id} onPress={() => startSocial(id)} style={({ pressed }) => [styles.social, wide && styles.socialWide, pressed && { transform: [{ translateY: 2 }] }]}>
                         <Icon />
                         <Text style={styles.socialText}>{label}</Text>
                       </Pressable>
@@ -359,8 +391,8 @@ export default function AuthScreen() {
               )}
             </View>
           </View>
-          {/* room the register row takes when it's open (see SWAP) */}
-          <View style={{ height: isRegister ? 0 : extraH }} />
+          {/* room the register row takes when it's open (see SWAP); landscape centres the card instead */}
+          {wide ? null : <View style={{ height: isRegister ? 0 : extraH }} />}
         </ScrollView>
       </KeyboardAvoidingView>
     </IntroBackground>
@@ -400,17 +432,20 @@ const SOCIALS = [
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   wideRow: { flexDirection: 'row' },
-  wideHero: { width: '40%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  mittensWide: { width: 150, height: 150, marginBottom: -6 },
+  wideHero: { width: '34%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  mittensWide: { width: 132, height: 132, marginBottom: -6 },
   wideCard: { flex: 1 },
-  scrollWide: { paddingVertical: 18, paddingRight: 28, paddingLeft: 6 },
+  scrollWide: { paddingVertical: 10, paddingRight: 26, paddingLeft: 4 },
+  cardWide: { paddingTop: 10, paddingBottom: 12, gap: 8 },
+  wideSubmit: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  socialWide: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingTop: 6, paddingBottom: 5, borderBottomWidth: 4 },
   mittens: { width: 130, height: 130, alignSelf: 'center', marginBottom: -6 },
   orRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
-  orLine: { flex: 1, height: 2, borderRadius: 1, backgroundColor: '#ece0f8' },
-  orText: { fontFamily: F.black, fontSize: 10.5, letterSpacing: 1.2, color: '#a98bc9' },
+  orLine: { flex: 1, height: 2, borderRadius: 1, backgroundColor: '#ecd3ae' },
+  orText: { fontFamily: F.black, fontSize: 10.5, letterSpacing: 1.2, color: '#b48a5e' },
   socials: { flexDirection: 'row', gap: 7 },
-  social: { flex: 1, alignItems: 'center', gap: 4, paddingTop: 10, paddingBottom: 8, borderRadius: 16, backgroundColor: '#ffffff', borderWidth: 2.5, borderColor: '#ece0f8', borderBottomWidth: 5 },
-  socialText: { fontFamily: F.black, fontSize: 11, color: '#45107a' },
+  social: { flex: 1, alignItems: 'center', gap: 4, paddingTop: 10, paddingBottom: 8, borderRadius: 16, backgroundColor: '#ffffff', borderWidth: 2.5, borderColor: '#ecd3ae', borderBottomWidth: 5 },
+  socialText: { fontFamily: F.black, fontSize: 11, color: INK },
   // the dots (14 + 7 hop room) in the label's place: about the label's
   // line height, so the button keeps its size
   dots: { height: 26 },
@@ -436,14 +471,13 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 12,
   },
-  // the card: 90% white over the sky (drawn opaque, so the lip doesn't show
-  // through it), a 3px white rim and a 6px lilac lip under it
-  cardLip: { borderRadius: 28, backgroundColor: '#d6b8ee', paddingBottom: 6 },
+  // the card: cream in a brown outline with a brown lip under it, like the house's wood buttons (REDESIGN_V8)
+  cardLip: { borderRadius: 26, backgroundColor: '#6b4426', paddingBottom: 5 },
   card: {
-    borderRadius: 28,
-    borderWidth: 3,
-    borderColor: '#ffffff',
-    backgroundColor: '#fcfaff',
+    borderRadius: 26,
+    borderWidth: 2.5,
+    borderColor: '#6b4426',
+    backgroundColor: '#fff6e2',
     paddingTop: 14,
     paddingHorizontal: 16,
     paddingBottom: 16,
@@ -452,7 +486,7 @@ const styles = StyleSheet.create({
   track: {
     flexDirection: 'row',
     borderRadius: 999,
-    backgroundColor: '#f1e4ff',
+    backgroundColor: '#f3dfbd',
     padding: 4,
   },
   // the pill: the pink face in a 2px ring with a 3px lip
@@ -464,7 +498,7 @@ const styles = StyleSheet.create({
     top: -2,
     bottom: -5,
     borderRadius: 999,
-    backgroundColor: PINK_RING,
+    backgroundColor: GOLD_RING,
   },
   pillFace: { ...StyleSheet.absoluteFillObject, borderRadius: 999 },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 9 },

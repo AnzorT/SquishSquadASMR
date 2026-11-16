@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import Svg, { Defs, LinearGradient, RadialGradient, Stop, Rect, Pattern, Circle, Ellipse } from 'react-native-svg';
 
 // The squish screen's sky from "ASMR Creature Squash v5": blue at the top
-// fading through lavender to pink, a pink glow rising from the bottom, a
+// fading through sand to peach, a warm glow rising from the bottom (REDESIGN_V8: no pink), a
 // soft white glow behind the toy, three cloud puffs and a white dot grid
 // every 26px. One static SVG, memoized and kept as a hardware layer (as
 // CandyBackground does), so the 3D stage's frames never repaint it.
@@ -29,12 +29,12 @@ const Sky = memo(function Sky({ width: w, height: h }) {
         <LinearGradient id="skyBg" x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor="#8fd0ff" />
           <Stop offset="0.38" stopColor="#b9e2ff" />
-          <Stop offset="0.68" stopColor="#e6dcff" />
-          <Stop offset="1" stopColor="#ffd6f4" />
+          <Stop offset="0.68" stopColor="#f3e6d6" />
+          <Stop offset="1" stopColor="#ffdcb4" />
         </LinearGradient>
         <RadialGradient id="skyPink" cx="50%" cy="50%" r="50%">
-          <Stop offset="0" stopColor="#ff8cd7" stopOpacity={0.6} />
-          <Stop offset="1" stopColor="#ff8cd7" stopOpacity={0} />
+          <Stop offset="0" stopColor="#ffab5c" stopOpacity={0.6} />
+          <Stop offset="1" stopColor="#ffab5c" stopOpacity={0} />
         </RadialGradient>
         <RadialGradient id="skyGlow" cx="50%" cy="50%" r="50%">
           <Stop offset="0" stopColor="#ffffff" stopOpacity={0.55} />

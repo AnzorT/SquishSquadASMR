@@ -124,7 +124,7 @@ check(back === true && !(await page.$('.mm-hback')), 'Android back leaves the ho
 
 // round 11: no GAMES tab, no "Let's play" board, CHARACTERS, a living level crest
 const hudBits = await page.evaluate(() => ({ tabs: [...document.querySelectorAll('.mm-tab')].map(t => t.textContent.trim()), board: !!document.querySelector('.mm-card .k'), pills: !!document.querySelector('.mm-lv .tag'), crest: !!document.querySelector('.sq-crest .sq-cin') }));
-check(hudBits.tabs.join() === 'MY HOUSE,CHARACTERS,SHOP' && !hudBits.board && !hudBits.pills && hudBits.crest, 'the HUD: MY HOUSE / CHARACTERS / SHOP, no board, no tier pills, a live crest', hudBits);
+check(hudBits.tabs.join() === 'CRIBFLUF,CHARACTERS,SHOP' && !hudBits.board && !hudBits.pills && hudBits.crest, 'the HUD: CRIBFLUF / CHARACTERS / SHOP, no board, no tier pills, a live crest', hudBits);
 
 // PLAY: the creature walks left to the Game Park, where the app's games line up (no yard games there)
 await page.click('.mm-play');
@@ -164,18 +164,20 @@ check(road, 'the house picture has the road to the Game Park');
 // the Level Pass: the crest opens it; CLAIM asks the app
 await page.click('.sq-crest', { force: true });
 await page.waitForTimeout(900);
-const pass = await page.evaluate(() => ({ open: !!document.querySelector('.sq-lvtrack'), n: document.querySelectorAll('.sq-lc').length }));
+const pass = await page.evaluate(() => ({ open: !!document.querySelector('.sq-lvtrack'), n: document.querySelectorAll('.sq-ln').length }));
 check(pass.open && pass.n >= 30, 'the crest opens the Level Pass (30+ levels)', pass);
 await page.click('.mm-page2 [data-x]', { force: true });
 await page.waitForTimeout(600);
 
 // the character chosen on CHARACTERS goes to the app
 await page.click('.mm-tab[data-tab="creatures"]');
-await page.waitForTimeout(1500);
+// (REDESIGN_V9: the Gathering your squad loading screen plays first, then leaves)
+await page.waitForSelector('.sq-gs', { state: 'detached', timeout: 10000 });
+await page.waitForTimeout(300);
 await page.evaluate(() => { window.__sent.length = 0; });
 await page.click('.sq-cc[data-id="1"]', { force: true });
 await page.waitForTimeout(500);
-await page.click('.sq-cs [data-sel]', { force: true });
+await page.click('.sq-c2 [data-sel]', { force: true }); // (REDESIGN_V8: the remodelled Characters page)
 await page.waitForTimeout(400);
 const sel = await page.evaluate(() => window.__sent.find(m => m.type === 'select'));
 check(sel && sel.payload.key === 'mittens', 'choosing Mittens on CHARACTERS tells the app', sel);

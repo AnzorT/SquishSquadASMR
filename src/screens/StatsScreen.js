@@ -67,7 +67,7 @@ function Card({ children, style }) {
   return (
     <View style={[styles.cardRing, style]}>
       <View style={styles.cardWhite}>
-        <LinearGradient colors={['#fff6fd', '#ffdcf4', '#f5cbff']} locations={[0, 0.6, 1]} style={styles.cardFace}>
+        <LinearGradient colors={['#fffaf0', '#fff1dc', '#f6e2c4']} locations={[0, 0.6, 1]} style={styles.cardFace}>
           {children}
         </LinearGradient>
       </View>
@@ -136,13 +136,13 @@ function StatsScreen({ creatures = [], customCreatures = [], profile = null, onB
   const top = ranked.slice(0, TOP_COUNT);
 
   const tiles = [
-    { label: 'SQUISHES', value: fmtNum(stats.presses || 0), color: '#d3179a' },
+    { label: 'SQUISHES', value: fmtNum(stats.presses || 0), color: '#e0601c' },
     { label: 'LONGEST HOLD', value: `${((stats.longestHoldMs || 0) / 1000).toFixed(1)}s`, color: '#1695d6' },
-    { label: 'TIME SQUISHING', value: formatDuration(totalMs), color: '#7a2ff0' },
+    { label: 'TIME SQUISHING', value: formatDuration(totalMs), color: '#b8641c' },
     { label: 'COINS EARNED', value: fmtNum(p.totalEarned || 0), color: candyColors.goldInk },
-    { label: 'CREATURES', value: `${owned}/${rosterSize}`, color: '#d3179a' },
+    { label: 'CREATURES', value: `${owned}/${rosterSize}`, color: '#e0601c' },
     { label: 'ACHIEVEMENTS', value: `${achDone}/${achievements.length}`, color: candyColors.goldInk },
-    { label: 'BOXES OPENED', value: fmtNum(p.boxOpens || 0), color: '#7a2ff0' },
+    { label: 'BOXES OPENED', value: fmtNum(p.boxOpens || 0), color: '#b8641c' },
     { label: 'BIGGEST BOOST', value: p.maxMult ? `×${p.maxMult}` : '—', color: '#1695d6' },
   ];
 
@@ -175,7 +175,7 @@ function StatsScreen({ creatures = [], customCreatures = [], profile = null, onB
                     <Text style={styles.wRankName} numberOfLines={1}>{nameOf(entry)}</Text>
                     <Text style={styles.wRankTime}>{formatDuration(entry.ms)}</Text>
                   </View>
-                  <CandyProgress pct={(entry.ms / top[0].ms) * 100} height={7} ring={candyColors.pinkRing} fill={['#ffa8e6', '#ff4fbf']} />
+                  <CandyProgress pct={(entry.ms / top[0].ms) * 100} height={7} ring="#6b4426" fill={['#ffe08a', '#f0a21c']} />
                 </View>
               </View>
             ))}
@@ -243,7 +243,7 @@ function StatsScreen({ creatures = [], customCreatures = [], profile = null, onB
                         </Text>
                         <Text style={styles.rankTime}>{formatDuration(entry.ms)}</Text>
                       </View>
-                      <CandyProgress pct={(entry.ms / top[0].ms) * 100} height={8} ring={candyColors.pinkRing} fill={['#ffa8e6', '#ff4fbf']} />
+                      <CandyProgress pct={(entry.ms / top[0].ms) * 100} height={8} ring="#6b4426" fill={['#ffe08a', '#f0a21c']} />
                     </View>
                   </View>
                 ))}
@@ -264,13 +264,13 @@ const styles = StyleSheet.create({
   wRoot: { ...StyleSheet.absoluteFillObject, backgroundColor: '#24123f' },
   wLeft: { position: 'absolute', left: 22, top: 72, bottom: 22, width: 300, paddingHorizontal: 16, paddingVertical: 12, alignItems: 'stretch', justifyContent: 'flex-start', gap: 6 },
   wKicker: { fontFamily: RFONT.bodyBlack, fontSize: 10, letterSpacing: 1.4, color: '#ffe27a' },
-  wSub: { fontFamily: RFONT.body, fontSize: 11.5, color: '#eadcff' },
+  wSub: { fontFamily: RFONT.body, fontSize: 11.5, color: '#fff6e2' },
   wRank: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 3 },
   wRankName: { flex: 1, fontFamily: RFONT.display, fontSize: 13.5, color: '#ffffff' },
   wRankTime: { fontFamily: RFONT.bodyHeavy, fontSize: 11, color: '#ffe9a8' },
   wGrid: { position: 'absolute', left: 340, right: 22, top: 72, bottom: 22, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'space-between', justifyContent: 'space-between' },
   wTile: { width: '23.5%', height: 136, gap: 6, paddingHorizontal: 8 },
-  wTileLabel: { fontFamily: RFONT.bodyBlack, fontSize: 9.5, letterSpacing: 1, color: '#eadcff' },
+  wTileLabel: { fontFamily: RFONT.bodyBlack, fontSize: 9.5, letterSpacing: 1, color: '#fff6e2' },
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
   body: { paddingHorizontal: 16, paddingTop: 6, gap: 12 },
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     padding: 2.5,
     backgroundColor: candyColors.cardRing,
-    shadowColor: '#320064',
+    shadowColor: '#3f2412',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
     shadowRadius: 9,

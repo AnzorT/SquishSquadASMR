@@ -17,8 +17,8 @@ export function Flame({ size = 14 }) {
 // The same flame drawn big for the streak screen: a glossy gradient body,
 // a yellow heart and a highlight. `width` × 1.15 tall.
 export function BigFlame({ width = 120, cold = false }) {
-  const body = cold ? ['#e9d6ff', '#b38cff', '#8a5fd6'] : ['#ffc35a', '#ff7a3a', '#e5352a'];
-  const heart = cold ? ['#ffffff', '#e6d6ff'] : ['#fffbd0', '#ffd23a'];
+  const body = cold ? ['#e0f2ff', '#8cc8ff', '#4f8fd6'] : ['#ffc35a', '#ff7a3a', '#e5352a'];
+  const heart = cold ? ['#ffffff', '#d6ecff'] : ['#fffbd0', '#ffd23a'];
   return (
     <Svg width={width} height={width * 1.15} viewBox="0 0 105 121">
       <Defs>
@@ -35,7 +35,7 @@ export function BigFlame({ width = 120, cold = false }) {
       <Path
         d="M52 6 C67 36 97 46 91 82 C87 105 68 115 52 115 C30 115 14 99 14 76 C14 53 36 45 37 22 C45 30 51 37 52 6Z"
         fill="url(#bfBody)"
-        stroke={cold ? '#45189a' : '#7a2310'}
+        stroke={cold ? '#1d4f9a' : '#7a2310'}
         strokeWidth={5}
         strokeLinejoin="round"
       />

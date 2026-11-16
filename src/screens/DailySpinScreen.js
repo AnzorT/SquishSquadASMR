@@ -32,7 +32,7 @@ const HUB = 100;
 const SPIN_MS = 4500;
 const SPIN_EASE = Easing.bezier(0.12, 0.72, 0.06, 1);
 const LAPS = 5;
-const PURPLE = '#45107a';
+const PURPLE = '#6b4426'; // (the wood look's brown since REDESIGN_V8)
 const RIM = '#a0520a';
 
 const polar = (deg, r) => {
@@ -191,7 +191,7 @@ const Wheel = memo(function Wheel({ rot, hubLabel, onHub }) {
       <Disc rot={rot} />
       {/* the pointer: a pink drop, point down, with a shine */}
       <View style={styles.pinRing}>
-        <LinearGradient colors={['#ffa8e6', '#ff4fbf', '#d3179a']} locations={[0, 0.55, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.pinFace} />
+        <LinearGradient colors={['#ffe2c8', '#ff9a4a', '#e0601c']} locations={[0, 0.55, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.pinFace} />
       </View>
       <View style={styles.pinShine} />
       <Hub label={hubLabel} onPress={onHub} />
@@ -418,8 +418,8 @@ export default function DailySpinScreen({ onSpin, onDone, bonusLeft = 0, adsFree
                 <Defs>
                   <RadialGradient id="prizeCard" cx="50%" cy="30%" r="80%">
                     <Stop offset="0" stopColor="#ffffff" />
-                    <Stop offset="0.6" stopColor="#fff3fb" />
-                    <Stop offset="1" stopColor="#f6e2ff" />
+                    <Stop offset="0.6" stopColor="#fff6e8" />
+                    <Stop offset="1" stopColor="#f6e2c4" />
                   </RadialGradient>
                 </Defs>
                 <Circle cx="50%" cy="30%" r="200%" fill="url(#prizeCard)" />
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     padding: 2,
-    backgroundColor: '#8e1580',
+    backgroundColor: '#8a3a0e',
     borderTopLeftRadius: 21,
     borderTopRightRadius: 21,
     borderBottomRightRadius: 21,
@@ -506,11 +506,11 @@ const styles = StyleSheet.create({
   playTri: { width: 0, height: 0, marginLeft: 3, borderTopWidth: 7, borderBottomWidth: 7, borderLeftWidth: 11, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: '#14985a' },
   adSub: { fontFamily: F.black, fontSize: 10.5, letterSpacing: 0.6, color: '#eafff3' },
   note: { fontFamily: F.heavy, fontSize: 13, color: PURPLE, textAlign: 'center', maxWidth: 320 },
-  unlocked: { fontFamily: F.display, fontSize: 17, color: '#c02bd9', marginTop: 4 },
-  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(42,15,74,0.55)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  cardLip: { width: '100%', maxWidth: 300, borderRadius: 30, backgroundColor: '#c02bd9', paddingBottom: 6 },
+  unlocked: { fontFamily: F.display, fontSize: 17, color: '#e0601c', marginTop: 4 },
+  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(50,24,6,0.55)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  cardLip: { width: '100%', maxWidth: 300, borderRadius: 30, backgroundColor: '#b8641c', paddingBottom: 6 },
   card: { borderRadius: 30, borderWidth: 3, borderColor: '#ffffff', overflow: 'hidden', paddingTop: 22, paddingHorizontal: 20, paddingBottom: 20, alignItems: 'center', gap: 10 },
   cardTitle: { fontFamily: F.display, fontSize: 30, color: '#ffffff' },
-  cardAmt: { fontFamily: F.display, fontSize: 34, lineHeight: 38, color: '#8e1580' },
-  cardWhat: { fontFamily: F.black, fontSize: 13, letterSpacing: 1.5, color: '#6a3d9a' },
+  cardAmt: { fontFamily: F.display, fontSize: 34, lineHeight: 38, color: '#8a3a0e' },
+  cardWhat: { fontFamily: F.black, fontSize: 13, letterSpacing: 1.5, color: '#9a6a3a' },
 });

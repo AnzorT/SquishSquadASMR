@@ -9,9 +9,10 @@ import sfx from '../../audio/sfx';
 // `variant` 'green' (Home's Crib button) and 'gold' (Daily Challenges) are
 // the design's other two: a top-to-bottom gradient face and their own ring.
 
-const RING = '#45189a';
+// (REDESIGN_V8: the default "violet" look is the wood knob now, like the royal kit's Orb)
+const RING = '#6b4426';
 const VARIANTS = {
-  violet: { ring: RING, stops: [['0', '#f3d2ff'], ['0.45', '#b65cff'], ['1', '#6a22d6']], radial: true },
+  violet: { ring: RING, stops: [['0', '#f6d9b0'], ['0.45', '#d9a066'], ['1', '#a86e3a']], radial: true },
   green: { ring: '#17652f', stops: [['0', '#d8ffc2'], ['0.55', '#6fe07a'], ['1', '#26a94e']] },
   gold: { ring: '#a04a00', stops: [['0', '#fffbd6'], ['0.45', '#ffe045'], ['1', '#ff9500']] },
   // Home's daily streak button

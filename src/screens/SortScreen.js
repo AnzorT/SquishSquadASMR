@@ -1,7 +1,8 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Animated, BackHandler, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import CandyBackground from '../components/candy/CandyBackground';
+import { GameBackground as CandyBackground, GameBack, useWide } from '../royal/GameFrame';
+import { MapBackdrop } from '../royal/WorldBg';
 import { KeptView, ViewSlot, useViewSwitch } from '../components/ViewSwitch';
 import RoundButton, { BackGlyph } from '../components/candy/RoundButton';
 import sfx from '../audio/sfx';
@@ -45,6 +46,7 @@ function SortScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack 
   const insets = useSafeAreaInsets();
   const rec = record(profile);
   const sw = useViewSwitch('hub'); // hub | map | game | blitz
+  const wide = useWide();
   const { view, go } = sw;
   const [theme, setTheme] = useState('fridge');
   const [playLv, setPlayLv] = useState(1);
@@ -54,7 +56,6 @@ function SortScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack 
 
   useEffect(() => {
     sfx.setBudget(SOUND_BUDGET);
-    sfx.music('party');
     // first visit: how to play
     if (!rec.seen) {
       setTimeout(() => setRules(true), 700);
@@ -106,11 +107,11 @@ function SortScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack 
 
   return (
     <CandyBackground style={{ paddingTop: insets.top }} sparkles>
+      {/* the level map stands in the menu's world (src/royal/WorldBg.js) */}
+      <MapBackdrop sw={sw} on={wide && view === 'map'} />
       {view !== 'game' && view !== 'blitz' ? (
         <View style={styles.header}>
-          <RoundButton size={40} onPress={() => (view === 'map' ? go('hub') : onBack())}>
-            <BackGlyph />
-          </RoundButton>
+          <GameBack onPress={() => (view === 'map' ? go('hub') : onBack())} />
           {view === 'map' ? (
             <>
               <View style={styles.titleBox}>

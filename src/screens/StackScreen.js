@@ -1,7 +1,8 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Animated, BackHandler, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import CandyBackground from '../components/candy/CandyBackground';
+import { GameBackground as CandyBackground, GameBack, useWide } from '../royal/GameFrame';
+import { MapBackdrop } from '../royal/WorldBg';
 import { KeptView, ViewSlot, useViewSwitch } from '../components/ViewSwitch';
 import RoundButton, { BackGlyph } from '../components/candy/RoundButton';
 import sfx from '../audio/sfx';
@@ -33,6 +34,7 @@ function StackScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack
   const insets = useSafeAreaInsets();
   const rec = record(profile);
   const sw = useViewSwitch('hub'); // hub | map | game | blitz
+  const wide = useWide();
   const { view, go } = sw;
   const [playLv, setPlayLv] = useState(1);
   const [rules, setRules] = useState(false);
@@ -50,13 +52,6 @@ function StackScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack
     return () => sfx.setBudget(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // Blitz plays to party music (as Squishdoku's)
-  useEffect(() => {
-    if (view !== 'blitz') return undefined;
-    sfx.music('party');
-    return () => sfx.music('cozy');
-  }, [view]);
-
 
   // back: rules → map → hub → lobby (the game and Blitz handle their own)
   useEffect(() => {
@@ -100,11 +95,11 @@ function StackScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack
 
   return (
     <CandyBackground style={{ paddingTop: insets.top }} sparkles>
+      {/* the level map stands in the menu's world (src/royal/WorldBg.js) */}
+      <MapBackdrop sw={sw} on={wide && view === 'map'} />
       {!playing ? (
         <View style={styles.header}>
-          <RoundButton size={40} onPress={() => (view === 'map' ? go('hub') : onBack())}>
-            <BackGlyph />
-          </RoundButton>
+          <GameBack onPress={() => (view === 'map' ? go('hub') : onBack())} />
           {view === 'map' ? (
             <>
               <View style={styles.titleBox}>
@@ -156,7 +151,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 6, paddingBottom: 2 },
   titleBox: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontFamily: F.display, fontSize: 20, letterSpacing: 1, color: '#8e1580' },
+  headerTitle: { fontFamily: F.display, fontSize: 20, letterSpacing: 1, color: '#8a3a0e' },
   headerSub: { fontFamily: F.heavy, fontSize: 11.5, color: INK },
   starPill: { backgroundColor: '#ffffff', borderRadius: 999, borderWidth: 2.5, borderColor: '#ffd23a', paddingHorizontal: 10, paddingVertical: 4 },
   starPillText: { fontFamily: F.display, fontSize: 14, color: '#b86200' },

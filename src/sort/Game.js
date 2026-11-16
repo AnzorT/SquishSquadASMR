@@ -1,3 +1,4 @@
+import { GameBack, useWide } from '../royal/GameFrame';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, AppState, BackHandler, Easing, Image, PanResponder, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -51,6 +52,16 @@ function trayGeo(w, h, cap) {
   const tw = perRow * cell + 24;
   const th = rows * cell + 26;
   return { cell, perRow, rows, tw, th, tx: Math.round((w - tw) / 2), ty: h - th - 6 };
+}
+// landscape (REDESIGN_V8, the games sideways): the tray stands as a column at the right of the play area, one or two
+// spots across, and the fridge or cupboard gets the area's whole height beside it
+function trayGeoWide(w, h, cap) {
+  const perRow = cap > 4 ? 2 : 1;
+  const rows = Math.ceil(cap / perRow);
+  const cell = Math.floor(Math.min(58, (h - 44) / rows));
+  const tw = perRow * cell + 24;
+  const th = rows * cell + 26;
+  return { cell, perRow, rows, tw, th, tx: w - tw - 10, ty: Math.round((h - th) / 2), wide: true };
 }
 const trayCenter = (tg, j) => ({ x: tg.tx + 12 + (j % tg.perRow) * tg.cell + tg.cell / 2, y: tg.ty + 15 + Math.floor(j / tg.perRow) * tg.cell + tg.cell / 2 });
 
@@ -224,10 +235,14 @@ export default function SortGame({ theme: themeProp, startLv, pool: poolProp, po
     if (width > 0 && height > 0) setArea((a) => (a && a.w === width && a.h === height ? a : { w: width, h: height }));
     areaRef.current?.measure((x, y, w, h, px, py) => (origin.current = { x: px, y: py }));
   }, []);
-  const tg = useMemo(() => (area ? trayGeo(area.w, area.h, board.trayCap) : null), [area, board]);
+  const wide = useWide();
+  const tg = useMemo(() => (area ? (wide ? trayGeoWide : trayGeo)(area.w, area.h, board.trayCap) : null), [area, board, wide]);
   // the level's fridge or cupboard, small to very very large (models.js)
   const m = modelOf(theme, spec.model);
-  const g = useMemo(() => (area ? geometry({ w: area.w, h: area.h, rows: spec.rows, cols: spec.cols, model: m, trayH: tg.th + 6 }) : null), [area, spec, m, tg]);
+  const g = useMemo(
+    () => (area ? (tg.wide ? geometry({ w: area.w - tg.tw - 20, h: area.h, rows: spec.rows, cols: spec.cols, model: m, trayH: 0 }) : geometry({ w: area.w, h: area.h, rows: spec.rows, cols: spec.cols, model: m, trayH: tg.th + 6 })) : null),
+    [area, spec, m, tg],
+  );
   // the squishies stand on the shelves, smaller than their spots (the
   // user, 2026-10-24: "the creatures need to be smaller"), and so does the clutter
   const P = g ? Math.round(g.S * 0.8) : 0;
@@ -1064,19 +1079,17 @@ export default function SortGame({ theme: themeProp, startLv, pool: poolProp, po
     : [];
   const hearts = Array.from({ length: HEARTS }, (_, i) => i < HEARTS - mistakes);
 
-  return (
-    <View style={styles.fill}>
+  const topEl = (
+    <>
       {/* the top bar */}
-      <View style={styles.hud}>
-        <RoundButton size={40} onPress={() => (phaseRef.current === 'place' ? pause() : leave())}>
-          <BackGlyph />
-        </RoundButton>
-        <View style={styles.titleBox}>
+      <View style={[styles.hud, wide && styles.wHud]}>
+        <GameBack onPress={() => (phaseRef.current === 'place' ? pause() : leave())} />
+        <View style={[styles.titleBox, wide && styles.wTitleBox]}>
           <Text style={[styles.themeName, { color: t.ring }]} numberOfLines={1}>
             {blitz ? `BLITZ ⚡ · ${m.name.toUpperCase()}` : m.name.toUpperCase()}
           </Text>
           <View style={styles.row6}>
-            <Text style={styles.levelText}>{blitz ? `ROUND ${spec.round}/${BLITZ_ROUNDS}` : `LEVEL ${spec.lv}`}</Text>
+            <Text style={[styles.levelText, wide && styles.levelTextWide]} numberOfLines={1}>{blitz ? `ROUND ${spec.round}/${BLITZ_ROUNDS}` : `LEVEL ${spec.lv}`}</Text>
             <View style={[styles.challenge, { backgroundColor: TIER_COLORS[spec.tier] }]}>
               <Text style={styles.challengeText}>{TIER_NAMES[spec.tier]}</Text>
             </View>
@@ -1096,7 +1109,7 @@ export default function SortGame({ theme: themeProp, startLv, pool: poolProp, po
       </View>
       {blitz ? (
         <View style={styles.pips}>
-          <Pips count={BLITZ_ROUNDS} done={done} current={blitzCard === 'fail' || blitzCard === 'win' ? -1 : idx} />
+          <Pips small={wide} count={BLITZ_ROUNDS} done={done} current={blitzCard === 'fail' || blitzCard === 'win' ? -1 : idx} />
         </View>
       ) : null}
       {/* the peek's countdown, then the clock */}
@@ -1116,8 +1129,10 @@ export default function SortGame({ theme: themeProp, startLv, pool: poolProp, po
           <Text style={styles.barLabel}>{phase === 'shake' || phase === 'close' ? 'SHAKING…' : ' '}</Text>
         )}
       </View>
-
-      {/* the play area: everything is placed by geometry() and trayGeo() */}
+    </>
+  );
+  const areaEl = (
+    // the play area: everything is placed by geometry() and trayGeo()
       <View ref={areaRef} style={styles.area} onLayout={onArea} {...responder.panHandlers}>
         {g ? (
           <>
@@ -1159,6 +1174,21 @@ export default function SortGame({ theme: themeProp, startLv, pool: poolProp, po
           </>
         ) : null}
       </View>
+  );
+  return (
+    <View style={styles.fill}>
+      {wide ? (
+        // landscape (REDESIGN_V8): the top bar, the rounds and the clock in a column on the left
+        <View style={styles.wRow}>
+          <View style={styles.wLeft}>{topEl}</View>
+          {areaEl}
+        </View>
+      ) : (
+        <>
+          {topEl}
+          {areaEl}
+        </>
+      )}
 
       {blitz ? (
         <>
@@ -1203,6 +1233,12 @@ const styles = StyleSheet.create({
   track: { flex: 1, height: 14, borderRadius: 7, backgroundColor: 'rgba(69,16,122,0.18)', borderWidth: 2, borderColor: '#ffffff', overflow: 'hidden' },
   trackShine: { position: 'absolute', left: 4, right: 4, top: 1.5, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.6)' },
   area: { flex: 1 },
+  // landscape (REDESIGN_V8)
+  wRow: { flex: 1, flexDirection: 'row' },
+  wLeft: { width: 236, paddingTop: 6, gap: 4 },
+  wHud: { flexWrap: 'wrap', rowGap: 6, paddingHorizontal: 12 },
+  levelTextWide: { fontSize: 18 },
+  wTitleBox: { flexBasis: 150 },
   wrap: { position: 'absolute' },
   insideImg: { position: 'absolute', left: 0, top: 0 },
   prop: { position: 'absolute' },

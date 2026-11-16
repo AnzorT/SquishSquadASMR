@@ -12,6 +12,7 @@ import { CHAPTER, CHAPTERS, LEVEL_LIST, LEVELS, chapterOf, roomOfChapter } from 
 import { RoomCard } from '../hop/Room';
 import { ROOMS } from '../hop/levels';
 import RoundButton from '../components/candy/RoundButton';
+import { Orb } from '../royal';
 import { F, INK, TIER_COLORS } from './theme';
 
 // The levels on a winding path, a chapter (20 levels, one Crib room) a page:
@@ -65,8 +66,8 @@ const Node = memo(function Node({ lv, x, y, state, stars, perfect, heads, delay,
     sfx.play('sd_select');
     onPress(lv);
   };
-  const colors = state === 'done' ? ['#fff7b0', '#ffd23a', '#ff9c0a'] : state === 'current' ? ['#ffd6f4', '#ff5cc6', '#c02bd9'] : ['#ece6f3', '#cfc3dd', '#b3a5c4'];
-  const ring = state === 'done' ? '#9c4d06' : state === 'current' ? '#8e1580' : '#7a6a8c';
+  const colors = state === 'done' ? ['#fff7b0', '#ffd23a', '#ff9c0a'] : state === 'current' ? ['#ffe2c8', '#ff9a4a', '#e0601c'] : ['#f1ebe4', '#dacdbf', '#c2b2a1'];
+  const ring = state === 'done' ? '#9c4d06' : state === 'current' ? '#8a3a0e' : '#7a6a8c';
   const tier = LEVEL_LIST[lv - 1].tier;
   return (
     <Animated.View
@@ -124,18 +125,34 @@ const Node = memo(function Node({ lv, x, y, state, stars, perfect, heads, delay,
   );
 });
 
+// landscape (REDESIGN_V8, the user: the level maps sideways): the chapter's room, name and arrows at the start, then
+// its levels winding left to right, the page scrolling sideways
+const HEAD_W = 214;
+const FIRST_X = HEAD_W + 78; // the first level, clear of the chapter's column
+const GAP_X = 96;
+
 function LevelMap({ rec, roster, onPlay, justUnlocked }) {
-  const { width } = useGameDims(); // (the game panel in landscape: REDESIGN_V7)
+  const { width, height: winH } = useGameDims(); // (the game panel in landscape: REDESIGN_V7)
+  const wide = width > winH;
+  const [boxH, setBoxH] = useState(0);
+  const H = boxH || winH - 60; // the map's own height (under the screen's top bar)
   const scroll = useRef(null);
   const cur = Math.min(rec.lv, LEVELS); // the next level to beat
   const [chapter, setChapter] = useState(() => chapterOf(justUnlocked || cur));
   const from = (chapter - 1) * CHAPTER; // its first level's index
   const count = Math.min(CHAPTER, LEVELS - from);
   const points = useMemo(() => {
+    if (wide) {
+      // a gentle wave about the middle line, level with the chapter's card (2026-11-16, the user: the list in the
+      // middle; it swung from near the top bar to near the bottom)
+      const amp = Math.min(24, H * 0.075);
+      return Array.from({ length: count }, (_, i) => ({ x: FIRST_X + i * GAP_X, y: H * 0.5 - 10 + Math.sin((from + i) * 1.05) * amp }));
+    }
     const amp = Math.min(110, width * 0.27);
     return Array.from({ length: count }, (_, i) => ({ x: width / 2 + Math.sin((from + i) * 1.05) * amp, y: TOP + HEAD + i * GAP }));
-  }, [width, from, count]);
+  }, [width, from, count, wide, H]);
   const height = points[count - 1].y + 170;
+  const contentW = points[count - 1].x + 190;
   // a creature for each node's score heads (fixed per level) and the mascot
   const heads = useMemo(() => Array.from({ length: count }, (_, i) => [0, 1, 2].map((k) => roster.length && roster[((from + i + 1) * 7 + k * 13) % roster.length])), [roster, from, count]);
   const mascot = roster.length ? roster[(cur * 11) % roster.length] : null;
@@ -147,8 +164,11 @@ function LevelMap({ rec, roster, onPlay, justUnlocked }) {
   // the current level in view (the top of the page on another chapter)
   useEffect(() => {
     const i = cur - 1 - from;
-    const y = i >= 0 && i < count ? Math.max(0, points[i].y - 260) : 0;
-    const t = setTimeout(() => scroll.current?.scrollTo({ y, animated: false }), 0);
+    const at = i >= 0 && i < count;
+    const t = setTimeout(() => {
+      if (wide) scroll.current?.scrollTo({ x: at ? Math.max(0, points[i].x - width / 2) : 0, animated: false });
+      else scroll.current?.scrollTo({ y: at ? Math.max(0, points[i].y - 260) : 0, animated: false });
+    }, 0);
     // the nodes round the current one pop in with rising bubbles
     const pops = [];
     for (let k = 0; k < 6; k++) pops.push(setTimeout(() => sfx.play('sd_nodePop', { rate: 0.9 + k * 0.07 }), 120 + k * 70));
@@ -178,8 +198,27 @@ function LevelMap({ rec, roster, onPlay, justUnlocked }) {
   const sizes = [...new Set(LEVEL_LIST.slice(from, from + count).map((x) => x.n))].sort((a, b) => a - b);
 
   return (
-    <ScrollView ref={scroll} style={styles.fill} contentContainerStyle={{ height }} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      ref={scroll}
+      horizontal={wide}
+      style={styles.fill}
+      contentContainerStyle={wide ? { width: contentW, height: H } : { height }}
+      showsVerticalScrollIndicator={false}
+      showsHorizontalScrollIndicator={false}
+      onLayout={(e) => wide && setBoxH(Math.round(e.nativeEvent.layout.height))}
+    >
       {/* the chapter: its room, its name, the chapters either side */}
+      {wide ? (
+        <View style={[styles.chapterWide, { top: H / 2 - 112 }]}>
+          <RoomCard room={room} width={190} height={104} />
+          <Text style={[styles.bannerText, styles.bannerWide]} numberOfLines={1}>{`CHAPTER ${chapter} · ${ROOMS[room].name.toUpperCase()}`}</Text>
+          <Text style={styles.chapterSub}>{`LEVELS ${from + 1}-${from + count} · ${sizes.map((s) => `${s}×${s}`).join(' ')}`}</Text>
+          <View style={styles.chapterArrows}>
+            <Orb icon="left" size={36} onPress={() => turn(chapter - 1)} disabled={chapter <= 1} style={chapter <= 1 && styles.dimmed} />
+            <Orb icon="right" size={36} onPress={() => turn(chapter + 1)} disabled={chapter >= CHAPTERS} style={chapter >= CHAPTERS && styles.dimmed} />
+          </View>
+        </View>
+      ) : (
       <View style={[styles.chapter, { top: TOP - 120 }]}>
         <RoomCard room={room} />
         <View style={styles.chapterRow}>
@@ -195,6 +234,7 @@ function LevelMap({ rec, roster, onPlay, justUnlocked }) {
           </RoundButton>
         </View>
       </View>
+      )}
       {dots}
       {points.map((p, i) => {
         if (!built.has(i)) return null;
@@ -220,7 +260,7 @@ function LevelMap({ rec, roster, onPlay, justUnlocked }) {
         );
       })}
       {chapter < CHAPTERS ? (
-        <View style={[styles.nextWrap, { top: points[count - 1].y + 70 }]}>
+        <View style={wide ? [styles.nextWrapWide, { left: points[count - 1].x + 54, top: H / 2 - 24 }] : [styles.nextWrap, { top: points[count - 1].y + 70 }]}>
           <Pressable onPress={() => turn(chapter + 1)} hitSlop={8} style={styles.nextBtn}>
             <Text style={styles.nextText}>{`CHAPTER ${chapter + 1} ▶`}</Text>
           </Pressable>
@@ -248,14 +288,19 @@ const styles = StyleSheet.create({
   mascot: { position: 'absolute', top: 8, zIndex: 3 },
   dot: { position: 'absolute', width: 8, height: 8, borderRadius: 4 },
   chapter: { position: 'absolute', left: 0, right: 0, alignItems: 'center', gap: 8 },
+  chapterWide: { position: 'absolute', left: 14, width: HEAD_W, alignItems: 'center', gap: 6 },
+  bannerWide: { fontSize: 11.5, letterSpacing: 1, paddingHorizontal: 10, maxWidth: HEAD_W },
+  chapterArrows: { flexDirection: 'row', gap: 18, marginTop: 4 },
+  dimmed: { opacity: 0.4 },
+  nextWrapWide: { position: 'absolute' },
   chapterRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
   chapterBox: { alignItems: 'center', gap: 3 },
   chapterSub: { fontFamily: F.display, fontSize: 11, letterSpacing: 1, color: INK },
   arrow: { fontFamily: F.display, fontSize: 14, color: '#ffffff', includeFontPadding: false },
   nextWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
-  nextBtn: { backgroundColor: '#7a2fd6', borderRadius: 999, borderWidth: 3, borderColor: '#ffffff', paddingHorizontal: 22, paddingVertical: 9 },
+  nextBtn: { backgroundColor: '#b8641c', borderRadius: 999, borderWidth: 3, borderColor: '#ffffff', paddingHorizontal: 22, paddingVertical: 9 },
   nextText: { fontFamily: F.display, fontSize: 15, letterSpacing: 1.5, color: '#ffffff' },
-  bannerText: { fontFamily: F.display, fontSize: 15, letterSpacing: 2, color: '#ffffff', backgroundColor: '#7a2fd6', borderRadius: 999, borderWidth: 2.5, borderColor: '#ffffff', paddingHorizontal: 14, paddingVertical: 3, overflow: 'hidden' },
+  bannerText: { fontFamily: F.display, fontSize: 15, letterSpacing: 2, color: '#ffffff', backgroundColor: '#b8641c', borderRadius: 999, borderWidth: 2.5, borderColor: '#ffffff', paddingHorizontal: 14, paddingVertical: 3, overflow: 'hidden' },
 });
 
 export default memo(LevelMap);

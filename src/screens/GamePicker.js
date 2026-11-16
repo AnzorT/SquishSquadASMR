@@ -425,7 +425,7 @@ function GamePicker({ visible, warm = false, profile, creatureName, creatureUri,
               ring="#0c5a9c"
               title="SQUISHDOKU"
               lines={['One creature per row, column and patch']}
-              chips={[`LEVEL ${Math.min(rec.lv, LEVELS)}/${LEVELS}`, ...(rec.blitz.reached ? [`BLITZ ${rec.blitz.reached}/10`] : [])]}
+              chips={[`LEVEL ${Math.min(rec.lv, LEVELS)}/${LEVELS}`, ...(rec.blitz.top ? [`BLITZ BEST ${rec.blitz.top}`] : [])]}
               art={<SudokuArt uris={puzzleUris} />}
               onPress={pick('squishdoku')}
             />

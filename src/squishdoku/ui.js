@@ -10,14 +10,15 @@ import { F, INK } from './theme';
 // effect, null for none.
 
 export const BTN = {
-  pink: { ring: '#8e1580', colors: ['#ffd6f4', '#ff5cc6', '#c02bd9'] },
+  // (REDESIGN_V8, the wood look: "pink" is a warm orange, "purple" wood, "white" cream with a brown rim)
+  pink: { ring: '#8a3a0e', colors: ['#ffe2c8', '#ff9a4a', '#e0601c'] },
   gold: { ring: '#9c4d06', colors: ['#fff7b0', '#ffd23a', '#ff9c0a'] },
   green: { ring: '#0d7a4a', colors: ['#b8ffd9', '#3ddc97', '#16a86a'] },
   blue: { ring: '#1d4f9a', colors: ['#d6f3ff', '#5fb8ff', '#2f7fd6'] },
   cyan: { ring: '#0c5a9c', colors: ['#b0fbff', '#3fd7f6', '#1695d6'] },
-  purple: { ring: '#45189a', colors: ['#efe6ff', '#b48bff', '#8f3cf2'] },
-  white: { ring: '#45189a', colors: ['#ffffff', '#f6efff', '#e4d6ff'] },
-  grey: { ring: '#7a6a8c', colors: ['#e6dcf0', '#c9b9da', '#b9a6cc'] },
+  purple: { ring: '#6b4426', colors: ['#f6d9b0', '#d9a066', '#a86e3a'] },
+  white: { ring: '#6b4426', colors: ['#ffffff', '#fff6e8', '#f3dfbd'] },
+  grey: { ring: '#8a7a6a', colors: ['#efe6dc', '#d6c8b8', '#bfae9c'] },
   red: { ring: '#8e1030', colors: ['#ffc2cc', '#ff5c7a', '#e01e4a'] },
 };
 
@@ -59,11 +60,15 @@ export function SdButton({ kind = 'pink', onPress, disabled, children, style, fa
   );
 }
 
-export const BtnLabel = ({ children, kind = 'pink', size = 17, style }) => (
-  <ShadowText style={[{ fontFamily: F.display, fontSize: size, color: '#ffffff', includeFontPadding: false }, style]} shadows={outline3((BTN[kind] || BTN.pink).ring, 2)}>
-    {children}
-  </ShadowText>
-);
+// (on the cream "white" button: brown lettering, as on the wood look's cream labels)
+export const BtnLabel = ({ children, kind = 'pink', size = 17, style }) =>
+  kind === 'white' ? (
+    <Text style={[{ fontFamily: F.display, fontSize: size, color: '#6b4426', includeFontPadding: false }, style]}>{children}</Text>
+  ) : (
+    <ShadowText style={[{ fontFamily: F.display, fontSize: size, color: '#ffffff', includeFontPadding: false }, style]} shadows={outline3((BTN[kind] || BTN.pink).ring, 2)}>
+      {children}
+    </ShadowText>
+  );
 
 export const Chip = ({ children, bg = '#ffffff', color = INK, style }) => (
   <View style={[styles.chip, { backgroundColor: bg }, style]}>

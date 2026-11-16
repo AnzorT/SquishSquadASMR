@@ -451,8 +451,8 @@ export const OrderChip = memo(function OrderChip({ n, x, y, size }) {
 
 const styles = StyleSheet.create({
   shadow: { position: 'absolute', left: '14%', right: '14%', bottom: '-5%', height: '15%', borderRadius: 999 },
-  lockCount: { position: 'absolute', right: '-16%', top: '-10%', paddingHorizontal: 3, backgroundColor: '#ff5cc6', borderWidth: 2, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
+  lockCount: { position: 'absolute', right: '-16%', top: '-10%', paddingHorizontal: 3, backgroundColor: '#ff8a3d', borderWidth: 2, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
   lockText: { fontFamily: F.display, color: '#ffffff', includeFontPadding: false },
-  ordChip: { position: 'absolute', zIndex: 95, paddingHorizontal: 3, backgroundColor: '#ff5cc6', borderWidth: 2, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
+  ordChip: { position: 'absolute', zIndex: 95, paddingHorizontal: 3, backgroundColor: '#ff8a3d', borderWidth: 2, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
   ordText: { fontFamily: F.display, color: '#ffffff', includeFontPadding: false },
 });

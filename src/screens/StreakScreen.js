@@ -47,7 +47,7 @@ function bonusPct(streak) {
 // ---- the fire ---------------------------------------------------------------
 
 // The big flame, flickering from its base, with the streak's number on it.
-function Fire({ streak }) {
+function Fire({ streak, w = 118 }) {
   const t = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -59,7 +59,7 @@ function Fire({ streak }) {
     loop.start();
     return () => loop.stop();
   }, [t]);
-  const W = 118;
+  const W = w;
   const H = W * 1.15;
   const scaleY = t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] });
   const scaleX = t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.97] });
@@ -70,7 +70,7 @@ function Fire({ streak }) {
         <BigFlame width={W} cold={streak === 0} />
       </Animated.View>
       <View style={styles.fireNumber} pointerEvents="none">
-        <ShadowText style={[styles.fireNumberText, streak >= 100 && { fontSize: 34 }]} shadows={outline3(streak === 0 ? '#45189a' : '#8a1d0c', 3)}>
+        <ShadowText style={[styles.fireNumberText, w < 110 && { fontSize: 34 }, streak >= 100 && { fontSize: w < 110 ? 26 : 34 }]} shadows={outline3(streak === 0 ? '#1d4f9a' : '#8a1d0c', 3)}>
           {String(streak)}
         </ShadowText>
       </View>
@@ -153,7 +153,7 @@ function TodayCard({ v, todayDay }) {
               {v.streak > 0 ? ` before midnight to open the chest and keep your ${v.streak}-day streak.` : ' to open the chest and light your streak.'}
             </Text>
             <View style={styles.progRow}>
-              <CandyProgress pct={(v.claimedN / v.total) * 100} height={11} ring="#a23ad8" fill={['#fff3a0', '#ffc233']} style={{ flex: 1 }} />
+              <CandyProgress pct={(v.claimedN / v.total) * 100} height={11} ring="#b8641c" fill={['#fff3a0', '#ffc233']} style={{ flex: 1 }} />
               <Text style={styles.progText}>{`${v.claimedN}/${v.total}`}</Text>
             </View>
           </>
@@ -167,8 +167,8 @@ function TodayCard({ v, todayDay }) {
 
 const LOOK = {
   done: { colors: ['#fffbd6', '#ffe045', '#ffad1f'], ring: '#a04a00', text: '#7a3d00' },
-  today: { colors: ['#ffffff', '#ffe3f5', '#ffb8e6'], ring: '#e8339f', text: '#a0157a' },
-  next: { colors: ['#ffffff', '#faf3ff', '#ecdcff'], ring: '#a23ad8', text: candyColors.ink },
+  today: { colors: ['#ffffff', '#ffe9d1', '#ffc690'], ring: '#e8681c', text: '#a04a00' },
+  next: { colors: ['#ffffff', '#fff7ea', '#f6e2c4'], ring: '#b8865a', text: candyColors.ink },
 };
 
 // The prize's picture: coins, gems, a chest (an extra free one in the Shop).
@@ -211,16 +211,16 @@ function useEnter(enter, i) {
   return { opacity, transform: [{ scale }] };
 }
 
-const DayTile = memo(function DayTile({ day, enter, i }) {
+const DayTile = memo(function DayTile({ day, enter, i, wide }) {
   const look = day.done ? LOOK.done : day.today ? LOOK.today : LOOK.next;
   const tile = (
     <View style={[styles.tileRing, { backgroundColor: look.ring }, day.today && styles.tileRingToday]}>
-      <LinearGradient colors={look.colors} locations={[0, 0.5, 1]} style={styles.tile}>
+      <LinearGradient colors={look.colors} locations={[0, 0.5, 1]} style={[styles.tile, wide && styles.tileWide]}>
         <Text style={[styles.tileDay, { color: look.text }]}>{`DAY ${day.n}`}</Text>
-        <View style={[styles.tileArt, day.done && { opacity: 0.55 }]}>
-          <RewardArt reward={day.reward} size={36} />
+        <View style={[styles.tileArt, wide && styles.tileArtWide, day.done && { opacity: 0.55 }]}>
+          <RewardArt reward={day.reward} size={wide ? 32 : 36} />
         </View>
-        <Text style={[styles.tileCaption, { color: look.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+        <Text style={[styles.tileCaption, wide && styles.tileCaptionWide, { color: look.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
           {rewardCaption(day.reward)}
         </Text>
         {day.done ? <Check /> : null}
@@ -228,7 +228,7 @@ const DayTile = memo(function DayTile({ day, enter, i }) {
     </View>
   );
   return (
-    <Animated.View style={[styles.tileSlot, useEnter(enter, i)]}>
+    <Animated.View style={[styles.tileSlot, wide && styles.tileSlotWide, useEnter(enter, i)]}>
       {day.today ? <SoftPulse to={1.05}>{tile}</SoftPulse> : tile}
       {day.today ? (
         <View style={styles.todayTag} pointerEvents="none">
@@ -240,12 +240,40 @@ const DayTile = memo(function DayTile({ day, enter, i }) {
 });
 
 // The jackpot: half price on a creation, the Create card's pink ball.
-function Jackpot({ day, enter }) {
+function Jackpot({ day, enter, tile }) {
   const anim = useEnter(enter, 9);
+  // landscape: the tenth tile of the grid
+  if (tile) {
+    return (
+      <Animated.View style={[styles.tileSlot, styles.tileSlotWide, anim]}>
+        <View style={[styles.tileRing, { backgroundColor: '#8a3a0e' }, day.done && { opacity: 0.75 }]}>
+          <LinearGradient colors={['#ffe9b8', '#ffb347', '#e8681c']} locations={[0, 0.5, 1]} style={[styles.tile, styles.tileWide]}>
+            <ShineSweep durationMs={2600} strength={0.6} />
+            <Text style={[styles.tileDay, { color: '#7a2310' }]}>{`DAY ${day.n}`}</Text>
+            <View style={[styles.tileArt, styles.tileArtWide]}>
+              <View style={[styles.createBall, styles.createBallSmall]}>
+                <View style={[styles.plusH, { width: 16, height: 5 }]} />
+                <View style={[styles.plusV, { width: 5, height: 16 }]} />
+              </View>
+            </View>
+            <ShadowText style={[styles.tileCaption, { color: '#ffffff' }]} shadows={outline3('#8a3a0e', 2)}>
+              50% OFF
+            </ShadowText>
+            {day.done ? <Check /> : null}
+          </LinearGradient>
+        </View>
+        {day.today ? (
+          <View style={styles.todayTag} pointerEvents="none">
+            <Text style={styles.todayTagText}>TODAY</Text>
+          </View>
+        ) : null}
+      </Animated.View>
+    );
+  }
   return (
     <Animated.View style={[styles.jackSlot, anim]}>
       <View style={[styles.jackRing, day.done && { opacity: 0.75 }]}>
-        <LinearGradient colors={['#ffd6f4', '#ff6fcf', '#c02bd9']} locations={[0, 0.5, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.jack}>
+        <LinearGradient colors={['#ffe9b8', '#ffb347', '#e8681c']} locations={[0, 0.5, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.jack}>
           <ShineSweep durationMs={2600} strength={0.6} />
           <View style={styles.createBall}>
             <View style={styles.plusH} />
@@ -254,7 +282,7 @@ function Jackpot({ day, enter }) {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.jackKicker}>{`DAY ${day.n} · JACKPOT`}</Text>
-            <ShadowText style={styles.jackTitle} shadows={outline3('#8e1580', 2)}>
+            <ShadowText style={styles.jackTitle} shadows={outline3('#8a3a0e', 2)}>
               50% OFF
             </ShadowText>
             <Text style={styles.jackDesc}>your next creature creation</Text>
@@ -329,23 +357,11 @@ function StreakScreen({ profile, mascot, intro = false, onClose, onOpenDaily }) 
     ? `${v.streak} ${v.streak === 1 ? 'day' : 'days'} in a row! Don’t let the fire go out!`
     : `${name} wants to light the fire. Open today’s chest!`;
 
-  // landscape, the new look (REDESIGN_V7 step 4): the hero, today and the buttons on the left, the prizes on the right
+  // landscape, the new look (REDESIGN_V7 step 4; V8: all of it on one screen): on the left the title, the flame with
+  // the squishy's line and the coin bonus beside it, today's card and the buttons; on the right all ten days' prizes,
+  // five to a row
   const win = useWindowDimensions();
   if (win.width > win.height) {
-    const footer = (
-      <View style={styles.wFoot}>
-        {!v.chestDone ? (
-          <CandyButton variant="gold" size="lg" pulse label={intro ? 'LET’S GO!' : 'DAILY CHALLENGES'} onPress={onOpenDaily} />
-        ) : intro ? (
-          <CandyButton variant="blue" size="lg" label="CONTINUE" onPress={onClose} />
-        ) : null}
-        {intro && !v.chestDone ? (
-          <Pressable onPress={onClose} hitSlop={10} style={({ pressed }) => [styles.later, pressed && { opacity: 0.6 }]}>
-            <HaloText style={styles.laterText}>Later</HaloText>
-          </Pressable>
-        ) : null}
-      </View>
-    );
     return (
       <View style={styles.wRoot}>
         <PageBg />
@@ -354,24 +370,49 @@ function StreakScreen({ profile, mascot, intro = false, onClose, onOpenDaily }) 
             {intro ? null : <Orb icon="back" onPress={onClose} />}
             <Lettering text="Daily Streak" variant="gold" size={26} />
           </View>
-          <ScrollView contentContainerStyle={{ gap: 10, paddingBottom: 8 }} showsVerticalScrollIndicator={false}>
-            <Hero streak={v.streak} mascot={null} line={line} />
-            <TodayCard v={v} todayDay={todayDay} />
-          </ScrollView>
-          {footer}
+          <View style={styles.wHero}>
+            <View style={styles.fireCol}>
+              <Fire streak={v.streak} w={84} />
+              <HaloText style={styles.fireLabel}>DAY STREAK</HaloText>
+            </View>
+            <View style={styles.wHeroSide}>
+              <View style={[styles.bubble, styles.bubbleWide]}>
+                <Text style={styles.bubbleText}>{line}</Text>
+              </View>
+              <View style={[styles.bonusPill, styles.bonusPillWide]}>
+                <Flame size={13} />
+                <Text style={[styles.bonusText, { flexShrink: 1 }]} numberOfLines={2}>
+                  {v.streak > 0 ? `+${bonusPct(v.streak)}% squish coins today` : `+${bonusPct(1)}% squish coins a streak day`}
+                </Text>
+              </View>
+            </View>
+          </View>
+          <TodayCard v={v} todayDay={todayDay} />
+          <View style={styles.wFoot}>
+            {!v.chestDone ? (
+              <CandyButton variant="gold" size="md" pulse label={intro ? 'LET’S GO!' : 'DAILY CHALLENGES'} onPress={onOpenDaily} />
+            ) : intro ? (
+              <CandyButton variant="blue" size="md" label="CONTINUE" onPress={onClose} />
+            ) : null}
+            {intro && !v.chestDone ? (
+              <Pressable onPress={onClose} hitSlop={10} style={({ pressed }) => [styles.later, pressed && { opacity: 0.6 }]}>
+                <HaloText style={styles.laterText}>Later</HaloText>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
-        <ScrollView style={styles.wRight} contentContainerStyle={{ gap: 12, paddingVertical: 14, paddingRight: 8 }} showsVerticalScrollIndicator={false}>
+        <View style={styles.wRight}>
           <View style={styles.sectionHead}>
             <HaloText style={styles.sectionTitle}>THE DAILY PRIZES</HaloText>
             <HaloText style={styles.sectionNote}>{`Every chest: ${CHEST_COINS} coins + 1 token + the day’s prize`}</HaloText>
           </View>
-          <View style={styles.grid}>
+          <View style={[styles.grid, styles.gridWide]}>
             {tiles.map((d, i) => (
-              <DayTile key={d.n} day={d} enter={enter} i={i} />
+              <DayTile key={d.n} day={d} enter={enter} i={i} wide />
             ))}
+            <Jackpot day={jackpot} enter={enter} tile />
           </View>
-          <Jackpot day={jackpot} enter={enter} />
-        </ScrollView>
+        </View>
       </View>
     );
   }
@@ -424,10 +465,20 @@ function StreakScreen({ profile, mascot, intro = false, onClose, onOpenDaily }) 
 const styles = StyleSheet.create({
   // landscape (REDESIGN_V7)
   wRoot: { flex: 1, flexDirection: 'row', backgroundColor: '#24123f', paddingHorizontal: 16, gap: 18 },
-  wLeft: { width: '40%', paddingTop: 10, paddingBottom: 10 },
-  wHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
-  wFoot: { alignItems: 'center', gap: 6, paddingTop: 6 },
-  wRight: { flex: 1 },
+  wLeft: { width: '40%', paddingTop: 10, paddingBottom: 10, gap: 8 },
+  wHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  wHero: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  wHeroSide: { flex: 1, gap: 8, alignItems: 'flex-start' },
+  bubbleWide: { alignSelf: 'stretch' },
+  bonusPillWide: { marginTop: 0, alignSelf: 'stretch' },
+  wFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 'auto' },
+  wRight: { flex: 1, justifyContent: 'center', gap: 6 },
+  gridWide: { rowGap: 16, columnGap: 8, justifyContent: 'flex-start' },
+  tileSlotWide: { width: '18.6%' },
+  tileWide: { paddingTop: 6, paddingBottom: 7 },
+  tileArtWide: { height: 36 },
+  tileCaptionWide: { fontSize: 12 },
+  createBallSmall: { width: 34, height: 34, borderRadius: 17, borderWidth: 2.5 },
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   headerSide: { width: 36 },
@@ -474,10 +525,10 @@ const styles = StyleSheet.create({
   cardRing: { borderRadius: 24, padding: 2.5, backgroundColor: candyColors.cardRing, elevation: 6 },
   card: { borderRadius: 22, borderWidth: 3, borderColor: '#ffffff', backgroundColor: candyColors.paper, paddingHorizontal: 14, paddingVertical: 12, gap: 8 },
   todayHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  todayPill: { paddingHorizontal: 11, paddingVertical: 4, borderRadius: 999, backgroundColor: '#e8339f', borderWidth: 2, borderColor: '#ffffff' },
+  todayPill: { paddingHorizontal: 11, paddingVertical: 4, borderRadius: 999, backgroundColor: '#e8681c', borderWidth: 2, borderColor: '#ffffff' },
   todayPillDone: { backgroundColor: '#26a94e' },
   todayPillText: { fontFamily: candyFonts.display, fontSize: 12, letterSpacing: 0.6, color: '#ffffff', includeFontPadding: false },
-  clock: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, backgroundColor: '#efe4ff' },
+  clock: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, backgroundColor: '#f6ead8' },
   clockHot: { backgroundColor: '#ffe1dc' },
   clockText: { fontFamily: candyFonts.bodyBlack, fontSize: 11, color: candyColors.inkSoft },
   clockTextHot: { color: '#d9312a' },
@@ -493,7 +544,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: GRID_GAP + 4, paddingTop: 6 },
   tileSlot: { width: '31.5%' },
   tileRing: { borderRadius: 20, padding: 2.5, elevation: 4 },
-  tileRingToday: { padding: 3.5, shadowColor: '#ff4fbf', shadowOpacity: 0.8, shadowRadius: 12, elevation: 10 },
+  tileRingToday: { padding: 3.5, shadowColor: '#ff8a3d', shadowOpacity: 0.8, shadowRadius: 12, elevation: 10 },
   tile: { borderRadius: 18, borderWidth: 2.5, borderColor: '#ffffff', alignItems: 'center', paddingTop: 7, paddingBottom: 8, paddingHorizontal: 4, gap: 3 },
   tileDay: { fontFamily: candyFonts.display, fontSize: 11, letterSpacing: 0.8, includeFontPadding: false },
   tileArt: { height: 40, alignItems: 'center', justifyContent: 'center' },
@@ -519,7 +570,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 999,
-    backgroundColor: '#e8339f',
+    backgroundColor: '#e8681c',
     borderWidth: 2,
     borderColor: '#ffffff',
     elevation: 12,
@@ -527,7 +578,7 @@ const styles = StyleSheet.create({
   todayTagText: { fontFamily: candyFonts.display, fontSize: 10, letterSpacing: 0.8, color: '#ffffff', includeFontPadding: false },
 
   jackSlot: { marginTop: 4 },
-  jackRing: { borderRadius: 24, padding: 2.5, backgroundColor: '#8e1580', elevation: 6 },
+  jackRing: { borderRadius: 24, padding: 2.5, backgroundColor: '#8a3a0e', elevation: 6 },
   jack: { borderRadius: 22, borderWidth: 3, borderColor: '#ffffff', flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, overflow: 'hidden' },
   createBall: {
     width: 50,
@@ -535,7 +586,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     borderWidth: 3,
     borderColor: '#ffffff',
-    backgroundColor: '#ff4fbf',
+    backgroundColor: '#ff8a3d',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -544,7 +595,7 @@ const styles = StyleSheet.create({
   ballSpark: { position: 'absolute', right: -3, top: -6, fontSize: 16, color: '#fff3a0' },
   jackKicker: { fontFamily: candyFonts.bodyBlack, fontSize: 11, letterSpacing: 0.8, color: '#ffffff' },
   jackTitle: { fontFamily: candyFonts.display, fontSize: 26, color: '#ffffff', includeFontPadding: false },
-  jackDesc: { fontFamily: candyFonts.bodyHeavy, fontSize: 12, color: '#fff0fa' },
+  jackDesc: { fontFamily: candyFonts.bodyHeavy, fontSize: 12, color: '#fff6e2' },
 
   footer: { alignItems: 'center', paddingTop: 10, paddingHorizontal: 16, gap: 8 },
   later: { paddingVertical: 4, paddingHorizontal: 18 },

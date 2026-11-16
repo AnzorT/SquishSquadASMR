@@ -5,6 +5,7 @@ import OutlinedTitle from '../components/candy/OutlinedTitle';
 import { Bob } from '../squad/ui';
 import { PopIn, Rock, SlideIn } from '../squishdoku/fx';
 import { ModeCard } from '../squishdoku/Hub';
+import { useWide } from '../royal/GameFrame';
 import { BtnLabel, Head, SdButton } from '../squishdoku/ui';
 import { F, INK } from '../squishdoku/theme';
 import { BLITZ_MS, BLITZ_ROUNDS, LEVELS, clock, doneOf, starsOf } from './levels';
@@ -16,8 +17,22 @@ function Hub({ rec, uris, onRegular, onBlitz, onRules }) {
   const done = doneOf(rec);
   const b = rec.blitz;
   const pick = (k) => (uris.length ? uris[k % uris.length] : null);
+  // landscape (REDESIGN_V8, the games sideways): the title and HOW TO PLAY on the left, the modes on the right
+  const wide = useWide();
+  const col = (children) => (wide ? <View style={styles.wCol}>{children}</View> : children);
+  const rules = (
+    <SlideIn delay={540} dy={30}>
+      <SdButton kind="white" onPress={onRules} sound="sd_mode" faceStyle={styles.rulesFace}>
+        <BtnLabel kind="white" size={14}>
+          HOW TO PLAY
+        </BtnLabel>
+      </SdButton>
+    </SlideIn>
+  );
   return (
-    <ScrollView style={styles.fill} contentContainerStyle={styles.wrap} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.fill} contentContainerStyle={wide ? styles.wWrap : styles.wrap} showsVerticalScrollIndicator={false}>
+      {col(
+        <>
       <View style={styles.titleArea}>
         <Bob style={[styles.float, { left: 6, top: 2 }]} ms={2600} dy={9}>
           <Rock deg={8} ms={3000}>
@@ -31,14 +46,18 @@ function Hub({ rec, uris, onRegular, onBlitz, onRules }) {
         </Bob>
         <PopIn delay={60} from={0.3} twist={-10}>
           <Rock deg={2} ms={3400}>
-            <OutlinedTitle text="SQUISH STACK" size={34} fill="pink" />
+            <OutlinedTitle text="SQUISH STACK" size={34} fill="gold" />
           </Rock>
         </PopIn>
         <PopIn delay={220}>
           <Text style={styles.tagline}>{'Move the squishies one at a time.\nA big one never sits on a smaller one!'}</Text>
         </PopIn>
       </View>
-
+      {wide ? rules : null}
+        </>,
+      )}
+      {col(
+        <>
       <ModeCard kind="regular" title="REGULAR" lines={[`Level ${Math.min(rec.lv, LEVELS)} of ${LEVELS} · ★ ${starsOf(rec)}`, 'Fewest moves for 3 stars']} cta="PLAY ▶" onPress={onRegular} delay={300}>
         <View style={styles.progTrack}>
           <LinearGradient colors={['#ffe38a', '#ffb02e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.progFill, { width: `${Math.max(4, (done / LEVELS) * 100)}%` }]} />
@@ -52,18 +71,17 @@ function Hub({ rec, uris, onRegular, onBlitz, onRules }) {
         onPress={onBlitz}
         delay={420}
       />
-      <SlideIn delay={540} dy={30}>
-        <SdButton kind="white" onPress={onRules} sound="sd_mode" faceStyle={styles.rulesFace}>
-          <BtnLabel kind="purple" size={14}>
-            HOW TO PLAY
-          </BtnLabel>
-        </SdButton>
-      </SlideIn>
+      {wide ? null : rules}
+        </>,
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  // landscape (REDESIGN_V8): two columns
+  wWrap: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, paddingBottom: 10, gap: 28 },
+  wCol: { width: 350, alignItems: 'center', gap: 12 },
   fill: { flex: 1 },
   wrap: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40, gap: 14 },
   titleArea: { alignSelf: 'stretch', alignItems: 'center', paddingTop: 8, gap: 6 },

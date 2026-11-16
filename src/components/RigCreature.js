@@ -5,7 +5,8 @@ import React, { forwardRef, useCallback, useImperativeHandle, useRef, useState }
 import { Platform, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
-const HOST = Platform.select({ android: 'file:///android_asset/rig/host.html', default: null });
+// (web: the same page, served at /android_asset/ by metro.config.js; src/web/WebView.js)
+const HOST = Platform.select({ android: 'file:///android_asset/rig/host.html', web: '/android_asset/rig/host.html', default: null });
 
 // renderScale < 1 draws the page at that fraction of the size and lets the (hardware-layer) view
 // scale it up: fewer pixels for the GPU to raster, a little softer. `paused` stops the rig's frames

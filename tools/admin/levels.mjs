@@ -6,7 +6,11 @@
 //
 //   xpPerLevel  reaching level L takes xpPerLevel × L XP, from 0 at every level (100: 9 → 10 is 1,000)
 //   road        one prize per level from level 1: { k: 'coins', n } | { k: 'gems', n } |
-//               { k: 'chest', t: 'common' | 'rare' | 'epic' | 'legendary' | 'set' } — add rows to add levels
+//               { k: 'chest', t: 'common' | 'rare' | 'epic' | 'legendary' | 'set', g } — add rows to add levels.
+//               A chest's g (optional) is whose chest it is: a group key (snack, fruit, ocean, pet, forest, sky,
+//               dream, bakery, spooky, elemental, heroes), e.g. { k: 'chest', t: 'rare', g: 'pet' } is the Pet
+//               Shop's Rare chest, and the Level Pass shows that chest. Without g (or with a group that's switched
+//               off) it's today's first HOT group's. The server part needs the functions deployed (2026-11-16).
 //   xp          { challenge, chest, squishEvery, squishDay, replay, games, blitz: { squishdoku, sort, stack } }
 //
 //   GOOGLE_APPLICATION_CREDENTIALS=<key.json> node tools/admin/levels.mjs              (shows what's there)

@@ -19,8 +19,8 @@ import { Shop } from '../crib/Shop';
 import { EditPanel } from '../crib/EditPanel';
 import { ACTS, PH, ROOMS, ROOM_ORDER, SCENE_H, SCENE_W, SIZE, SLEEP, foodOf, phaseOf, spotsFor, viewOf } from '../crib/data';
 import { CRIB_MAX, advanceOffline, applyLayout, buyFood, coinRate, freshState, lookOf, mealFill, needOf, normalize, occupancy, sendTo, setMember, startMeal, syncPets, teleporting, tick } from '../crib/model';
-import { buy as buyItem, canBuy, equip, fridgeFoods, itemOf, nextSong, placeGame, setDecorPos, setPad, setTheme, setUnitPos, sleepCount, sleeperY, dinerY, song, songs, toggleLight, toggleStore } from '../crib/home';
-import { CribToast, INK, PAPER, PanButton, SongPill } from '../crib/ui';
+import { buy as buyItem, canBuy, equip, fridgeFoods, itemOf, placeGame, setDecorPos, setPad, setTheme, setUnitPos, sleepCount, sleeperY, dinerY, toggleLight, toggleStore } from '../crib/home';
+import { CribToast, INK, PAPER, PanButton } from '../crib/ui';
 import { Pantry } from '../crib/Pantry';
 import { CoinsPill, CribButton, LevelPill, PhasePill, RoomFlash, RoomTitle } from '../crib/Hud';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -46,8 +46,8 @@ import { useEveryOtherFrame } from '../components/Skeleton';
 // Shop sells upgrades, bath stations, yard games and decor for coins (above
 // the player's level they're locked); Edit mode swaps tiers and games,
 // stores and drags decor, moves the yard's games and picks wall / floor /
-// ceiling themes. Each room plays its own music; the dance room the song its
-// DJ booth is on. While the app is in the background the squad isn't
+// ceiling themes. Its music is the game's one track (its own switch turns it
+// off). While the app is in the background the squad isn't
 // ticked (no coins either way); coming back catches them up like a reopen.
 
 const PORTRAIT_SCALE = 1.3028; // the vertical page's scene scale at 393 wide
@@ -60,8 +60,6 @@ const FRAME = '#2b1d16';
 const DAILY_EV = { bath: 'bath', eat: 'feed', sleep: 'sleep', dance: 'dance', yard: 'play', tv: 'tv' };
 const EDITABLE = ['living', 'kitchen', 'bath', 'bed', 'dance', 'yard'];
 const SHOP_MSG_MS = 2400;
-// each room's music (the design's crib_* tracks); the dance room plays its song
-const ROOM_MUSIC = { living: 'crib_living', kitchen: 'crib_kitchen', bath: 'crib_bath', bed: 'crib_bed', dance: 'crib_dance', hatch: 'crib_living', yard: 'crib_yard' };
 const ZERO_INSETS = { top: 0, bottom: 0, left: 0, right: 0 };
 
 const MEAL_SHOWN_MS = 3200; // a meal's full-tummy moment after the last bite (model.js)
@@ -636,12 +634,6 @@ export default function CribScreen({ authUser, profile, creatures, onBack, noteD
     },
     [homeChanged]
   );
-  const onNextSong = useCallback(() => {
-    if (!model.current) return;
-    nextSong(model.current.home);
-    dirty.current = true;
-    setHomeRev((r) => r + 1);
-  }, []);
 
   // --- the kitchen's pantry shop (src/crib/Pantry.js) ----------------------------------
   // only in the kitchen: its HUD button, and "Buy food" in the snack picker
@@ -695,14 +687,12 @@ export default function CribScreen({ authUser, profile, creatures, onBack, noteD
     // saved right away, like anything else that would be a shame to lose
     setTimeout(() => saveRef.current(), 50);
   }, []);
-  // the Crib's own music switch (not the Settings one); each room has its
-  // track, the dance room plays the DJ's song. App.js takes over again when
-  // the stage changes.
-  const songNow = model.current ? song(model.current.home) : null;
-  const track = !musicOn ? null : room === 'dance' && songNow ? songNow.track : ROOM_MUSIC[room];
+  // the Crib's own music switch (not the Settings one) over the game's one
+  // track, Velvet Map Study (its rooms' tracks and the DJ's songs were
+  // removed on 2026-11-16). App.js takes over again when the stage changes.
   useEffect(() => {
-    sfx.music(track);
-  }, [track]);
+    sfx.music(musicOn ? 'theme' : null);
+  }, [musicOn]);
   const toggleMusic = useCallback(() => setMusicOn((v) => !v), []);
   // App.js's banners turn with a landscape Crib (crib/orientation.js)
   useEffect(() => setCribLandscape(landscape), [landscape]);
@@ -888,20 +878,12 @@ export default function CribScreen({ authUser, profile, creatures, onBack, noteD
       toLocal={toLocal}
     />
   ) : null;
-  const songs_ = model.current ? songs(model.current.home) : [];
-  const songPill =
-    room === 'dance' && !edit && !shop && songNow ? (
-      <View pointerEvents="box-none" style={landscape ? { position: 'absolute', right: 20, bottom: 16, zIndex: 12 } : { position: 'absolute', right: 12, top: sceneH - 46, zIndex: 12 }}>
-        <SongPill name={songNow.name} count={`${songs_.indexOf(songNow) + 1}/${songs_.length}`} onPress={onNextSong} />
-      </View>
-    ) : null;
 
   const overlays = (
     <>
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: flash }]}>
         <RoomFlash />
       </Animated.View>
-      {songPill}
       {toast && !edit ? (
         <View pointerEvents="box-none" style={[styles.toastAt, { top: topPad + 52, left: landscape ? cw * 0.2 : 12, right: landscape ? cw * 0.2 : 12 }]}>
           <CribToast toast={toast} onAction={onToastAction}>

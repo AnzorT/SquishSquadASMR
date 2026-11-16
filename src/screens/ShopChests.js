@@ -557,25 +557,31 @@ export default memo(ChestsTab);
 
 // --- the sheets: a chest's details, and every size's odds ----------------------------------
 
-export function ChestSheetBody({ gk, size, profile, artIds, setRewards, rainbow = RAINBOW, catalog, wallet, onBuy }) {
+export function ChestSheetBody({ gk, size, profile, artIds, setRewards, rainbow = RAINBOW, catalog, wallet, onBuy, wide }) {
   const C = chestInfo(gk, size, profile, artIds, setRewards, rainbow);
-  if (C.earned) return <EarnedSheetBody gk={gk} C={C} profile={profile} catalog={catalog} onBuy={() => onBuy(gk, size)} />;
+  if (C.earned) return <EarnedSheetBody gk={gk} C={C} profile={profile} catalog={catalog} onBuy={() => onBuy(gk, size)} wide={wide} />;
   const tc = TC[C.ti];
   const gemsCur = C.T.price.cur === 'gems';
   const afford = (gemsCur ? wallet.gems : wallet.coins) >= C.T.price.n;
   const look = afford ? C.look : GREY;
-  return (
-    <View style={styles.sheetBody}>
-      <ImageBackground source={GCHEST[gk].bg} style={styles.sheetArt} imageStyle={{ borderRadius: 22 }} resizeMode="cover">
-        <Bob ms={2600} style={styles.sheetChest}>
-          <Image source={GCHEST[gk][`${size}-grow`]} style={styles.fill} resizeMode="contain" fadeDuration={0} />
-        </Bob>
-      </ImageBackground>
+  const art = (
+    <ImageBackground source={GCHEST[gk].bg} style={[styles.sheetArt, wide && styles.sheetArtWide]} imageStyle={{ borderRadius: 22 }} resizeMode="cover">
+      <Bob ms={2600} style={styles.sheetChest}>
+        <Image source={GCHEST[gk][`${size}-grow`]} style={styles.fill} resizeMode="contain" fadeDuration={0} />
+      </Bob>
+    </ImageBackground>
+  );
+  const head = (
+    <>
       <View style={styles.sheetTag}>
         <Text style={[styles.sheetTagText, { color: tc.c }]}>{`${GROUP_LABEL[gk]} · ${SIZE_NAME[C.ti].toUpperCase()}`}</Text>
       </View>
       <Text style={styles.sheetName}>{C.name}</Text>
       {!!C.upNote && <Text style={styles.sheetUp}>{C.upNote}</Text>}
+    </>
+  );
+  const details = (
+    <>
       <View style={styles.sheetOdds}>
         {C.T.odds.map((o, i) => (
           <View key={i} style={[styles.sheetOdd, { backgroundColor: RAR_ROW[i][1], opacity: o ? 1 : 0.45 }]}>
@@ -594,7 +600,7 @@ export function ChestSheetBody({ gk, size, profile, artIds, setRewards, rainbow 
           const uri = catalog[c.id]?.thumb?.url;
           const cp = o ? null : copyProgress(profile, c.id);
           return (
-            <View key={c.id} style={[styles.mon, { backgroundColor: o ? '#f7f3fc' : '#ffffff', borderColor: o ? '#ece4f7' : RAR_ROW[dropRar(c)] ? RAR_ROW[dropRar(c)][2] : '#d9c4f7' }]}>
+            <View key={c.id} style={[styles.mon, wide && styles.monWide, { backgroundColor: o ? '#f8f1e7' : '#ffffff', borderColor: o ? '#efe2cf' : RAR_ROW[dropRar(c)] ? RAR_ROW[dropRar(c)][2] : '#e2cfb4' }]}>
               {uri ? <Image source={{ uri }} style={[styles.monImg, { opacity: o ? 0.5 : 1 }]} resizeMode="contain" /> : null}
               {cp && (
                 <View style={styles.monNew}>
@@ -609,29 +615,56 @@ export function ChestSheetBody({ gk, size, profile, artIds, setRewards, rainbow 
         <Image source={COIN[0]} style={styles.icon16} />
         <Text style={styles.sheetCoins}>{`Duplicate: ${C.dupeCoins} coins · Lucky meter counts this chest`}</Text>
       </View>
-      <Candy colors={look.bg} rim={look.rim} lip={5} radius={20} height={58} style={{ alignSelf: 'stretch' }} onPress={() => onBuy(gk, size)}>
-        {afford && <Image source={gemsCur ? GEM[0] : COIN[0]} style={styles.icon30} />}
-        <Label size={20} color={look.ink} ts={look.ts}>
-          {afford ? `Open · ${fmt(C.T.price.n)}` : `Get more ${C.T.price.cur}`}
-        </Label>
-      </Candy>
+    </>
+  );
+  const buy = (
+    <Candy colors={look.bg} rim={look.rim} lip={5} radius={20} height={wide ? 52 : 58} style={{ alignSelf: 'stretch' }} onPress={() => onBuy(gk, size)}>
+      {afford && <Image source={gemsCur ? GEM[0] : COIN[0]} style={styles.icon30} />}
+      <Label size={20} color={look.ink} ts={look.ts}>
+        {afford ? `Open · ${fmt(C.T.price.n)}` : `Get more ${C.T.price.cur}`}
+      </Label>
+    </Candy>
+  );
+  // landscape (REDESIGN_V8): the chest and its button on the left, what's in it on the right
+  if (wide) {
+    return (
+      <View style={styles.sheetWide}>
+        <View style={styles.sheetLeft}>
+          {art}
+          {buy}
+        </View>
+        <View style={styles.sheetRight}>
+          {head}
+          {details}
+        </View>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.sheetBody}>
+      {art}
+      {head}
+      {details}
+      {buy}
     </View>
   );
 }
 
 // An earned Rainbow chest's sheet: the chest, who's inside, the rest of the
 // group (what earns it), and the card's button.
-function EarnedSheetBody({ gk, C, profile, catalog, onBuy }) {
+function EarnedSheetBody({ gk, C, profile, catalog, onBuy, wide }) {
   const e = C.earned;
   const tc = TC[C.ti];
   const rewardUri = e.reward ? catalog[e.reward.id]?.thumb?.url : null;
-  return (
-    <View style={styles.sheetBody}>
-      <ImageBackground source={GCHEST[gk].bg} style={styles.sheetArt} imageStyle={{ borderRadius: 22 }} resizeMode="cover">
-        <Bob ms={2600} style={styles.sheetChest}>
-          <Image source={GCHEST[gk]['set-grow']} style={styles.fill} resizeMode="contain" fadeDuration={0} />
-        </Bob>
-      </ImageBackground>
+  const art = (
+    <ImageBackground source={GCHEST[gk].bg} style={[styles.sheetArt, wide && styles.sheetArtWide]} imageStyle={{ borderRadius: 22 }} resizeMode="cover">
+      <Bob ms={2600} style={styles.sheetChest}>
+        <Image source={GCHEST[gk]['set-grow']} style={styles.fill} resizeMode="contain" fadeDuration={0} />
+      </Bob>
+    </ImageBackground>
+  );
+  const info = (
+    <>
       <View style={styles.sheetTag}>
         <Text style={[styles.sheetTagText, { color: tc.c }]}>{`${GROUP_LABEL[gk]} · RAINBOW · ONCE ONLY`}</Text>
       </View>
@@ -659,7 +692,7 @@ function EarnedSheetBody({ gk, C, profile, catalog, onBuy }) {
           const uri = catalog[c.id]?.thumb?.url;
           const cp = o ? null : copyProgress(profile, c.id);
           return (
-            <View key={c.id} style={[styles.mon, { backgroundColor: o ? '#ffffff' : '#f7f3fc', borderColor: o ? '#26a94e' : '#ece4f7' }]}>
+            <View key={c.id} style={[styles.mon, wide && styles.monWide, { backgroundColor: o ? '#ffffff' : '#f8f1e7', borderColor: o ? '#26a94e' : '#efe2cf' }]}>
               {uri ? <Image source={{ uri }} style={[styles.monImg, { opacity: o ? 1 : 0.45 }]} resizeMode="contain" /> : null}
               {cp && (
                 <View style={styles.monNew}>
@@ -670,11 +703,31 @@ function EarnedSheetBody({ gk, C, profile, catalog, onBuy }) {
           );
         })}
       </View>
-      <Candy colors={C.look.bg} rim={C.look.rim} lip={5} radius={20} height={58} style={{ alignSelf: 'stretch' }} onPress={onBuy}>
-        <Label size={20} color={C.look.ink} ts={C.look.ts}>
-          {e.opened ? 'Opened' : e.ready ? 'Open free!' : `Unlock all ${e.need} pals`}
-        </Label>
-      </Candy>
+    </>
+  );
+  const buy = (
+    <Candy colors={C.look.bg} rim={C.look.rim} lip={5} radius={20} height={wide ? 52 : 58} style={{ alignSelf: 'stretch' }} onPress={onBuy}>
+      <Label size={20} color={C.look.ink} ts={C.look.ts}>
+        {e.opened ? 'Opened' : e.ready ? 'Open free!' : `Unlock all ${e.need} pals`}
+      </Label>
+    </Candy>
+  );
+  if (wide) {
+    return (
+      <View style={styles.sheetWide}>
+        <View style={styles.sheetLeft}>
+          {art}
+          {buy}
+        </View>
+        <View style={styles.sheetRight}>{info}</View>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.sheetBody}>
+      {art}
+      {info}
+      {buy}
     </View>
   );
 }
@@ -771,14 +824,14 @@ const styles = StyleSheet.create({
   upNote: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 12, backgroundColor: '#e6fbec', borderWidth: 2, borderColor: '#c6efd3' },
   upNoteText: { flex: 1, fontFamily: F.heavy, fontSize: 11.5, lineHeight: 14.5, color: '#17652f' },
   // the earned Rainbow chest
-  rbNote: { backgroundColor: '#fff0fa', borderColor: '#ffc8ec' },
+  rbNote: { backgroundColor: '#fff3e0', borderColor: '#f2cf9e' },
   readyDot: { position: 'absolute', top: 3, right: 5, width: 10, height: 10, borderRadius: 5, backgroundColor: '#ff3d6e', borderWidth: 2, borderColor: '#ffffff' },
-  rbSheetNote: { fontFamily: F.heavy, fontSize: 12.5, lineHeight: 17, color: '#8e1580', textAlign: 'center' },
-  rbInside: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, borderRadius: 18, backgroundColor: '#fff0fa', borderWidth: 2, borderColor: '#ffc8ec' },
+  rbSheetNote: { fontFamily: F.heavy, fontSize: 12.5, lineHeight: 17, color: '#8a3a0e', textAlign: 'center' },
+  rbInside: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, borderRadius: 18, backgroundColor: '#fff3e0', borderWidth: 2, borderColor: '#f2cf9e' },
   rbInsideImg: { width: 72, height: 72, borderRadius: 16, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  rbInsideLabel: { fontFamily: F.black, fontSize: 10, letterSpacing: 1, color: '#d6249a' },
-  rbInsideName: { fontFamily: F.display, fontSize: 20, lineHeight: 22, color: '#45107a' },
-  rbInsideSub: { fontFamily: F.heavy, fontSize: 11, color: '#8a78b0' },
+  rbInsideLabel: { fontFamily: F.black, fontSize: 10, letterSpacing: 1, color: '#e0601c' },
+  rbInsideName: { fontFamily: F.display, fontSize: 20, lineHeight: 22, color: '#5b3418' },
+  rbInsideSub: { fontFamily: F.heavy, fontSize: 11, color: '#9a7a5a' },
   info: { flex: 1, minWidth: 0, gap: 1, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 12 },
   infoLabel: { fontFamily: F.heavy, fontSize: 9.5, letterSpacing: 0.8 },
   infoValue: { fontFamily: F.black, fontSize: 12 },
@@ -792,27 +845,33 @@ const styles = StyleSheet.create({
   oddsLink: { alignSelf: 'center', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: 2, borderColor: '#ffffff' },
   oddsLinkText: { fontFamily: F.heavy, fontSize: 12, color: '#45107a' },
   sheetBody: { alignSelf: 'stretch', alignItems: 'center', gap: 10 },
+  // landscape (REDESIGN_V8)
+  sheetWide: { alignSelf: 'stretch', flexDirection: 'row', gap: 16 },
+  sheetLeft: { width: 230, gap: 10 },
+  sheetRight: { flex: 1, alignItems: 'center', gap: 8 },
+  sheetArtWide: { height: 196 },
+  monWide: { width: '11.4%' },
   sheetArt: { width: '100%', height: 200, borderRadius: 22, overflow: 'hidden' },
   sheetChest: { position: 'absolute', left: '50%', top: 10, width: 240, height: 184, marginLeft: -120 },
-  sheetTag: { paddingHorizontal: 12, paddingVertical: 3, borderRadius: 999, backgroundColor: '#f1e6ff' },
+  sheetTag: { paddingHorizontal: 12, paddingVertical: 3, borderRadius: 999, backgroundColor: '#f6ead8' },
   sheetTagText: { fontFamily: F.black, fontSize: 10.5, letterSpacing: 1 },
-  sheetName: { fontFamily: F.display, fontSize: 26, lineHeight: 28, color: '#45107a', textAlign: 'center' },
+  sheetName: { fontFamily: F.display, fontSize: 26, lineHeight: 28, color: '#5b3418', textAlign: 'center' },
   sheetUp: { fontFamily: F.heavy, fontSize: 12, color: '#17803a', textAlign: 'center' },
   sheetOdds: { alignSelf: 'stretch', flexDirection: 'row', gap: 6 },
   sheetOdd: { flex: 1, alignItems: 'center', gap: 1, paddingVertical: 7, borderRadius: 12 },
   sheetOddPct: { fontFamily: F.display, fontSize: 16 },
   sheetOddName: { fontFamily: F.black, fontSize: 9.5 },
   sheetRow: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-  sheetInside: { fontFamily: F.black, fontSize: 12.5, color: '#45107a' },
-  sheetHave: { fontFamily: F.heavy, fontSize: 11.5, color: '#6a4a9a' },
+  sheetInside: { fontFamily: F.black, fontSize: 12.5, color: '#5b3418' },
+  sheetHave: { fontFamily: F.heavy, fontSize: 11.5, color: '#9a6a3a' },
   mons: { alignSelf: 'stretch', flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   mon: { width: '18%', aspectRatio: 1, borderRadius: 14, borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   monImg: { width: '86%', height: '86%' },
   monNew: { position: 'absolute', left: 3, bottom: 3, paddingHorizontal: 4, borderRadius: 5, backgroundColor: '#e01e4a' },
   monNewText: { fontFamily: F.black, fontSize: 8, color: '#ffffff' },
-  sheetCoins: { fontFamily: F.bold, fontSize: 11.5, color: '#6a4a9a' },
-  oddsRow: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 14, backgroundColor: '#f4eefc' },
+  sheetCoins: { fontFamily: F.bold, fontSize: 11.5, color: '#9a6a3a' },
+  oddsRow: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 14, backgroundColor: '#f6ead8' },
   oddsRowName: { width: 80, fontFamily: F.display, fontSize: 14 },
-  oddsRowOdds: { flex: 1, fontFamily: F.heavy, fontSize: 11.5, color: '#45107a' },
-  oddsNote: { fontFamily: F.bold, fontSize: 11, lineHeight: 15.5, color: '#6a4a9a' },
+  oddsRowOdds: { flex: 1, fontFamily: F.heavy, fontSize: 11.5, color: '#5b3418' },
+  oddsNote: { fontFamily: F.bold, fontSize: 11, lineHeight: 15.5, color: '#9a6a3a' },
 });

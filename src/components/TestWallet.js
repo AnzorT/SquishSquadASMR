@@ -45,10 +45,10 @@ export default function TestWallet({ wallet, fpsOn, onToggleFps }) {
   const gold = { borderColor: '#ffd27a', backgroundColor: '#fff6dc', color: '#b86200' };
   const violet = { borderColor: '#c9b2ff', backgroundColor: '#efe8ff', color: '#5a22c8' };
   const fire = { borderColor: '#ffb98a', backgroundColor: '#fff0e4', color: '#c2531c' };
-  const pink = { borderColor: '#f2b3e6', backgroundColor: '#ffeefa', color: '#8e1580' };
+  const pink = { borderColor: '#f2c39e', backgroundColor: '#fff1e4', color: '#8a3a0e' };
   return (
     <View style={styles.box}>
-      <LinearGradient colors={['#8a4dff', '#6a22d6', '#45107a']} locations={[0, 0.55, 1]} style={styles.head}>
+      <LinearGradient colors={['#e6b47c', '#cf955a', '#b47a42']} locations={[0, 0.55, 1]} style={styles.head}>
         <Text style={styles.headText}>Test wallet</Text>
         <Text style={styles.headNote}>{msg || 'tester only'}</Text>
       </LinearGradient>
@@ -72,7 +72,7 @@ export default function TestWallet({ wallet, fpsOn, onToggleFps }) {
           {quick('0', () => set({ gems: 0 }), violet)}
         </View>
         <View style={styles.row}>
-          <Text style={[styles.label, { color: '#8e1580' }]}>Level</Text>
+          <Text style={[styles.label, { color: '#8a3a0e' }]}>Level</Text>
           <Pressable onPress={() => set({ level: Math.max(1, n(wallet.level) - 1) })} style={styles.step}>
             <Text style={styles.stepText}>−</Text>
           </Pressable>
@@ -89,7 +89,7 @@ export default function TestWallet({ wallet, fpsOn, onToggleFps }) {
           {quick('Start over', () => set({ streak: 'reset' }, 'Back to day 1'), fire)}
         </View>
         <View style={styles.row}>
-          <Text style={[styles.label, { color: '#8e1580' }]}>Level road</Text>
+          <Text style={[styles.label, { color: '#8a3a0e' }]}>Level road</Text>
         </View>
         <View style={styles.quicks}>
           {quick('Claim prizes again', () => set({ road: 'replay' }, 'LEVEL UP shows on the lobby'), pink)}
@@ -109,19 +109,19 @@ export default function TestWallet({ wallet, fpsOn, onToggleFps }) {
 }
 
 const styles = StyleSheet.create({
-  box: { borderRadius: 22, borderWidth: 3, borderColor: '#ffffff', backgroundColor: '#f6efff', overflow: 'hidden', marginBottom: 14 },
+  box: { borderRadius: 22, borderWidth: 3, borderColor: '#ffffff', backgroundColor: '#fffaf0', overflow: 'hidden', marginBottom: 14 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 9, paddingHorizontal: 14 },
   headText: { fontFamily: F.display, fontSize: 16, color: '#ffffff' },
   headNote: { fontFamily: F.display, fontSize: 12, color: '#ffffff' },
   body: { gap: 10, padding: 12 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   label: { flex: 1, fontFamily: F.black, fontSize: 14 },
-  input: { width: 110, paddingVertical: 5, paddingHorizontal: 8, borderRadius: 10, borderWidth: 2, borderColor: '#d9c4f7', backgroundColor: '#ffffff', fontFamily: F.heavy, fontSize: 14, color: '#45107a', textAlign: 'right' },
+  input: { width: 110, paddingVertical: 5, paddingHorizontal: 8, borderRadius: 10, borderWidth: 2, borderColor: '#e2cfb4', backgroundColor: '#ffffff', fontFamily: F.heavy, fontSize: 14, color: '#5b3418', textAlign: 'right' },
   quicks: { flexDirection: 'row', gap: 5, paddingLeft: 26, marginTop: -4 },
   quick: { flex: 1, alignItems: 'center', paddingVertical: 4, borderRadius: 999, borderWidth: 2 },
   quickText: { fontFamily: F.display, fontSize: 12 },
-  step: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: '#f2b3e6', backgroundColor: '#ffeefa', alignItems: 'center', justifyContent: 'center' },
-  stepText: { fontFamily: F.display, fontSize: 15, color: '#8e1580' },
+  step: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: '#f2c39e', backgroundColor: '#fff1e4', alignItems: 'center', justifyContent: 'center' },
+  stepText: { fontFamily: F.display, fontSize: 15, color: '#8a3a0e' },
   setRing: { borderRadius: 18, backgroundColor: '#b86200', padding: 2, paddingBottom: 5 },
   set: { alignItems: 'center', paddingVertical: 8, borderRadius: 16, borderWidth: 3, borderColor: '#ffffff' },
   setText: { fontFamily: F.display, fontSize: 16, color: '#7a3d00' },

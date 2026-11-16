@@ -1,7 +1,9 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Animated, BackHandler, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import CandyBackground from '../components/candy/CandyBackground';
+import { GameBackground as CandyBackground, GameBack, useWide } from '../royal/GameFrame';
+import { MapBackdrop } from '../royal/WorldBg';
+import { Orb } from '../royal';
 import { KeptView, ViewSlot, useViewSwitch } from '../components/ViewSwitch';
 import RoundButton, { BackGlyph } from '../components/candy/RoundButton';
 import sfx from '../audio/sfx';
@@ -34,6 +36,7 @@ const bannerOf = (L) => {
 const iconOf = (L) => <RoomCard room={L.room} />;
 
 function HopScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack }) {
+  const wide = useWide(); // landscape (REDESIGN_V8)
   const insets = useSafeAreaInsets();
   const rec = record(profile);
   const sw = useViewSwitch('map'); // map | game
@@ -84,18 +87,24 @@ function HopScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack }
 
   return (
     <CandyBackground style={{ paddingTop: playing ? 0 : insets.top }} sparkles={!playing}>
+      {/* the level map stands in the menu's world (src/royal/WorldBg.js) */}
+      <MapBackdrop sw={sw} on={wide && view === 'map'} />
       {!playing ? (
         <View style={styles.header}>
-          <RoundButton size={40} onPress={onBack}>
-            <BackGlyph />
-          </RoundButton>
+          <GameBack onPress={onBack} />
           <View style={styles.titleBox}>
             <Text style={styles.headerTitle}>SQUISH HOP</Text>
             <Text style={styles.headerSub}>{`${doneOf(rec)} / ${LEVELS} levels`}</Text>
           </View>
-          <RoundButton size={40} onPress={() => setRules(true)}>
-            <Text style={styles.help}>?</Text>
-          </RoundButton>
+          {wide ? (
+            <Orb size={40} onPress={() => setRules(true)}>
+              <Text style={styles.help}>?</Text>
+            </Orb>
+          ) : (
+            <RoundButton size={40} onPress={() => setRules(true)}>
+              <Text style={styles.help}>?</Text>
+            </RoundButton>
+          )}
           <View style={styles.starPill}>
             <Text style={styles.starPillText}>{`★ ${starsOf(rec)}`}</Text>
           </View>
@@ -130,7 +139,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 6, paddingBottom: 2 },
   titleBox: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontFamily: F.display, fontSize: 20, letterSpacing: 1, color: '#8e1580' },
+  headerTitle: { fontFamily: F.display, fontSize: 20, letterSpacing: 1, color: '#8a3a0e' },
   headerSub: { fontFamily: F.heavy, fontSize: 11.5, color: INK },
   help: { fontFamily: F.display, fontSize: 20, color: '#ffffff', includeFontPadding: false },
   starPill: { backgroundColor: '#ffffff', borderRadius: 999, borderWidth: 2.5, borderColor: '#ffd23a', paddingHorizontal: 10, paddingVertical: 4 },

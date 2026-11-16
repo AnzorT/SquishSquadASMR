@@ -1,14 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import OutlinedTitle from '../components/candy/OutlinedTitle';
 import { RaysSpin } from '../components/candy/Decor';
 import { CoinIcon } from '../squad/ui';
+import { GEM } from '../squad/currencyArt';
 import sfx from '../audio/sfx';
 import { CountUp, FxLayer, PopIn, Rock, SlideIn } from './fx';
 import { BtnLabel, Head, SdButton } from './ui';
 import { clock } from './levels';
 import { F, INK } from './theme';
+import { useWide } from '../royal/GameFrame';
 
 // The cards over the board: the result (score creatures popping in one by
 // one, each with its own bigger sound; PERFECT's stamp; coins counting up;
@@ -16,8 +18,15 @@ import { F, INK } from './theme';
 // back-to-level-1 / win cards. The XP pieces are Squish Sort's and Squish
 // Stack's too.
 
+// In landscape (REDESIGN_V8, every popup made for the sideways screen) a card is two columns side by side: what comes
+// before <Split /> on the left (the title and the picture), the rest on the right (the numbers and the buttons). A card
+// without one stays a single column. Upright, Split is nothing.
+export const Split = () => null;
+
 // The dim scrim and a card springing up into the middle.
-export function Overlay({ visible, children, tint = 'rgba(40,8,80,0.55)' }) {
+// broad: as wide as a two-column card, in one column (Blitz's save card: its buttons in a row)
+export function Overlay({ visible, children, tint = 'rgba(50,24,6,0.55)', broad = false }) {
+  const wide = useWide();
   const t = useRef(new Animated.Value(0)).current;
   const [shown, setShown] = useState(visible);
   useEffect(() => {
@@ -31,12 +40,25 @@ export function Overlay({ visible, children, tint = 'rgba(40,8,80,0.55)' }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
   if (!shown) return null;
+  let body = children;
+  const list = wide ? React.Children.toArray(children) : null;
+  const at = list ? list.findIndex((c) => c && c.type === Split) : -1;
+  if (at >= 0) {
+    body = (
+      <>
+        <View style={styles.wSide}>{list.slice(0, at)}</View>
+        <View style={styles.wSide}>{list.slice(at + 1)}</View>
+      </>
+    );
+  }
+  const two = at >= 0;
   return (
-    <View style={styles.overlay} pointerEvents={visible ? 'auto' : 'none'}>
+    <View style={[styles.overlay, wide && styles.overlayWide]} pointerEvents={visible ? 'auto' : 'none'}>
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: tint, opacity: t.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolate: 'clamp' }) }]} />
       <Animated.View
         style={[
           styles.card,
+          (two || (wide && broad)) && styles.cardWide,
           {
             opacity: t.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 1, 1], extrapolate: 'clamp' }),
             transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [120, 0] }) }, { scale: t.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) }],
@@ -44,8 +66,8 @@ export function Overlay({ visible, children, tint = 'rgba(40,8,80,0.55)' }) {
         ]}
       >
         <View style={styles.cardRim}>
-          <LinearGradient colors={['#fff6fd', '#ffe3f6', '#efd8ff']} locations={[0, 0.55, 1]} style={styles.cardFill}>
-            {children}
+          <LinearGradient colors={['#fffaf0', '#fff1dc', '#f6e2c4']} locations={[0, 0.55, 1]} style={[styles.cardFill, wide && styles.cardFillShort, two && styles.cardFillWide]}>
+            {body}
           </LinearGradient>
         </View>
       </Animated.View>
@@ -72,7 +94,7 @@ function Slot({ uri, earned, delay, big }) {
   const rotate = t.interpolate({ inputRange: [0, 1], outputRange: [earned ? '-30deg' : '0deg', '0deg'] });
   return (
     <View style={{ width: size + 16, height: size + 16, alignItems: 'center', justifyContent: 'center', marginTop: big ? -10 : 6 }}>
-      <Head uri={uri} size={size} dim ring="rgba(255,255,255,0.7)" bg="rgba(200,180,230,0.35)" style={{ position: 'absolute' }} />
+      <Head uri={uri} size={size} dim ring="rgba(255,255,255,0.7)" bg="rgba(230,200,160,0.35)" style={{ position: 'absolute' }} />
       {earned ? (
         <Animated.View pointerEvents="none" style={{ position: 'absolute', opacity: t }}>
           <RaysSpin size={size * 1.9} color="#ffe45c" opacity={0.6} />
@@ -149,7 +171,7 @@ export function XpBar({ before, after, delay }) {
       </View>
       <View style={styles.xpTrack}>
         <Animated.View style={[styles.xpFill, { width: t.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]}>
-          <LinearGradient colors={['#d9b8ff', '#9a4dff']} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+          <LinearGradient colors={['#ffe08a', '#f0a21c']} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
         </Animated.View>
       </View>
       <Text style={styles.xpLabel}>XP</Text>
@@ -217,6 +239,7 @@ export function ResultCard({ visible, res, spec, uris, onNext, onReplay, onMap, 
         ))}
         {res.perfect ? <Stamp delay={420 + 3 * STEP - 120} /> : null}
       </View>
+      <Split />
       <SlideIn trigger={key} delay={cAt - 150} dy={20} style={styles.rewardRow}>
         <CoinIcon size={26} />
         <CountUp value={res.levelCoins} delay={cAt} ms={800} style={styles.coins} prefix="+" onTick={() => sfx.play('sd_coinTick')} />
@@ -231,7 +254,7 @@ export function ResultCard({ visible, res, spec, uris, onNext, onReplay, onMap, 
       ) : null}
       <SlideIn trigger={key} delay={420 + 2 * STEP + 300} dy={30} style={styles.btnRow}>
         <SdButton kind="white" onPress={onMap} sound="sd_select" faceStyle={styles.smallFace}>
-          <BtnLabel kind="purple" size={15}>MAP</BtnLabel>
+          <BtnLabel kind="white" size={15}>MAP</BtnLabel>
         </SdButton>
         <SdButton kind="purple" onPress={onReplay} sound="sd_select" faceStyle={styles.smallFace}>
           <BtnLabel kind="purple" size={15}>REPLAY</BtnLabel>
@@ -257,13 +280,14 @@ export function TimeUpCard({ visible, onRetry, onMap, uri, hearts = 0 }) {
       </PopIn>
       <PopIn trigger={visible} delay={220}>
         <Rock deg={8} ms={1800}>
-          <Head uri={uri} size={86} dim ring="#ffffff" bg="#efe9f5" />
+          <Head uri={uri} size={86} dim ring="#ffffff" bg="#f3e6d4" />
         </Rock>
       </PopIn>
+      <Split />
       <Text style={styles.body}>{hearts ? `${hearts} mistakes. The same board is waiting: think it through and try again!` : 'The same board is waiting. Try it again!'}</Text>
       <SlideIn trigger={visible} delay={380} style={styles.btnRow}>
         <SdButton kind="white" onPress={onMap} sound="sd_select" faceStyle={styles.smallFace}>
-          <BtnLabel kind="purple" size={15}>MAP</BtnLabel>
+          <BtnLabel kind="white" size={15}>MAP</BtnLabel>
         </SdButton>
         <SdButton kind="pink" onPress={onRetry} sound="sd_select" faceStyle={styles.bigFace}>
           <BtnLabel kind="pink" size={18}>RETRY</BtnLabel>
@@ -280,6 +304,7 @@ export function PauseCard({ visible, onResume, onRestart, onQuit, blitz }) {
         <OutlinedTitle text="PAUSED" size={32} fill="pink" />
       </PopIn>
       <Text style={styles.body}>{blitz ? 'The Blitz clock is frozen. Take a breath!' : 'The clock is frozen. The board is hidden so no peeking!'}</Text>
+      <Split />
       <View style={styles.col}>
         <SdButton kind="green" onPress={onResume} sound="sd_resume" faceStyle={styles.wideFace}>
           <BtnLabel kind="green" size={18}>RESUME</BtnLabel>
@@ -288,7 +313,7 @@ export function PauseCard({ visible, onResume, onRestart, onQuit, blitz }) {
           <BtnLabel kind="purple" size={16}>{blitz ? 'START OVER' : 'RESTART'}</BtnLabel>
         </SdButton>
         <SdButton kind="white" onPress={onQuit} sound="sd_boardOut" faceStyle={styles.wideFace}>
-          <BtnLabel kind="purple" size={16}>QUIT</BtnLabel>
+          <BtnLabel kind="white" size={16}>QUIT</BtnLabel>
         </SdButton>
       </View>
     </Overlay>
@@ -308,12 +333,13 @@ export function ReviveCard({ visible, board, unit = 'board', adReady, adsFree, o
       </PopIn>
       <Text style={styles.body}>{`That's a mistake. Keep your run going on ${unit} ${board}?`}</Text>
       <Text style={styles.small}>One revive per run</Text>
+      <Split />
       <View style={styles.col}>
         <SdButton kind="gold" onPress={onRevive} disabled={!adsFree && !adReady} sound="sd_select" faceStyle={styles.wideFace}>
           <BtnLabel kind="gold" size={17}>{adsFree ? 'REVIVE (FREE)' : adReady ? '▶ WATCH AD TO REVIVE' : 'LOADING AD…'}</BtnLabel>
         </SdButton>
         <SdButton kind="white" onPress={onGiveUp} sound="sd_select" faceStyle={styles.wideFace}>
-          <BtnLabel kind="purple" size={15}>{backTo(unit)}</BtnLabel>
+          <BtnLabel kind="white" size={15}>{backTo(unit)}</BtnLabel>
         </SdButton>
       </View>
     </Overlay>
@@ -329,14 +355,83 @@ export function BlitzFailCard({ visible, reason, reached, best, unit = 'board', 
       </PopIn>
       <Text style={styles.body}>{reason === 'time' ? 'The Blitz clock ran out.' : 'One mistake sends the whole squad home.'}</Text>
       <Text style={styles.small}>{`You reached ${unit} ${reached} · best ${Math.max(best, reached)}`}</Text>
+      <Split />
       <View style={styles.col}>
         <SdButton kind="cyan" onPress={onAgain} sound="sd_select" faceStyle={styles.wideFace}>
           <BtnLabel kind="cyan" size={18}>GO AGAIN</BtnLabel>
         </SdButton>
         <SdButton kind="white" onPress={onQuit} sound="sd_boardOut" faceStyle={styles.wideFace}>
-          <BtnLabel kind="purple" size={15}>QUIT</BtnLabel>
+          <BtnLabel kind="white" size={15}>QUIT</BtnLabel>
         </SdButton>
       </View>
+    </Overlay>
+  );
+}
+
+// Squishdoku's BLITZ MODE (2026-11-16, the user): a mistake or the clock ended the run. Save it — once with an ad (free
+// with Remove Ads), or with gems (`price`, twice the last each time) — and go on from board `board`; or END RUN.
+export function BlitzSaveCard({ visible, reason, board, cleared, adUsed, adReady, adsFree, gems, price, saving, error, onAd, onGems, onEnd }) {
+  const short = gems < price;
+  // (the user, 2026-11-16: the words in the middle of the card, the buttons below them in one row and 8% shorter;
+  // the ad's button only until it's been used once in the run)
+  return (
+    <Overlay visible={visible} tint="rgba(80,0,30,0.5)" broad>
+      <PopIn trigger={visible} delay={40}>
+        <OutlinedTitle text={reason === 'time' ? "TIME'S UP!" : 'OOPS!'} size={34} fill="pink" />
+      </PopIn>
+      <Text style={styles.body}>{`Save your run and keep going on board ${board}?`}</Text>
+      <Text style={styles.small}>{`${cleared} board${cleared === 1 ? '' : 's'} cleared so far`}</Text>
+      <View style={styles.saveRow}>
+        {adUsed ? null : (
+          <SdButton kind="gold" onPress={onAd} disabled={saving || (!adsFree && !adReady)} sound="sd_select" style={styles.saveBtn} faceStyle={styles.rowFace}>
+            <BtnLabel kind="gold" size={15}>{adsFree ? 'SAVE IT (FREE)' : adReady ? '▶ WATCH AD TO SAVE' : 'LOADING AD…'}</BtnLabel>
+          </SdButton>
+        )}
+        <View style={styles.saveBtn}>
+          <SdButton kind="cyan" onPress={onGems} disabled={saving || short} sound="sd_select" faceStyle={styles.rowFace}>
+            <BtnLabel kind={saving || short ? 'grey' : 'cyan'} size={15}>{saving ? 'SAVING…' : 'SAVE FOR'}</BtnLabel>
+            {saving ? null : <Image source={GEM[0]} style={styles.gem} />}
+            {saving ? null : <BtnLabel kind={short ? 'grey' : 'cyan'} size={15}>{String(price)}</BtnLabel>}
+          </SdButton>
+          {error || short ? <Text style={styles.err}>{error || `You have ${gems} gems`}</Text> : null}
+        </View>
+        <SdButton kind="white" onPress={onEnd} disabled={saving} sound="sd_select" style={styles.saveBtn} faceStyle={styles.rowFace}>
+          <BtnLabel kind="white" size={15}>END RUN</BtnLabel>
+        </SdButton>
+      </View>
+    </Overlay>
+  );
+}
+
+// Squishdoku's BLITZ MODE: GAME OVER — the boards the run cleared, the best, and what they paid. (The user,
+// 2026-11-16: no score creatures, Blitz has no stars; the title on top of everything; QUIT and PLAY AGAIN the same size,
+// PLAY AGAIN in the gold of the app's other buttons.)
+export function BlitzOverCard({ visible, res, onAgain, onQuit }) {
+  if (!res) return <Overlay visible={false} />;
+  return (
+    <Overlay visible={visible} tint="rgba(80,0,30,0.55)" broad>
+      <PopIn trigger={visible} delay={40} from={2.4} twist={-12} friction={6} tension={160}>
+        <OutlinedTitle text="GAME OVER" size={32} fill={res.newTop ? 'gold' : 'pink'} />
+      </PopIn>
+      <Text style={styles.sub}>BOARDS CLEARED</Text>
+      <CountUp value={res.cleared} delay={300} ms={700} style={styles.bigNum} />
+      <Text style={[styles.unlocked, !res.newTop && styles.bestPlain]}>{res.newTop ? 'NEW BEST!' : `BEST ${res.best}`}</Text>
+      {res.coins ? (
+        <SlideIn trigger={visible} delay={700} dy={20} style={styles.rewardRow}>
+          <CoinIcon size={26} />
+          <CountUp value={res.coins} delay={800} ms={1000} style={styles.coins} prefix="+" onTick={() => sfx.play('sd_coinTick')} ticks={12} />
+          <XpPlus xp={res.xp} />
+        </SlideIn>
+      ) : null}
+      {res.xp ? <XpGain trigger={visible} res={res} delay={1300} /> : null}
+      <SlideIn trigger={visible} delay={900} dy={30} style={styles.overBtns}>
+        <SdButton kind="white" onPress={onQuit} sound="sd_boardOut" faceStyle={styles.overFace}>
+          <BtnLabel kind="white" size={17}>QUIT</BtnLabel>
+        </SdButton>
+        <SdButton kind="gold" onPress={onAgain} sound="sd_select" faceStyle={styles.overFace}>
+          <BtnLabel kind="gold" size={17}>PLAY AGAIN</BtnLabel>
+        </SdButton>
+      </SlideIn>
     </Overlay>
   );
 }
@@ -361,6 +456,7 @@ export function BlitzWinCard({ visible, res, uris, unit = 'board', onAgain, onQu
           <Slot key={i} uri={uris[i]} earned delay={300 + i * 300} big={i === 1} />
         ))}
       </View>
+      <Split />
       <SlideIn trigger={visible} delay={1300} dy={20} style={styles.rewardRow}>
         <CoinIcon size={26} />
         <CountUp value={res.coins} delay={1400} ms={1100} style={styles.coins} prefix="+" onTick={() => sfx.play('sd_coinTick')} ticks={14} />
@@ -369,7 +465,7 @@ export function BlitzWinCard({ visible, res, uris, unit = 'board', onAgain, onQu
       <XpGain trigger={visible} res={res} delay={1900} />
       <SlideIn trigger={visible} delay={1700} dy={30} style={styles.btnRow}>
         <SdButton kind="white" onPress={onQuit} sound="sd_boardOut" faceStyle={styles.smallFace}>
-          <BtnLabel kind="purple" size={15}>DONE</BtnLabel>
+          <BtnLabel kind="white" size={15}>DONE</BtnLabel>
         </SdButton>
         <SdButton kind="cyan" onPress={onAgain} sound="sd_select" faceStyle={styles.bigFace}>
           <BtnLabel kind="cyan" size={18}>AGAIN</BtnLabel>
@@ -383,10 +479,16 @@ export function BlitzWinCard({ visible, res, uris, unit = 'board', onAgain, onQu
 
 const styles = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', padding: 18, zIndex: 50, elevation: 50 },
-  card: { width: '100%', maxWidth: 380, borderRadius: 30, backgroundColor: '#45189a', padding: 3, paddingBottom: 8 },
+  overlayWide: { padding: 10 },
+  card: { width: '100%', maxWidth: 380, borderRadius: 30, backgroundColor: '#6b4426', padding: 3, paddingBottom: 8 },
+  // landscape: two columns
+  cardWide: { maxWidth: 660 },
+  cardFillShort: { paddingTop: 12, paddingBottom: 12, gap: 6 },
+  cardFillWide: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 22 },
+  wSide: { flex: 1, alignItems: 'center', gap: 6 },
   cardRim: { borderRadius: 27, backgroundColor: '#ffffff', padding: 3 },
   cardFill: { borderRadius: 24, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 16, alignItems: 'center', gap: 8 },
-  sub: { fontFamily: F.display, fontSize: 12.5, letterSpacing: 0.6, color: '#8a5fc0', textAlign: 'center' },
+  sub: { fontFamily: F.display, fontSize: 12.5, letterSpacing: 0.6, color: '#9a6a3a', textAlign: 'center' },
   slots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 6, marginBottom: 22 },
   // across the creatures' feet, so they stay in view
   stamp: { position: 'absolute', bottom: -18, alignItems: 'center', borderWidth: 3.5, borderColor: '#e01e4a', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 1, backgroundColor: 'rgba(255,255,255,0.92)' },
@@ -395,16 +497,16 @@ const styles = StyleSheet.create({
   rewardRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   coins: { fontFamily: F.display, fontSize: 28, color: '#b86200', includeFontPadding: false, minWidth: 70 },
   mult: { fontFamily: F.display, fontSize: 16, color: '#e01e4a' },
-  xpPlus: { fontFamily: F.display, fontSize: 16, color: '#7a2fd6', marginLeft: 8 },
+  xpPlus: { fontFamily: F.display, fontSize: 16, color: '#b8641c', marginLeft: 8 },
   xpRow: { flexDirection: 'row', alignItems: 'center', gap: 8, width: 260 },
-  lvBadge: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#7a2fd6', borderWidth: 2.5, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
+  lvBadge: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#b8641c', borderWidth: 2.5, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
   lvText: { fontFamily: F.display, fontSize: 14, color: '#ffffff', includeFontPadding: false },
-  xpTrack: { flex: 1, height: 14, borderRadius: 999, backgroundColor: 'rgba(69,16,122,0.18)', borderWidth: 2, borderColor: '#ffffff', overflow: 'hidden' },
+  xpTrack: { flex: 1, height: 14, borderRadius: 999, backgroundColor: 'rgba(107,68,38,0.18)', borderWidth: 2, borderColor: '#ffffff', overflow: 'hidden' },
   xpFill: { height: '100%', borderRadius: 999, overflow: 'hidden' },
-  xpLabel: { fontFamily: F.display, fontSize: 9.5, color: '#8a5fc0', width: 54 },
-  levelUp: { alignItems: 'center', backgroundColor: '#7a2fd6', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 5, borderWidth: 3, borderColor: '#ffffff' },
+  xpLabel: { fontFamily: F.display, fontSize: 9.5, color: '#9a6a3a', width: 54 },
+  levelUp: { alignItems: 'center', backgroundColor: '#b8641c', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 5, borderWidth: 3, borderColor: '#ffffff' },
   levelUpText: { fontFamily: F.display, fontSize: 17, color: '#ffffff', textAlign: 'center' },
-  levelUpSub: { fontFamily: F.heavy, fontSize: 11, color: '#f0dcff', textAlign: 'center' },
+  levelUpSub: { fontFamily: F.heavy, fontSize: 11, color: '#ffe9cc', textAlign: 'center' },
   unlocked: { fontFamily: F.display, fontSize: 13, color: '#16a86a', letterSpacing: 0.8 },
   btnRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 8, marginTop: 6 },
   col: { alignSelf: 'stretch', gap: 4, marginTop: 6 },
@@ -412,5 +514,17 @@ const styles = StyleSheet.create({
   bigFace: { paddingHorizontal: 22, paddingVertical: 12 },
   wideFace: { paddingVertical: 12 },
   body: { fontFamily: F.heavy, fontSize: 14, color: INK, textAlign: 'center', paddingHorizontal: 6 },
-  small: { fontFamily: F.bold, fontSize: 12, color: '#8a5fc0', textAlign: 'center' },
+  small: { fontFamily: F.bold, fontSize: 12, color: '#9a6a3a', textAlign: 'center' },
+  gem: { width: 22, height: 22, resizeMode: 'contain', marginHorizontal: -3 },
+  // Blitz's save card: the three buttons in a row, each 8% shorter than they were (wideFace with a 17 label: 55.6 tall
+  // in its ring; with a 15 label, 11 above and below makes 51.2)
+  saveRow: { flexDirection: 'row', alignItems: 'flex-start', alignSelf: 'stretch', justifyContent: 'center', gap: 10, marginTop: 10 },
+  saveBtn: { flex: 1, maxWidth: 220 },
+  rowFace: { paddingVertical: 11, paddingHorizontal: 8 },
+  // the GAME OVER card's two buttons, the same size
+  overBtns: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginTop: 6 },
+  overFace: { width: 190, paddingVertical: 11, paddingHorizontal: 8 },
+  err: { fontFamily: F.heavy, fontSize: 12, color: '#e01e4a', textAlign: 'center' },
+  bigNum: { fontFamily: F.display, fontSize: 40, color: '#b86200', includeFontPadding: false, textAlign: 'center', minWidth: 80 },
+  bestPlain: { color: '#9a6a3a' },
 });

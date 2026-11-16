@@ -44,3 +44,5 @@ export const streakClaim = () => move('streakClaim');
 export const levelClaim = (lv) => move('levelClaim', { i: lv });
 // every prize waiting on it at once → { results: [levelClaim's results] }
 export const levelClaimAll = () => move('levelClaimAll');
+// Squishdoku's Blitz: saving a run with gems (functions/squad.js blitzSave); `i`: the gem saves this run has had
+export const blitzSave = (i) => move('blitzSave', { i });

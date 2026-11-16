@@ -7,10 +7,12 @@ import { BackHandler, Platform, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { StatusBar } from 'expo-status-bar';
 import { gameCoins, loadHouse, saveHouse, subscribeToGameConfig } from './gameData';
+import { pageFps, useFpsActive } from '../components/fpsMeter';
 
 // node webgame/build.mjs puts the game in android/app/src/main/assets/webgame
-const GAME_URL = Platform.OS === 'android' ? 'file:///android_asset/webgame/App.dc.html' : null;
-const BG = '#24123f'; // the design's page colour, so nothing flashes while it loads
+// (web: the same pages, served at /android_asset/ by metro.config.js; src/web/WebView.js)
+const GAME_URL = Platform.select({ android: 'file:///android_asset/webgame/App.dc.html', web: '/android_asset/webgame/App.dc.html', default: null });
+const BG = '#3a2210'; // the menu page's colour (warm since REDESIGN_V8), so nothing flashes while it loads
 
 // JSON for a JS string: also escape the two line separators JSON leaves raw (U+2028, U+2029)
 const LS = String.fromCharCode(0x2028), PS = String.fromCharCode(0x2029);
@@ -22,7 +24,7 @@ const toJs = (v) => JSON.stringify(v).split(LS).join('\\u2028').split(PS).join('
 // onClaim({ lv, all }): a Level Pass claim; resolves { ok, error } or { road: true } (a chest: the app opened its level road).
 // onAsk(what, payload): a page's request (App.ask in webgame/app/bridge.js); resolves its result, rejects with an error code.
 // page: { name, opts? } — open that menu page (a new object each time it should open).
-export default function GameScreen({ uid, player, startScreen = 'menu', onStarted, wantHouse, onHouseShown, onShop, onSettings, onPlay, onSelect, onClaim, onAsk, page }) {
+export default function GameScreen({ uid, player, startScreen = 'menu', onStarted, wantHouse, onHouseShown, onShop, onSettings, onAchievements, onPlay, onSelect, onClaim, onAsk, page }) {
   const web = useRef(null);
   const ready = useRef(false);
   const queue = useRef([]);
@@ -88,6 +90,17 @@ export default function GameScreen({ uid, player, startScreen = 'menu', onStarte
     if (page && page.name && start) send({ type: 'page', name: page.name, opts: page.opts || null });
   }, [page, start, send]);
 
+  // the tester's FPS counter: the page counts its own frames while it's on (fpsMeter.js; webgame/app/perf.js)
+  const fpsOn = useFpsActive();
+  const fpsOnRef = useRef(fpsOn);
+  fpsOnRef.current = fpsOn;
+  const meter = useCallback((on) => {
+    if (web.current && ready.current) web.current.injectJavaScript(`window.SquishPerf && window.SquishPerf.meter(${on ? 'true' : 'false'}); true;`);
+    if (!on) pageFps('menu', null);
+  }, []);
+  useEffect(() => meter(fpsOn), [fpsOn, meter]);
+  useEffect(() => () => pageFps('menu', null), []);
+
   // Android back: the game closes what's on top (house, a game, the games page); nothing open -> leave the app
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -110,6 +123,10 @@ export default function GameScreen({ uid, player, startScreen = 'menu', onStarte
         case 'ready':
           ready.current = true;
           queue.current.splice(0).forEach(send);
+          if (fpsOnRef.current) meter(true);
+          break;
+        case 'fps':
+          pageFps('menu', p);
           break;
         case 'coins':
           gameCoins(uid, p.delta);
@@ -120,6 +137,8 @@ export default function GameScreen({ uid, player, startScreen = 'menu', onStarte
         case 'open':
           if (p.what === 'shop') onShop && onShop();
           else if (p.what === 'settings') onSettings && onSettings();
+          // the trophy button next to the gear (REDESIGN_V8)
+          else if (p.what === 'achievements') onAchievements && onAchievements();
           break;
         case 'play':
           // p.mode: 'squish' (Squish Time) or an app game id ('squishdoku', 'sort', 'stack', 'hop'); p.from: 'park' or 'menu'
@@ -151,7 +170,7 @@ export default function GameScreen({ uid, player, startScreen = 'menu', onStarte
           break;
       }
     },
-    [uid, send, onShop, onSettings, onPlay, onSelect, onClaim, onAsk]
+    [uid, send, meter, onShop, onSettings, onAchievements, onPlay, onSelect, onClaim, onAsk]
   );
 
   // the page's process died (low memory): start it again
@@ -198,7 +217,8 @@ export default function GameScreen({ uid, player, startScreen = 'menu', onStarte
           showsVerticalScrollIndicator={false}
           mediaPlaybackRequiresUserAction={false}
           allowsInlineMediaPlayback
-          androidLayerType="hardware"
+          // (no androidLayerType: a hardware layer made the WebView draw into an off-screen buffer and copy it every frame;
+          //  its content animates every frame, so that was a whole extra screen of work per frame. Performance, 2026-11-14)
           setSupportMultipleWindows={false}
           webviewDebuggingEnabled={__DEV__}
           onRenderProcessGone={restart}

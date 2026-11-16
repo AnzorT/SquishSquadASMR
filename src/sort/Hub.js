@@ -9,6 +9,7 @@ import { MiniContainer } from './Container';
 import { modelOf } from './models';
 import { THEMES } from './themes';
 import { ModeCard } from '../squishdoku/Hub';
+import { useWide } from '../royal/GameFrame';
 import { BLITZ_MS, BLITZ_ROUNDS, LEVELS, LEVEL_LIST, clock, starsIn } from './levels';
 
 // Squish Sort's front page: a card per container (the fridge for the food
@@ -45,17 +46,18 @@ function ThemeCard({ themeKey, rec, uris, onPlay, delay }) {
   const stars = starsIn(rec, themeKey);
   const L = LEVEL_LIST[lv - 1];
   const m = modelOf(themeKey, L.model);
+  const wide = useWide(); // (landscape: a shorter card, two fit one above the other)
   return (
     <SlideIn delay={delay} dy={50} style={styles.cardWrap}>
       <View style={[styles.cardRing, { backgroundColor: t.card.ring }]}>
-        <LinearGradient colors={t.card.colors} locations={[0, 0.55, 1]} style={styles.cardFace}>
+        <LinearGradient colors={t.card.colors} locations={[0, 0.55, 1]} style={[styles.cardFace, wide && styles.cardFaceWide]}>
           <View style={styles.cardShine} />
           <Animated.View style={{ transform: [{ rotate }] }}>
-            <MiniContainer m={m} rows={Math.min(3, L.rows)} cols={L.cols} size={96} door={door} uris={uris} />
+            <MiniContainer m={m} rows={Math.min(3, L.rows)} cols={L.cols} size={wide ? 74 : 96} door={door} uris={uris} />
           </Animated.View>
           <View style={styles.cardBody}>
             <Text style={[styles.cardTitle, { color: t.card.ring }]}>{t.name.toUpperCase()}</Text>
-            <Text style={styles.cardLine}>{t.blurb}</Text>
+            {wide ? null : <Text style={styles.cardLine}>{t.blurb}</Text>}
             <Text style={[styles.modelLine, { color: t.card.ring }]} numberOfLines={1}>{`${m.size} · ${m.name.toUpperCase()}`}</Text>
             <View style={styles.row6}>
               <View style={[styles.lvChip, { backgroundColor: t.card.ring }]}>
@@ -64,7 +66,7 @@ function ThemeCard({ themeKey, rec, uris, onPlay, delay }) {
               <Text style={styles.stars}>{`★ ${stars}`}</Text>
             </View>
             <Pulse to={1.05} ms={1300} style={{ alignSelf: 'flex-start', marginTop: 4 }}>
-              <SdButton kind="green" onPress={onPlay} sound="sd_select" faceStyle={styles.ctaFace}>
+              <SdButton kind="green" onPress={onPlay} sound="sd_select" faceStyle={[styles.ctaFace, wide && styles.ctaFaceWide]}>
                 <BtnLabel kind="green" size={17}>
                   PLAY ▶
                 </BtnLabel>
@@ -79,19 +81,26 @@ function ThemeCard({ themeKey, rec, uris, onPlay, delay }) {
 
 function Hub({ rec, pools, onPlay, onBlitz, onRules }) {
   const b = rec.blitz;
+  // landscape (REDESIGN_V8, the games sideways): the title, BLITZ and HOW TO PLAY on the left, the fridge and the
+  // cupboard on the right
+  const wide = useWide();
+  const col = (children) => (wide ? <View style={styles.wCol}>{children}</View> : children);
+  const themes = ['fridge', 'cupboard'].map((k, i) => (
+    <ThemeCard key={k} themeKey={k} rec={rec} uris={(pools[k] || []).slice(i * 3, i * 3 + 3).map((c) => c.uri)} onPlay={() => onPlay(k)} delay={300 + i * 120} />
+  ));
   return (
-    <ScrollView style={styles.fill} contentContainerStyle={styles.wrap} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.fill} contentContainerStyle={wide ? styles.wWrap : styles.wrap} showsVerticalScrollIndicator={false}>
+      {col(
+        <>
       <PopIn delay={60} from={0.3} twist={-10}>
         <Rock deg={2} ms={3400}>
-          <OutlinedTitle text="SQUISH SORT" size={36} fill="pink" />
+          <OutlinedTitle text="SQUISH SORT" size={36} fill="gold" />
         </Rock>
       </PopIn>
       <PopIn delay={220}>
         <Text style={styles.tagline}>{'Remember who sits where.\nThe doors shut, it shakes… sort them back!'}</Text>
       </PopIn>
-      {['fridge', 'cupboard'].map((k, i) => (
-        <ThemeCard key={k} themeKey={k} rec={rec} uris={(pools[k] || []).slice(i * 3, i * 3 + 3).map((c) => c.uri)} onPlay={() => onPlay(k)} delay={300 + i * 120} />
-      ))}
+      {wide ? null : themes}
       <ModeCard
         kind="blitz"
         title="BLITZ ⚡"
@@ -102,11 +111,14 @@ function Hub({ rec, pools, onPlay, onBlitz, onRules }) {
       />
       <SlideIn delay={640} dy={30}>
         <SdButton kind="white" onPress={onRules} sound="sd_mode" faceStyle={styles.rulesFace}>
-          <BtnLabel kind="purple" size={14}>
+          <BtnLabel kind="white" size={14}>
             HOW TO PLAY
           </BtnLabel>
         </SdButton>
       </SlideIn>
+        </>,
+      )}
+      {wide ? col(<>{themes}</>) : null}
     </ScrollView>
   );
 }
@@ -114,6 +126,9 @@ function Hub({ rec, pools, onPlay, onBlitz, onRules }) {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   wrap: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40, gap: 16 },
+  // landscape (REDESIGN_V8): two columns
+  wWrap: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, paddingBottom: 10, gap: 28 },
+  wCol: { width: 350, alignItems: 'center', gap: 12 },
   tagline: { fontFamily: F.heavy, fontSize: 13, color: INK, textAlign: 'center', lineHeight: 18 },
   row6: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
   cardWrap: { alignSelf: 'stretch' },
@@ -128,6 +143,8 @@ const styles = StyleSheet.create({
   lvChipText: { fontFamily: F.display, fontSize: 11, letterSpacing: 0.6, color: '#ffffff' },
   stars: { fontFamily: F.display, fontSize: 14, color: '#b86200' },
   ctaFace: { paddingHorizontal: 18, paddingVertical: 10 },
+  ctaFaceWide: { paddingVertical: 6 },
+  cardFaceWide: { paddingVertical: 8, gap: 12 },
   rulesFace: { paddingHorizontal: 16, paddingVertical: 8 },
 });
 

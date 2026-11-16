@@ -19,6 +19,9 @@ import { BY_ID } from '../squad/data';
 import { selectedId } from '../squad/lobby';
 import { saveSquishdoku } from '../firebase/firestore';
 import { F, INK } from '../squishdoku/theme';
+import { useWide } from '../royal/GameFrame';
+import { MapBackdrop } from '../royal/WorldBg';
+import { Orb, WoodBg } from '../royal';
 
 // Squishdoku (SQUISHDOKU.md), opened from the Lobby's Puzzle tile: the hub,
 // the level map, a Regular level, or a Blitz run. Each view slides in over
@@ -64,7 +67,6 @@ function SquishdokuScreen({ profile, creatures, hidden, uid, adsFree, haptics, o
 
   useEffect(() => {
     sfx.setBudget(SOUND_BUDGET);
-    sfx.music('dream');
     // a level's sounds, made while the player looks at the menus
     sfx.preload([...PLAY_SOUNDS, 'sd_timeUp', 'sd_select', ...RESULT_SOUNDS]);
     // first visit: the rules
@@ -109,16 +111,25 @@ function SquishdokuScreen({ profile, creatures, hidden, uid, adsFree, haptics, o
   }, [go]);
 
   const pl = xpView(profile);
+  // landscape (REDESIGN_V8): the whole screen, the wood look's warm page behind the hub and the map
+  const wide = useWide();
+  const Bg = wide ? WarmBackground : CandyBackground;
 
   return (
     // a level or a Blitz run fills the screen, room and all (it keeps clear of
     // the status bar itself)
-    <CandyBackground style={{ paddingTop: view === 'play' || view === 'blitz' ? 0 : insets.top }} sparkles={view !== 'play' && view !== 'blitz'}>
+    <Bg style={{ paddingTop: view === 'play' || view === 'blitz' ? 0 : insets.top }} sparkles={view !== 'play' && view !== 'blitz'}>
+      {/* the level map stands in the menu's world (src/royal/WorldBg.js) */}
+      <MapBackdrop sw={sw} on={wide && view === 'map'} />
       {view === 'hub' || view === 'map' ? (
         <View style={styles.header}>
-          <RoundButton size={40} onPress={() => (view === 'map' ? go('hub') : onBack())}>
-            <BackGlyph />
-          </RoundButton>
+          {wide ? (
+            <Orb icon="back" onPress={() => (view === 'map' ? go('hub') : onBack())} />
+          ) : (
+            <RoundButton size={40} onPress={() => (view === 'map' ? go('hub') : onBack())}>
+              <BackGlyph />
+            </RoundButton>
+          )}
           <Text style={styles.headerTitle}>{view === 'map' ? 'LEVELS' : ''}</Text>
           {view === 'map' ? (
             <View style={styles.lvPill}>
@@ -137,19 +148,29 @@ function SquishdokuScreen({ profile, creatures, hidden, uid, adsFree, haptics, o
         {view !== 'map' ? (
           <ViewSlot sw={sw} bones={BONES[view]}>
             {view === 'hub' ? (
-              <Hub rec={rec} pl={pl} roster={roster} head={head} onToggleHead={toggleHead} onRegular={() => go('map')} onBlitz={() => go('blitz')} onRules={() => setRules(true)} />
+              <Hub rec={rec} head={head} onToggleHead={toggleHead} onRegular={() => go('map')} onBlitz={() => go('blitz')} onRules={() => setRules(true)} />
             ) : null}
             {view === 'play' ? (
               <RegularGame startLv={playLv} profile={profile} uid={uid} roster={roster} cast={cast} head={head} buddyKey={buddyKey} buddyUri={buddyUri} haptics={haptics} onExit={leaveLevel} />
             ) : null}
             {view === 'blitz' ? (
-              <BlitzGame profile={profile} uid={uid} roster={roster} cast={cast} adsFree={adsFree} head={head} buddyKey={buddyKey} buddyUri={buddyUri} haptics={haptics} onExit={leaveBlitz} />
+              <BlitzGame profile={profile} uid={uid} roster={roster} cast={cast} adsFree={adsFree} buddyKey={buddyKey} buddyUri={buddyUri} haptics={haptics} onExit={leaveBlitz} />
             ) : null}
           </ViewSlot>
         ) : null}
       </Animated.View>
       <RulesCard visible={rules} roster={roster} onClose={() => setRules(false)} />
-    </CandyBackground>
+    </Bg>
+  );
+}
+
+// the wood (royal WoodBg, REDESIGN_V9: the user, the wood background) in place of the candy background, landscape
+function WarmBackground({ style, children }) {
+  return (
+    <View style={[styles.fill, style]}>
+      <WoodBg />
+      {children}
+    </View>
   );
 }
 
@@ -157,7 +178,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 6, paddingBottom: 2 },
   headerTitle: { flex: 1, textAlign: 'center', fontFamily: F.display, fontSize: 22, color: '#ffffff', letterSpacing: 1.5, textShadowColor: INK, textShadowOffset: { width: 0, height: 2.5 }, textShadowRadius: 1 },
-  lvPill: { backgroundColor: '#7a2fd6', borderRadius: 999, borderWidth: 2.5, borderColor: '#ffffff', paddingHorizontal: 10, paddingVertical: 4 },
+  lvPill: { backgroundColor: '#b8641c', borderRadius: 999, borderWidth: 2.5, borderColor: '#ffffff', paddingHorizontal: 10, paddingVertical: 4 },
   lvPillText: { fontFamily: F.display, fontSize: 13, color: '#ffffff' },
 });
 

@@ -9,10 +9,10 @@ import { Btn, Icon, InkText, Lettering, Orb, PageBg, PageHeader, Plaque, Stage, 
 // sound, nickname, and the places that lived in the Lobby (Achievements, Stats, Level Pass). Right: feedback, replay the
 // tutorial, log out, and a tester's Test wallet. The same handlers as the old sheet (App.js).
 
+// (Achievements left Settings for a trophy button next to the Menu's gear: REDESIGN_V8, the user)
 const LINKS = [
-  ['trophies', 'Achievements', 'M8 4h8v5a4 4 0 0 1-8 0Z M8 6H5a3 3 0 0 0 3 4 M16 6h3a3 3 0 0 1-3 4 M12 13v4 M8 20h8 M10 17h4'],
   ['stats', 'Stats', 'M5 20V11 M12 20V5 M19 20v-6'],
-  ['road', 'Level Pass', 'M12 3l2.6 5.4 5.9.9-4.3 4.1 1 5.9L12 16.5 6.8 19.3l1-5.9L3.5 9.3l5.9-.9Z'],
+  // (no Level Pass here: REDESIGN_V8, the user; the Menu's level crest opens it)
 ];
 
 function Panel({ title, children, style }) {
@@ -70,7 +70,7 @@ export default function SettingsRoyal({ onBack, nickname, onSaveNickname, onSubm
         <PageHeader title="Settings" note={nickname ? `Playing as ${nickname}` : null} onBack={onBack} />
         <View style={styles.cols}>
           <View style={styles.col}>
-            <Panel title="Sound">
+            <Panel title={tester ? 'Options' : 'Sound'}>
               <View style={styles.row}>
                 <InkText size={15}>Music</InkText>
                 <ToggleSwitch value={sound.music} onToggle={() => sfx.setMusicOn(!sound.music)} />
@@ -79,19 +79,24 @@ export default function SettingsRoyal({ onBack, nickname, onSaveNickname, onSubm
                 <InkText size={15}>Sound effects</InkText>
                 <ToggleSwitch value={sound.effects} onToggle={() => sfx.setEffectsOn(!sound.effects)} />
               </View>
-            </Panel>
-            <Panel title="Nickname">
-              <View style={styles.row}>
-                <TextInput style={styles.input} value={nick} onChangeText={setNick} maxLength={10} placeholder="Your name" placeholderTextColor="#b9a2e8" returnKeyType="done" onSubmitEditing={save} />
-                <Btn label="SAVE" size={15} width={86} height={36} radius={12} onPress={save} />
-              </View>
+              {/* a tester's FPS counter (also in the Test wallet): kept across launches */}
+              {tester ? (
+                <View style={styles.row}>
+                  <InkText size={15}>FPS counter</InkText>
+                  <ToggleSwitch value={!!fpsOn} onToggle={onToggleFps} />
+                </View>
+              ) : null}
             </Panel>
           </View>
           <View style={styles.col}>
+            {/* (SAVE is at the bottom, in the middle of the screen: REDESIGN_V8, the user) */}
+            <Panel title="Nickname">
+              <TextInput style={styles.input} value={nick} onChangeText={setNick} maxLength={10} placeholder="Your name" placeholderTextColor="#e8c9a0" returnKeyType="done" onSubmitEditing={save} />
+            </Panel>
             <Panel title="Your squad">
               {LINKS.map(([k, label, d]) =>
                 go[k] ? (
-                  <Plaque key={k} variant="amy" tips radius={14} onPress={go[k]} style={styles.link}>
+                  <Plaque key={k} variant="vel" radius={14} onPress={go[k]} style={styles.link}>
                     <Icon d={d} size={18} width={2.3} />
                     <InkText size={15}>{label}</InkText>
                   </Plaque>
@@ -101,18 +106,18 @@ export default function SettingsRoyal({ onBack, nickname, onSaveNickname, onSubm
           </View>
           <View style={styles.col}>
             <Panel title="More">
-              <Plaque variant="amy" tips radius={14} onPress={() => setFeedback('')} style={styles.link}>
+              <Plaque variant="vel" radius={14} onPress={() => setFeedback('')} style={styles.link}>
                 <Icon d="M4 5h16v11H8l-4 4Z" size={18} width={2.3} />
                 <InkText size={15}>Send feedback</InkText>
               </Plaque>
               {onReplayTutorial ? (
-                <Plaque variant="amy" tips radius={14} onPress={onReplayTutorial} style={styles.link}>
+                <Plaque variant="vel" radius={14} onPress={onReplayTutorial} style={styles.link}>
                   <Icon d="M4 12a8 8 0 1 0 2.3-5.7 M4 4v4h4" size={18} width={2.3} />
                   <InkText size={15}>Replay tutorial</InkText>
                 </Plaque>
               ) : null}
               {tester ? (
-                <Plaque variant="amy" tips radius={14} onPress={() => setWall(true)} style={styles.link}>
+                <Plaque variant="vel" radius={14} onPress={() => setWall(true)} style={styles.link}>
                   <Icon d="M4 7h16v12H4Z M4 7l3-3h10l3 3 M15 13h2" size={18} width={2.3} />
                   <InkText size={15}>Test wallet</InkText>
                 </Plaque>
@@ -121,6 +126,10 @@ export default function SettingsRoyal({ onBack, nickname, onSaveNickname, onSubm
             </Panel>
           </View>
         </View>
+        <View style={styles.saveAt} pointerEvents="box-none">
+          <Btn label="SAVE" size={18} width={190} height={44} radius={15} glow onPress={save} />
+        </View>
+        {/* (after SAVE, so it covers it) */}
         {tester && wall ? (
           <View style={styles.tester}>
             <Plaque variant="pearl" radius={22} rim={3.5} ring={2} lip={4} style={styles.testerIn}>
@@ -132,7 +141,7 @@ export default function SettingsRoyal({ onBack, nickname, onSaveNickname, onSubm
           </View>
         ) : null}
         {toast ? (
-          <Plaque variant="gold" tips style={styles.toast}>
+          <Plaque variant="gold" style={styles.toast}>
             <Text style={styles.toastT}>{toast}</Text>
           </Plaque>
         ) : null}
@@ -141,7 +150,7 @@ export default function SettingsRoyal({ onBack, nickname, onSaveNickname, onSubm
         <KeyboardAvoidingView style={styles.fbWrap}>
           <Plaque variant="vel" radius={22} rim={3.5} ring={2} lip={4} style={styles.fb}>
             <Lettering text="Feedback" variant="gold" size={20} />
-            <TextInput style={styles.fbInput} value={feedback || ''} onChangeText={setFeedback} placeholder="Tell us what you think..." placeholderTextColor="#b9a2e8" multiline textAlignVertical="top" />
+            <TextInput style={styles.fbInput} value={feedback || ''} onChangeText={setFeedback} placeholder="Tell us what you think..." placeholderTextColor="#e8c9a0" multiline textAlignVertical="top" />
             <View style={styles.fbRow}>
               <Btn label="CANCEL" variant="vel" size={15} width={120} height={38} radius={12} onPress={() => setFeedback(null)} />
               <Btn label="SEND" size={15} width={120} height={38} radius={12} onPress={send} />
@@ -154,21 +163,22 @@ export default function SettingsRoyal({ onBack, nickname, onSaveNickname, onSubm
 }
 
 const styles = StyleSheet.create({
-  root: { ...StyleSheet.absoluteFillObject, backgroundColor: '#24123f' },
-  cols: { position: 'absolute', left: 22, top: 74, right: 22, bottom: 18, flexDirection: 'row', gap: 18 },
+  root: { ...StyleSheet.absoluteFillObject, backgroundColor: '#d27c3e' },
+  cols: { position: 'absolute', left: 22, top: 70, right: 22, bottom: 72, flexDirection: 'row', gap: 18 },
+  saveAt: { position: 'absolute', left: 0, right: 0, bottom: 16, alignItems: 'center' },
   col: { flex: 1, gap: 14 },
   panel: { alignItems: 'stretch', justifyContent: 'flex-start', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, gap: 10 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  input: { flex: 1, height: 36, borderRadius: 12, paddingHorizontal: 12, backgroundColor: 'rgba(20,0,50,0.45)', borderWidth: 1.5, borderColor: 'rgba(255,236,170,0.55)', color: '#ffffff', fontFamily: FONT.bodyHeavy, fontSize: 15 },
+  input: { alignSelf: 'stretch', height: 38, borderRadius: 12, paddingHorizontal: 12, backgroundColor: 'rgba(60,30,10,0.4)', borderWidth: 1.5, borderColor: 'rgba(255,236,170,0.55)', color: '#ffffff', fontFamily: FONT.bodyHeavy, fontSize: 15 },
   link: { height: 42, flexDirection: 'row', gap: 10, paddingHorizontal: 14, justifyContent: 'flex-start' },
   logout: { marginTop: 4 },
-  tester: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(24,8,40,0.6)' },
+  tester: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(40,20,8,0.55)' },
   testerIn: { width: 420, height: 330, justifyContent: 'flex-start' },
   testerX: { position: 'absolute', left: '50%', marginLeft: 196, top: 18 },
-  toast: { position: 'absolute', alignSelf: 'center', left: '35%', right: '35%', bottom: 18, height: 34 },
+  toast: { position: 'absolute', alignSelf: 'center', left: '35%', right: '35%', bottom: 72, height: 34 },
   toastT: { fontFamily: FONT.display, fontSize: 14, color: INK, includeFontPadding: false },
-  fbWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(24,8,40,0.6)' },
+  fbWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(40,20,8,0.55)' },
   fb: { width: 460, paddingHorizontal: 18, paddingTop: 12, paddingBottom: 16, gap: 12, alignItems: 'stretch' },
-  fbInput: { height: 110, borderRadius: 14, padding: 12, backgroundColor: 'rgba(20,0,50,0.45)', borderWidth: 1.5, borderColor: 'rgba(255,236,170,0.55)', color: '#ffffff', fontFamily: FONT.body, fontSize: 14 },
+  fbInput: { height: 110, borderRadius: 14, padding: 12, backgroundColor: 'rgba(60,30,10,0.4)', borderWidth: 1.5, borderColor: 'rgba(255,236,170,0.55)', color: '#ffffff', fontFamily: FONT.body, fontSize: 14 },
   fbRow: { flexDirection: 'row', justifyContent: 'center', gap: 16 },
 });

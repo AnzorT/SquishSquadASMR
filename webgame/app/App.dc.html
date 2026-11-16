@@ -12,7 +12,8 @@
 <style>
 /* The app's root page: the design's own pages, full screen, in their "bare" (no test controls, no phone frame) mode. */
 html, body { margin:0; height:100%; overflow:hidden; background:#24123f; -webkit-tap-highlight-color:transparent; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; overscroll-behavior:none; }
-.app-screen { position:fixed; left:0; top:0; right:0; bottom:0; }
+/* absolute, not fixed: a fixed element is a GPU layer of its own, a whole extra screen of memory and drawing (performance) */
+.app-screen { position:absolute; left:0; top:0; right:0; bottom:0; }
 /* bare Main Menu: its host div has no height of its own (mm-root / mm-frame are 100% of it), so give it the screen */
 .app-screen .mm-page.bare .mm-host { height:100%; }
 </style>

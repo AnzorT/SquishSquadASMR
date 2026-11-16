@@ -1,7 +1,7 @@
 // node src/squishdoku/levels.test.js: the 600 fixed levels (levelData.js).
 import assert from 'node:assert/strict';
 import { conflicts, countSolutions, grade } from './engine.js';
-import { CHAPTER, CHAPTERS, HEARTS, HEARTS_FROM, LEVELS, LEVEL_LIST, chapterOf, levelSpec, record, stageOf, tierOfEffort } from './levels.js';
+import { BLITZ_SECS, CHAPTER, CHAPTERS, HEARTS, HEARTS_FROM, LEVELS, LEVEL_LIST, afterBlitz, blitzPrize, blitzSaveGems, blitzSpec, chapterOf, levelSpec, record, stageOf, tierOfEffort } from './levels.js';
 import { shapeFits } from '../../tools/squishdoku/shape.mjs';
 
 let n = 0;
@@ -109,6 +109,38 @@ ok('clocks grow with effort; HEAD START is shorter', () => {
 ok('players keep their level number (up to 600)', () => {
   assert.equal(record({ sdk: { lv: 37 } }).lv, 37);
   assert.equal(record({ sdk: { lv: 9999 } }).lv, 600);
+});
+
+ok('Blitz is endless: sizes climb to 8x8, clocks are short and shrink, then stop at 3/4', () => {
+  const sizes = Array.from({ length: 40 }, (_, i) => blitzSpec(i).n);
+  for (let i = 1; i < sizes.length; i++) assert.ok(sizes[i] >= sizes[i - 1], i);
+  assert.equal(sizes[0], 4);
+  assert.equal(sizes[39], 8);
+  assert.equal(blitzSpec(0).ms, BLITZ_SECS[4] * 1000);
+  // every clock is shorter than Regular's 3-creature time (A) for a size
+  [4, 5, 6, 7, 8].forEach((n) => {
+    const lv = LEVEL_LIST.findIndex((l) => l.n === n) + 1;
+    assert.ok(BLITZ_SECS[n] * 1000 < levelSpec(lv).aMs, n);
+  });
+  assert.ok(blitzSpec(20).ms < blitzSpec(14).ms);
+  assert.equal(blitzSpec(200).ms, Math.round(BLITZ_SECS[8] * 0.75) * 1000);
+  assert.ok(blitzSpec(200).tier <= 2 && blitzSpec(0, -2).tier === 0);
+});
+
+ok('Blitz runs pay per board and keep the best', () => {
+  assert.deepEqual(blitzPrize(0), { coins: 0, xp: 0 });
+  assert.equal(blitzPrize(2).coins, 60);
+  const none = afterBlitz({}, { cleared: 0 });
+  assert.equal(none.coins, 0);
+  assert.equal(none.update['sdk.blitz.runs'], 1);
+  assert.equal(none.update['sdk.blitz.top'], undefined);
+  const run = afterBlitz({ sdk: { blitz: { top: 3, runs: 4 } } }, { cleared: 7 });
+  assert.equal(run.update['sdk.blitz.top'], 7);
+  assert.equal(run.update['sdk.blitz.runs'], 5);
+  assert.ok(run.newTop && run.coins > 0 && run.xp > 0);
+  assert.equal(afterBlitz({ sdk: { blitz: { top: 9 } } }, { cleared: 7 }).update['sdk.blitz.top'], undefined);
+  assert.equal(record({}).blitz.top, 0);
+  assert.deepEqual([0, 1, 2, 3, 9].map(blitzSaveGems), [10, 20, 40, 80, 320]);
 });
 
 console.log(`\n${n} passed`);

@@ -226,3 +226,66 @@ Last round (same day):
 - **The Lobby's creature after the squish game**: its WebView, kept hidden through the squish stage, came back blank (Chromium's "tile memory limits exceeded"). The Lobby lets the WebView go while a screen covers Home (App `RigAway`) and makes a fresh one once Home is back, showing the creature's still until it has drawn.
 
 Still the slowest, each one frame of ~0.1-0.15 s once the screen is already up: the SQUAD tap (its grid shown again: react-native-svg throws away and redraws its pictures when a view's size changes), the Crib (~0.12 s), the Shop built again after the Crib (~0.11-0.13 s) and the squish stage starting (~0.14 s, under the loading screen). A debug build is 2-4x slower than all of the above.
+
+## The landscape menu, the Game Park and the chest smash (2026-11-14)
+
+The user: the whole app feels unoptimised; the chest room drops frames almost every time, worst while smashing; the new Main Menu runs at "like 5 fps". Goal: smooth on the weakest phone the app supports (minSdk 23).
+
+**How it was measured.** The Galaxy A15 wasn't connected, and the Pixel_8_Pro emulator swaps hard (it thrashes even after a reboot), so its fps only says "better or worse". The menu, the park and the chest are WebView pages, so they were measured in Chromium as a weak phone: SwiftShader (software GPU), the CPU slowed 4x, the A15's landscape size (832 x 384 at DPR 2.8125). `tools/perf/webview-bench.mjs` does it (how to run it is at the top of the file); `EARLY=1` slows the CPU from page load, so the pages' own frame-rate guards see a slow phone, as they would on one. Use it to compare before / after on one machine, then check a release build on a phone.
+
+Weak-phone stand-in, fps (before → after):
+
+| Scene | Before | After |
+|---|---|---|
+| Main Menu, rainy / snowy | 29 / 36 | 59 / 58 (sunny: 60) |
+| Game Park (after PLAY) | 16 | 56-57 |
+| The house | ~35 | 47-54 |
+| Chest, idle | 31 | 60 (full quality) |
+| Chest, smashing (9 taps) | 17 | 40 (switches to lite mid-smash), 50 (lite from the start) |
+
+On the thrashing emulator the old menu measured 5.8 fps (the user's "5 fps") and the new one 13-20.
+
+### Main Menu and Game Park (webgame)
+
+- **The scene is drawn still.** The designer's scene is one full-screen SVG with blur filters, and its trees, smoke, lights, clouds and rain were SMIL animations inside it, so every frame repainted the whole SVG. `app/menu.js` (section 0) strips the `<animate…>` tags from the scene and the park (`SquishMenu.still`, patched into main-menu.js `draw()`; `weather()` in main-menu-scene.js returns nothing in the app).
+- **Only the weather moves**, re-made as a handful of shapes on one layer moved by transform with the Web Animations API (the compositor runs it, no repaint): rain 140 streaks, snow, or 3 birds when sunny. Hidden while the house or a page covers the menu (`.sq-away`), and on the lowest quality step (`.sq-lite`).
+- **The HUD stopped animating non-stop.** Every continuous CSS animation (PLAY's glint and pulse, the crest's wings, star, sparkles and sweep, glows) kept a GPU layer of its own, and a weak GPU pays for every layer every frame: taking them out doubled the emulator's fps (16.8 → 31.3). They now play as a short flourish every 5.2 s (`.fl` on the crest, then the PLAY card 1.3 s later); glows and drop shadows are still; the few left animate transform or opacity only.
+- **The creatures** (rive-rig.js rebuilds and redraws its SVG every frame, the costliest thing left) are each on their own layer (`will-change: opacity`, patches.mjs), not drawn at all while hidden (`sqHold`: under the house or a page), and **`app/perf.js` (`SquishPerf`)** lowers their rate while the page can't hold ~55 fps: every other frame, then every third, kept for the session. It starts judging 4 s after the page has loaded: at first it counted the page's boot (8-14 fps even on a fast machine), which put every phone at every other frame for the session; and the menu numbers above were taken that way (re-measured with `EARLY=1 SETTLE=8` after the fix: rainy 59 at every other frame, snowy 58 at every frame; a fast machine stays at every frame). Phones with 2 GB of memory or 2 cores or fewer start at every other frame.
+- **Smaller things:** the app root is `position: absolute` (a fixed element is a full-screen layer of its own); the door's white veil is `visibility: hidden` while at opacity 0 (it was a full-screen layer even when see-through).
+
+### The chest smash (tools/chest/host.html → android/app/src/main/assets/chest)
+
+- **The canvas is capped at 1.5x the CSS size** (the engine asked for 2x; the A15's screen is 2.81x): about a third of the pixels. **Lite** is 1x with half the particles. A watcher now runs **for the whole time the chest is up** (a second under ~48 fps twice in a row, or one under ~35 → lite); it used to look at the first ~1.5 s only, which the idle chest often passed, so the smash then ran at full quality. Phones with 2 GB or less / 2 cores or fewer start in lite.
+- **The chest's picture is cached.** `Stage.renderLayer` drew every part, dent, crack and hole as vectors into an off-screen canvas every frame, though most frames only move the chest (wobble, hop and shake are transforms). It's drawn again only when something on it changed (a hit, the damage, dents, cracks, holes, torn parts, a hinge's swing, the hit flash, the burst, a charge-up, a spinning gradient, the scale); `resize()` resets it. In lite, the soft changes (swing, flash, burst, charge, spin) update it every other frame, and the hard ones still update at once. Idle chest script time: ~600 → ~40 ms a second.
+- **No `androidLayerType="hardware"`** on the chest's and the game's WebViews (ChestSmash.js, GameScreen.js): their content changes every frame, so a hardware layer only added an off-screen copy of the whole WebView each frame.
+
+### The new look's React Native kit (src/royal)
+
+- **Plaques** (every button, pill, card and panel) drew their fill as an SVG; react-native-svg draws in software on the UI thread, so each screen with dozens of them took a long first frame. The fill is now native `expo-linear-gradient` views (`Fill` in Plaque.js); the page background (`PageBg`) is a native gradient and one picture (assets/royal/rays.png) instead of a full-screen SVG.
+- **The fine diamond pattern on the velvet and the wood grain were dropped**: Android's `resizeMode="repeat"` drew the tile once instead of tiling it, and an SVG pattern would bring the software drawing back. Visible on close look; put back with a pre-tiled picture per size if wanted.
+- **The gold glow and PLAY-style glint** are native loops (`usePingPong` / `useKeyLoop`, idleLoop.js) that also stop under a covering screen; they were `loop(sequence)`s restarted from JS at every step. The glow is a texture of its own (`renderToHardwareTextureAndroid`), so the pulse only fades it.
+
+### FPS counter for testers (2026-11-14)
+
+The tester-only FPS pill (`src/components/FpsCounter.js`, Settings → Options → FPS counter, also in the Test wallet; kept across launches) used to count only the app's JS frames, which stay at 60 while a WebView page struggles. Now the menu page (`SquishPerf.meter`) and the chest page (`chestHost.meter`) count their own frames while it's on and send them every half second (`src/components/fpsMeter.js`); the pill shows the page on top (**CHEST**, then **MENU**; **LITE** when that page has lowered its quality) with the app's own rate beside it, or **APP** on the other screens. It sits at the bottom, right of centre, and lets taps through. Off: no page cost at all.
+
+### Memory: the house moves built on demand (2026-11-14, later)
+
+The user saw low fps on the Pixel_8_Pro emulator even with the release build. The emulator was out of memory: swap full, 342% of its 400% CPU in the kernel, the game's WebView renderer at ~600 MB. Measured in Chromium, the **menu page held 292 MB of live JS after a GC, while loading only 3 MB of files**: the design's `house-moves.js` builds every creature's own furniture moves (sit, lounge, bed, water, play, games, cooking…) as keyframe tables at page load, for all ~86 creatures (~2.7 MB each, 229 MB), though a player has a handful in the house.
+
+`SquishLazy` (webgame/app/perf.js, two patches in patches.mjs) holds each creature's builder calls and runs them, in their order, the first time that creature is drawn (`need(key)` before its frame in rive-rig's loop, and in `poseAt`). The shared defaults are built at once. Each builder ends by noting the creature in its table (PROF, BED, WAT, PLY, BB, CX), and the later creature files loop over `Object.keys(PROF)`, so a held call notes the creature there at once; without that, the bed / bath / play / game builders skipped every waiting creature (caught by the check below).
+
+- **Same result:** with Math.random seeded, the old and the new page end with the same 14,626 states, and all 113 creatures' tables are identical (JSON) once asked for.
+- **Menu page JS heap: 292 → 49-52 MB**; in the house with five creatures 78 MB.
+- **Menu ready (4x CPU slowdown): 6.9 → 2.4 s.** A creature's first appearance costs one build of ~55-65 ms at 4x (a few frames, once).
+- Still built for everyone at load: `pet-anims.js` flavoured copies (~32 MB), the next candidate.
+
+### The chest remembers a slow phone (2026-11-14, later)
+
+Each chest opening loads its page afresh, so on a slow phone every smash began at full quality and stuttered until the watcher stepped down. Now (tools/chest/host.html, localStorage shared with the menu page; `domStorageEnabled` on ChestSmash's WebView): a switch to lite after the first measured second (the first can be slow from loading art), or the menu's guard having stepped its creatures down (`sq.perfStep`), starts the next chests in lite. Forgotten after 14 days, so a phone is tried at full quality again. The menu's guard also ignores single stalls over a second (a page loading), so it doesn't step down for those.
+
+### The development setup (2026-11-14, later)
+
+What made the emulator's numbers low, measured: the Android 17 image's NFC service restarting in a loop (no NFC HAL; `adb shell svc nfc disable` stopped it), the sensors HAL at ~1/3 of a core, swap full, and on the PC Metro at ~2 cores in its file watcher, working through the events of `android/app/build` after each gradle build (thousands of files it never needs). `metro.config.js` now blocks the build outputs and generated copies (android/app/build, android/build, android/.gradle, android/app/.cxx, android/app/src/main/assets, webgame/test/out, webgame/.cache): restart Metro to pick it up. (Blocklist patterns must have the same regex flags as Expo's default, or Metro can't combine them and the release bundle fails.) Release builds install over debug ones keeping the login (both use the debug keystore): `./gradlew assembleRelease -PreactNativeArchitectures=x86_64,arm64-v8a`.
+
+Still open: a real-phone measurement (release build, Galaxy A15 and a 2 GB Android 6-8 phone if one is around); the rig creatures remain the main cost on the menu; the smash is still script-bound in its busiest second (debris and particles).

@@ -329,7 +329,7 @@ const HAND_ASPECT = 110 / 82;
 // fingertip of each hand, in path units — where its touch ring sits
 const SQUISH_TIP = { x: 30, y: 11 };
 const ROTATE_TIP = { x: 31, y: 12 };
-const HINT_INK = '#6b3fa0';
+const HINT_INK = '#6b4426'; // (the wood look's brown, REDESIGN_V8)
 
 function CandyHand({ d, creaseD, width }) {
   return (
@@ -599,10 +599,45 @@ function SettingsModal({
   pokeOutward,
   onChangePokeOutward,
 }) {
+  // landscape (REDESIGN_V8): wider, in two columns (sound and display | the squish), so it fits under the gear
+  const win = useWindowDimensions();
+  const wide = win.width > win.height;
+  const sound = (
+    <>
+      <Text style={styles.settingsSection}>SOUND</Text>
+      <SettingsRow label="Squish sound">
+        <ToggleSwitch value={squishSoundEnabled} onToggle={() => onToggleSquishSound(!squishSoundEnabled)} />
+      </SettingsRow>
+      <SettingsRow label="Coin sound">
+        <ToggleSwitch value={coinSoundEnabled} onToggle={() => onToggleCoinSound(!coinSoundEnabled)} />
+      </SettingsRow>
+      <SettingsRow label="Release sound">
+        <ToggleSwitch value={releaseSoundEnabled} onToggle={() => onToggleReleaseSound(!releaseSoundEnabled)} />
+      </SettingsRow>
+
+      <Text style={styles.settingsSection}>DISPLAY</Text>
+      <SettingsRow label="Show FPS">
+        <ToggleSwitch value={showFps} onToggle={() => onToggleShowFps(!showFps)} />
+      </SettingsRow>
+    </>
+  );
+  const squish = (
+    <>
+      <Text style={styles.settingsSection}>SQUISH</Text>
+      <SettingsRow label="Vibration">
+        <ToggleSwitch value={vibrationEnabled} onToggle={() => onToggleVibration(!vibrationEnabled)} />
+      </SettingsRow>
+      <Text style={styles.settingsLabel}>Poke strength</Text>
+      <Segmented options={POKE_STRENGTH_OPTIONS} value={pokeStrength} onChange={onChangePokeStrength} />
+      <Text style={styles.settingsHint}>1 = gentle · 5 = deepest (the vibration follows it)</Text>
+      <Text style={[styles.settingsLabel, styles.settingsLabelSpaced]}>Poke direction</Text>
+      <Segmented options={POKE_DIRECTION_OPTIONS} value={pokeOutward} onChange={onChangePokeOutward} />
+    </>
+  );
   return (
     <View style={styles.settingsOverlay}>
       <Pressable silent style={StyleSheet.absoluteFillObject} onPress={onClose} />
-      <View style={[styles.settingsCard, { top }]}>
+      <View style={[styles.settingsCard, wide && styles.settingsCardWide, { top }]}>
         <View style={styles.settingsHeader}>
           <Text style={styles.settingsTitle}>Settings</Text>
           <TutTarget name="gearClose">
@@ -611,32 +646,17 @@ function SettingsModal({
             </RoundButton>
           </TutTarget>
         </View>
-
-        <Text style={styles.settingsSection}>SOUND</Text>
-        <SettingsRow label="Squish sound">
-          <ToggleSwitch value={squishSoundEnabled} onToggle={() => onToggleSquishSound(!squishSoundEnabled)} />
-        </SettingsRow>
-        <SettingsRow label="Coin sound">
-          <ToggleSwitch value={coinSoundEnabled} onToggle={() => onToggleCoinSound(!coinSoundEnabled)} />
-        </SettingsRow>
-        <SettingsRow label="Release sound">
-          <ToggleSwitch value={releaseSoundEnabled} onToggle={() => onToggleReleaseSound(!releaseSoundEnabled)} />
-        </SettingsRow>
-
-        <Text style={styles.settingsSection}>DISPLAY</Text>
-        <SettingsRow label="Show FPS">
-          <ToggleSwitch value={showFps} onToggle={() => onToggleShowFps(!showFps)} />
-        </SettingsRow>
-
-        <Text style={styles.settingsSection}>SQUISH</Text>
-        <SettingsRow label="Vibration">
-          <ToggleSwitch value={vibrationEnabled} onToggle={() => onToggleVibration(!vibrationEnabled)} />
-        </SettingsRow>
-        <Text style={styles.settingsLabel}>Poke strength</Text>
-        <Segmented options={POKE_STRENGTH_OPTIONS} value={pokeStrength} onChange={onChangePokeStrength} />
-        <Text style={styles.settingsHint}>1 = gentle · 5 = deepest (the vibration follows it)</Text>
-        <Text style={[styles.settingsLabel, styles.settingsLabelSpaced]}>Poke direction</Text>
-        <Segmented options={POKE_DIRECTION_OPTIONS} value={pokeOutward} onChange={onChangePokeOutward} />
+        {wide ? (
+          <View style={styles.settingsCols}>
+            <View style={styles.settingsCol}>{sound}</View>
+            <View style={styles.settingsCol}>{squish}</View>
+          </View>
+        ) : (
+          <>
+            {sound}
+            {squish}
+          </>
+        )}
       </View>
     </View>
   );
@@ -1307,7 +1327,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   containerWide: { flexDirection: 'row' },
   sidePanel: { width: 210, justifyContent: 'center', paddingRight: 14, paddingLeft: 4, gap: 10 },
-  sideInner: { borderRadius: 22, backgroundColor: 'rgba(70,10,130,0.35)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)', padding: 10 },
+  sideInner: { borderRadius: 22, backgroundColor: 'rgba(107,68,38,0.4)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)', padding: 10 },
   // (the boost buttons stretch to fill (flex: 1): a column needs a height for them)
   sideCol: { gap: 10, height: 230 },
   // Bottom panel no longer carries a tall hint list, so the stage claims
@@ -1323,13 +1343,13 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.9)',
-    backgroundColor: 'rgba(80,12,140,0.42)',
+    backgroundColor: 'rgba(90,50,20,0.42)',
   },
   coinPillText: {
     color: '#ffffff',
     fontFamily: candyFonts.bodyHeavy,
     fontSize: 13,
-    textShadowColor: '#6a1b9a',
+    textShadowColor: '#6b4426',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 1,
   },
@@ -1338,7 +1358,7 @@ const styles = StyleSheet.create({
     fontFamily: candyFonts.bodyHeavy,
     fontSize: 9,
     letterSpacing: 0.8,
-    textShadowColor: '#6a1b9a',
+    textShadowColor: '#6b4426',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 1,
   },
@@ -1358,7 +1378,7 @@ const styles = StyleSheet.create({
     height: GEAR_SIZE + 10,
     borderRadius: (GEAR_SIZE + 10) / 2,
     borderWidth: 3,
-    borderColor: '#ff4fbf',
+    borderColor: '#ff8a3d',
   },
   gearHint: { position: 'absolute', right: 10, alignItems: 'flex-end', gap: 4 },
   stage: { width: STAGE_SIZE, height: STAGE_SIZE },
@@ -1382,36 +1402,39 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: '#6b3fa0',
+    borderColor: '#6b4426',
     padding: 14,
     paddingTop: 10,
-    shadowColor: '#6b3fa0',
+    shadowColor: '#3f2412',
     shadowOpacity: 0.28,
     shadowRadius: 15,
     shadowOffset: { width: 0, height: 12 },
     elevation: 10,
   },
+  settingsCardWide: { width: 470 },
+  settingsCols: { flexDirection: 'row', gap: 22 },
+  settingsCol: { flex: 1 },
   settingsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  settingsTitle: { fontFamily: candyFonts.display, fontSize: 15, color: '#6b3fa0' },
+  settingsTitle: { fontFamily: candyFonts.display, fontSize: 15, color: '#5b3418' },
   settingsSection: {
     marginTop: 8,
     marginBottom: 1,
-    color: '#a283c9',
+    color: '#b08560',
     fontFamily: candyFonts.bodyHeavy,
     fontSize: 9.5,
     letterSpacing: 1.2,
   },
   settingsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 3 },
-  settingsLabel: { color: '#6b3fa0', fontFamily: candyFonts.bodyHeavy, fontSize: 12.5 },
+  settingsLabel: { color: '#5b3418', fontFamily: candyFonts.bodyHeavy, fontSize: 12.5 },
   settingsLabelSpaced: { marginTop: 8 },
-  settingsHint: { marginTop: 3, color: '#a283c9', fontFamily: candyFonts.body, fontSize: 9.5 },
+  settingsHint: { marginTop: 3, color: '#b08560', fontFamily: candyFonts.body, fontSize: 9.5 },
   segmented: { flexDirection: 'row', gap: 4, marginTop: 5 },
   segment: {
     flex: 1,
     paddingVertical: 6,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#e3cff5',
+    borderColor: '#ecd3b0',
     backgroundColor: '#ffffff',
     alignItems: 'center',
     overflow: 'hidden',
@@ -1420,7 +1443,7 @@ const styles = StyleSheet.create({
   segmentText: { color: candyColors.ink, fontFamily: candyFonts.display, fontSize: 13 },
   segmentTextActive: { color: '#ffffff', textShadowColor: candyColors.pinkRing, textShadowOffset: { width: 0, height: 1.5 }, textShadowRadius: 1 },
 
-  bottomPanel: { backgroundColor: 'rgba(70,10,130,0.35)', borderTopWidth: 2, borderTopColor: 'rgba(255,255,255,0.6)' },
+  bottomPanel: { backgroundColor: 'rgba(107,68,38,0.4)', borderTopWidth: 2, borderTopColor: 'rgba(255,255,255,0.6)' },
   bottomRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 10 },
   gestureHint: { position: 'absolute', top: '50%', alignItems: 'center', gap: 6 },
   gestureHandWrap: { width: HAND_W, height: HAND_W * HAND_ASPECT },
@@ -1433,7 +1456,7 @@ const styles = StyleSheet.create({
     borderColor: '#ff6fbd',
   },
   hintPillText: {
-    color: '#4a1a73',
+    color: '#5b3418',
     fontFamily: candyFonts.bodyHeavy,
     fontSize: 10,
     letterSpacing: 1.1,
@@ -1443,7 +1466,7 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   hintPillSub: {
-    color: '#6b3fa0',
+    color: '#6b4426',
     fontFamily: candyFonts.bodyHeavy,
     fontSize: 9.5,
     marginTop: 2,
@@ -1524,7 +1547,7 @@ const styles = StyleSheet.create({
 
   punishOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(74,26,115,0.55)',
+    backgroundColor: 'rgba(50,24,6,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 26,
@@ -1536,7 +1559,7 @@ const styles = StyleSheet.create({
     borderRadius: 31,
     padding: 3,
     backgroundColor: candyColors.danger,
-    shadowColor: '#320064',
+    shadowColor: '#3f2412',
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.5,
     shadowRadius: 18,

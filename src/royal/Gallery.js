@@ -27,7 +27,7 @@ export default function RoyalGallery({ onClose }) {
         <View style={styles.top}>
           <Lettering text="SQUAD" variant="gold" size={30} style={{ marginHorizontal: 2 }} />
           <View style={styles.tabs}>
-            <Tab label="MY HOUSE" icon="house" gold />
+            <Tab label="CRIBFLUF" icon="house" gold />
             <Tab label="CHARACTERS" icon="grid" />
             <Tab label="SHOP" icon="shop" />
           </View>

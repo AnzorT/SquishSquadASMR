@@ -693,14 +693,18 @@ function streakClaim(p, args) {
 //   xpPerLevel  reaching level L takes xpPerLevel × L XP, counted from 0 at
 //               every level (the user, 2026-10-25: 9 → 10 is 1,000 XP);
 //               levels 2 and 3 come at once with the tutorial
-//   road        [{ k: 'coins' | 'gems' | 'chest', n, t (a chest's size) }] —
+//   road        [{ k: 'coins' | 'gems' | 'chest', n, t (a chest's size), g }] —
 //               [i] is the prize for reaching level i + 1; a row more is a
-//               level more on the road
+//               level more on the road. A chest's `g` (optional, REDESIGN_V9:
+//               the user sets which chest) is its group's key ('pet', 'snack',
+//               'forest' …): that group's own chest. Without it, or when that
+//               group isn't out, it's today's first HOT group's (prizeGroup).
 //   xp          what earns XP (the app gives it): challenge, chest (the
 //               daily one), squishEvery / squishDay (1 XP every so many
 //               squishes, up to so much a day), replay (a level beaten
 //               before pays this share), games (× every mini-game level's
-//               XP), blitz { squishdoku, sort, stack } (a won run)
+//               XP), blitz { squishdoku, sort, stack } (a won run; Squishdoku's
+//               endless Blitz: 10 boards cleared, a tenth per board)
 const DEFAULT_LEVELS = {
   xpPerLevel: 100,
   // a prize at every level from 1 to 50 (user, 2026-10-25): coins rising,
@@ -758,8 +762,15 @@ function playerLevel(pxp, cfg) {
   return { level: L, into: x - xpToReach(L, cfg), need: xpToNext(L, cfg) };
 }
 
+// A road chest's group: its own `g` when that's a group that's out, else
+// today's first HOT group (the free chest's). The app shows the same.
+function prizeGroup(r, day, hidden) {
+  const g = r && typeof r.g === 'string' ? r.g : null;
+  return g && GROUP_KEYS.includes(g) && g !== SEASON.key && groupOut(g, hidden) ? g : lineup(day, hidden)[0];
+}
+
 // Claiming the road's prize for level `i`: reached, once each. Chests are of
-// today's first HOT group (the free chest's).
+// prizeGroup's group.
 function levelClaim(p, args) {
   const { road } = levelsOf(args.levels);
   const lv = Math.floor(Number(args.i));
@@ -768,7 +779,7 @@ function levelClaim(p, args) {
   const got = p.levelGot || {};
   if (got[lv]) return bad('claimed');
   if (playerLevel(p.pxp, args.levels).level < lv) return bad('need_level');
-  const g = giveReward(p, r, lineup(args.day, args.hidden)[0], args);
+  const g = giveReward(p, r, prizeGroup(r, args.day, args.hidden), args);
   if (!g) return bad('unknown_reward');
   return { set: { ...g.set, levelGot: { ...got, [lv]: true } }, result: { ...g.result, lv } };
 }
@@ -864,6 +875,18 @@ function swap(p, { i }) {
   return { set: { ...paid, coins: num(p.coins) + s.coins }, result: { coins: s.coins, gems: s.gems } };
 }
 
+// Squishdoku's Blitz (2026-11-16, the user: a run goes on until a mistake, then "save it with watching an ad or spend
+// gems"): a gem save, twice the last one each time in the same run (10, 20, 40 … up to 320). `i`: the gem saves this run
+// has already had (a run lives on the phone, so the app counts them).
+const BLITZ_SAVE_GEMS = 10;
+const blitzSaveGems = (i) => BLITZ_SAVE_GEMS * 2 ** Math.max(0, Math.min(5, Math.floor(num(i))));
+function blitzSave(p, { i }) {
+  const gems = blitzSaveGems(i);
+  const paid = pay(p, 'gems', gems);
+  if (!paid) return bad('not_enough_gems');
+  return { set: paid, result: { gems } };
+}
+
 // The profile with the starting gems if it has none yet, and the fields
 // that writes.
 function withStart(p) {
@@ -888,7 +911,7 @@ function dailyGift(p, { day, reward }) {
 const start = (p) => ({ set: {}, result: { gems: num(p.gems) } });
 
 // (no buyCreature: squishies aren't sold for coins any more, 2026-10-24)
-const MOVES = { start, dailyGift, buyChest, videoChest, openChest, grow, equip, swap, groupChest, freeChest, adChest, dealChest, passClaim, streakClaim, levelClaim, levelClaimAll, rainbowChest };
+const MOVES = { start, dailyGift, buyChest, videoChest, openChest, grow, equip, swap, blitzSave, groupChest, freeChest, adChest, dealChest, passClaim, streakClaim, levelClaim, levelClaimAll, rainbowChest };
 
 module.exports = {
   RARITY,
@@ -928,6 +951,8 @@ module.exports = {
   DEAL,
   VIDEO_CHESTS,
   SWAPS,
+  BLITZ_SAVE_GEMS,
+  blitzSaveGems,
   GEM_PACKS,
   START,
   SIZES,
@@ -949,6 +974,7 @@ module.exports = {
   jarGems,
   DEFAULT_LEVELS,
   levelsOf,
+  prizeGroup,
   xpToNext,
   xpToReach,
   playerLevel,

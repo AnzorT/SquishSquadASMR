@@ -238,7 +238,7 @@ const RAYS = 460;
 
 const styles = StyleSheet.create({
   bit: { position: 'absolute', width: BIT, height: BIT },
-  scrim: { backgroundColor: 'rgba(40,8,80,0.6)' },
+  scrim: { backgroundColor: 'rgba(50,24,6,0.6)' },
   rays: { position: 'absolute', width: RAYS, height: RAYS },
   // under the chest's base
   shadow: { position: 'absolute', width: 170, height: 26, borderRadius: 85, backgroundColor: 'rgba(30,6,60,0.35)' },

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGameDims } from '../royal/GameFrame';
-import { Animated, AppState, BackHandler, Easing, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, AppState, BackHandler, Easing, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useRewardedAd from '../components/useRewardedAd';
 import sfx from '../audio/sfx';
@@ -9,26 +9,32 @@ import Room, { roomGeometry } from '../hop/Room';
 import { layout } from '../hop/board';
 import { CribButton, RoomTitle } from '../crib/Hud';
 import Buddy from './Buddy';
-import { Pips, TimerBar } from './Hud';
-import { BlitzFailCard, BlitzWinCard, PauseCard, ReviveCard } from './Overlays';
+import { TimerBar } from './Hud';
+import { BlitzOverCard, BlitzSaveCard, PauseCard } from './Overlays';
 import { FxLayer } from './fx';
 import { getPuzzle, makeHaptics, pickCreatures, prefetchImages, prefetchPuzzle, PLAY_SOUNDS, useClock } from './game';
-import { afterBlitz, BLITZ_SIZES, blitzMs, blitzSpec, clock, record } from './levels';
+import { afterBlitz, blitzSaveGems, blitzSpec, clock, record } from './levels';
 import { Chip } from './ui';
 import { F } from './theme';
 import { saveSquishdoku } from '../firebase/firestore';
+import * as squad from '../squad/api';
 
-// Blitz: ten boards on one clock, no ✕. One mistake (or the clock running
-// out) sends the run back to board 1 with new boards; one revive per run
-// (a rewarded ad, free with Remove Ads) keeps you on the board you're on.
-// Since 2026-11-07 a run is played in the Crib's Dance Room (party music,
-// party room), on Regular's room board (RoomBoard.js).
+// BLITZ MODE (2026-11-16, the user): board after board, each on its own really short clock (levels.js blitzSpec), no
+// ✕, until a mistake or the clock running out. Then the run can be saved — once with a rewarded ad (free with Remove
+// Ads), or with gems, each save twice the last (functions/squad.js blitzSave) — and goes on from the same board; or
+// it's GAME OVER and the boards cleared pay out (levels.js afterBlitz).
+// Every board gives a head start of 1 creature, whether the hub's HEAD START is on or off (the user, 2026-11-16: Blitz
+// was a little too hard): the first row's creature drops in once the board has landed, then its clock starts. Unlike
+// Regular's HEAD START it costs nothing: the clocks and the pay stay as they are.
+// A run is played in the Crib's Dance Room (party music, party room), on Regular's room board (RoomBoard.js).
 
 const ROOM = 'dance';
+// from the given creature dropping in to the board's clock starting
+const GIVEN_MS = 350;
+// the last seconds of a board's clock tick
+const HURRY_MS = 5000;
 
-const BOARDS = BLITZ_SIZES.length;
-export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, head = false, buddyKey, buddyUri, haptics: hapticsOn = true, onExit }) {
-  const RUN_MS = blitzMs(head);
+export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, buddyKey, buddyUri, haptics: hapticsOn = true, onExit }) {
   const { width, height } = useGameDims(); // (the game panel in landscape: REDESIGN_V7)
   const insets = useSafeAreaInsets();
   const castRef = useRef(cast);
@@ -37,69 +43,77 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, he
   const ad = useRewardedAd();
   const [run, setRun] = useState(0);
   const [idx, setIdx] = useState(0);
-  const [done, setDone] = useState(0);
+  const [cleared, setCleared] = useState(0);
   const [game, setGame] = useState(null); // { spec, puzzle, pieces, id }
-  const [phase, setPhase] = useState('loading'); // loading | countdown | intro | play | between | revive | fail | win | paused
+  const [phase, setPhase] = useState('loading'); // loading | countdown | intro | play | between | save | over | paused
   const [count, setCount] = useState(null); // 3, 2, 1, 'GO!'
-  const [label, setLabel] = useState(clock(RUN_MS));
+  const [label, setLabel] = useState('');
   const [warn, setWarn] = useState(false);
-  const [revived, setRevived] = useState(false);
+  const [adUsed, setAdUsed] = useState(false);
+  const [gemSaves, setGemSaves] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState(null);
   const [failReason, setFailReason] = useState('mistake');
-  const [win, setWin] = useState(null);
-  const [winUris, setWinUris] = useState([]);
+  const [over, setOver] = useState(null);
   const board = useRef(null);
   const buddy = useRef(null);
   const fx = useRef(null);
   const clk = useClock();
-  const g = useRef({ placed: 0, combo: 0, lastSecond: -1, specs: [], started: false }).current;
+  // skill: the run's boards are dealt at the skill it started with; ended: paid out already
+  const g = useRef({ placed: 0, combo: 0, lastSecond: -1, skill: 0, started: false, ended: false, cleared: 0 }).current;
   const profileRef = useRef(profile);
   profileRef.current = profile;
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
-  const best = record(profile).blitz.reached;
+  const top = record(profile).blitz.top;
 
   useEffect(() => {
-    sfx.preload([...PLAY_SOUNDS, 'sd_count', 'sd_go', 'sd_pip', 'sd_blitzNext', 'sd_blitzFail', 'sd_drain', 'sd_revive']);
-    sfx.music('party');
-    return () => sfx.music('dream');
+    sfx.preload([...PLAY_SOUNDS, 'sd_count', 'sd_go', 'sd_pip', 'sd_blitzNext', 'sd_blitzFail', 'sd_blitzWin', 'sd_drain', 'sd_revive']);
   }, []);
 
   // --- a new run ---------------------------------------------------------------------
   useEffect(() => {
-    const skill = record(profileRef.current).bSkill;
-    g.specs = Array.from({ length: BOARDS }, (_, i) => blitzSpec(i, skill));
+    g.skill = record(profileRef.current).bSkill;
     g.started = false;
+    g.ended = false;
+    g.cleared = 0;
     setIdx(0);
-    setDone(0);
-    setRevived(false);
+    setCleared(0);
+    setAdUsed(false);
+    setGemSaves(0);
+    setSaveErr(null);
     setWarn(false);
-    setWin(null);
-    setLabel(clock(RUN_MS));
+    setOver(null);
+    setLabel(clock(blitzSpec(0, g.skill).ms));
     clk.reset();
     // the first few boards start cooking right away
-    g.specs.slice(0, 3).forEach((s) => prefetchPuzzle(s.n, s.tier));
+    [0, 1, 2].forEach((i) => {
+      const s = blitzSpec(i, g.skill);
+      prefetchPuzzle(s.n, s.tier);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run]);
 
   // --- each board ------------------------------------------------------------------
   useEffect(() => {
     let alive = true;
-    const spec = g.specs[idx];
-    if (!spec) return undefined;
+    const spec = blitzSpec(idx, g.skill);
     setPhase((p) => (p === 'between' ? p : 'loading'));
     g.placed = 0;
     g.combo = 0;
+    g.lastSecond = -1;
     (async () => {
       const puzzle = await getPuzzle(spec.n, spec.tier);
       const mine = castRef.current.filter((c) => c.mine);
       const pieces = pickCreatures(mine.length ? mine : castRef.current, spec.n);
       await prefetchImages(pieces.map((c) => c && c.source && c.source.uri), 1000);
       if (!alive) return;
-      // HEAD START: the first row's creature, placed for you
-      const given = head ? puzzle.solution[0] : null;
-      setGame({ spec, puzzle, pieces, given, id: `${run}-${idx}-${puzzle.seed}` });
-      const next = g.specs[idx + 1];
-      if (next) prefetchPuzzle(next.n, next.tier);
+      // the head start: the first row's creature (solution: each row's column)
+      setGame({ spec, puzzle, pieces, given: puzzle.solution[0], id: `${run}-${idx}-${puzzle.seed}` });
+      setLabel(clock(spec.ms));
+      setWarn(false);
+      const next = blitzSpec(idx + 1, g.skill);
+      prefetchPuzzle(next.n, next.tier);
       if (!g.started) setPhase('countdown');
       else setPhase('intro');
     })();
@@ -109,9 +123,19 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, he
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run, idx]);
 
-  // 3, 2, 1, GO! — the first board falls in on GO and the clock starts
+  // the head start's creature drops into place (g.placed counts it, so the board is done after n - 1 taps)
+  const dropGiven = () => {
+    board.current?.place(game.given);
+    sfx.play('sd_place');
+    g.placed = 1;
+  };
+  // a board's cascade, from its intro() to every cushion landed
+  const landMs = (n) => (2 * n - 1) * 34 + 250;
+
+  // 3, 2, 1, GO! — the first board falls in on GO, its given creature drops in, and its clock starts
   useEffect(() => {
-    if (phase !== 'countdown') return undefined;
+    if (phase !== 'countdown' || !game) return undefined;
+    const GO = 200 + 3 * 700;
     const steps = [3, 2, 1, 'GO!'];
     const timers = steps.map((s, i) =>
       setTimeout(() => {
@@ -125,43 +149,35 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, he
         }
       }, 200 + i * 700),
     );
-    if (game && game.given != null) timers.push(setTimeout(() => placeGiven(game.given), 200 + 3 * 700 + 380));
+    const settled = GO + landMs(game.spec.n);
+    timers.push(setTimeout(dropGiven, settled));
     timers.push(
       setTimeout(() => {
         setCount(null);
         g.started = true;
         setPhase('play');
-        clk.start(RUN_MS);
-      }, 200 + 3 * 700 + (game && game.given != null ? 800 : 450)),
+        clk.start(game.spec.ms);
+      }, settled + GIVEN_MS),
     );
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
+  }, [phase, game]);
 
-  // HEAD START's creature dropping in once the board has landed
-  const placeGiven = (cell) => {
-    board.current?.place(cell);
-    sfx.play('sd_place');
-    g.placed = 1;
-  };
-
-  // the next board cascades in (and HEAD START's creature), then the clock runs on
+  // the next board cascades in, its given creature drops in, then its own clock starts
   useEffect(() => {
     if (phase !== 'intro' || !game) return undefined;
-    const settled = 40 + (2 * game.spec.n - 1) * 34 + 250;
+    const settled = 40 + landMs(game.spec.n);
     const timers = [
       setTimeout(() => {
         board.current?.intro();
         sfx.play('sd_boardIn');
       }, 40),
-    ];
-    if (game.given != null) timers.push(setTimeout(() => placeGiven(game.given), settled));
-    timers.push(
+      setTimeout(dropGiven, settled),
       setTimeout(() => {
         setPhase('play');
-        clk.resume();
-      }, settled + (game.given != null ? 400 : 0)),
-    );
+        clk.start(game.spec.ms);
+      }, settled + GIVEN_MS),
+    ];
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, game]);
@@ -170,67 +186,107 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, he
   useEffect(() => {
     if (phase !== 'play') return undefined;
     const timer = setInterval(() => {
-      const rest = RUN_MS - clk.elapsed();
+      const rest = clk.limit() - clk.elapsed();
       setLabel(clock(rest));
       const sec = Math.ceil(rest / 1000);
-      if (rest <= 15000 && rest > 0 && sec !== g.lastSecond) {
+      if (rest <= HURRY_MS && rest > 0 && sec !== g.lastSecond) {
         if (g.lastSecond < 0) buddy.current?.react('hurry');
         g.lastSecond = sec;
-        sfx.play('sd_tick', { rate: sec <= 5 ? 1.3 : 1 });
+        sfx.play('sd_tick', { rate: sec <= 3 ? 1.3 : 1 });
         setWarn(true);
       }
-      if (rest <= 0) fail('time');
+      if (rest <= 0) lose('time');
     }, 150);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  // --- the run ending ------------------------------------------------------------------
-  const fail = (reason) => {
+  // --- a mistake or the clock: save the run, or GAME OVER -----------------------------------
+  const lose = (reason) => {
     clk.pause();
     setFailReason(reason);
-    setPhase('fail');
     setWarn(false);
-    buddy.current?.react('timeup');
+    setSaveErr(null);
     if (reason === 'time') {
+      setPhase('between');
+      buddy.current?.react('timeup');
       sfx.play('sd_timeUp');
       board.current?.shake();
+      setTimeout(() => setPhase('save'), 900);
+    } else setPhase('save');
+  };
+
+  // the run goes on from the same board: after a mistake its clock runs on, after the clock ran out it starts again
+  const goOn = () => {
+    setSaving(false);
+    g.lastSecond = -1;
+    sfx.play('sd_revive');
+    setPhase('play');
+    if (failReason === 'time') clk.start(game.spec.ms);
+    else clk.resume();
+  };
+  const saveByAd = () => {
+    const back = () => {
+      setAdUsed(true);
+      goOn();
+    };
+    if (adsFree) back();
+    else ad.show(back);
+  };
+  const saveByGems = () => {
+    if (saving) return;
+    setSaving(true);
+    setSaveErr(null);
+    squad
+      .blitzSave(gemSaves)
+      .then(() => {
+        setGemSaves((n) => n + 1);
+        goOn();
+      })
+      .catch((e) => {
+        setSaving(false);
+        setSaveErr(String((e && e.message) || e) === 'not_enough_gems' ? 'Not enough gems' : 'Couldn\'t reach the server. Try again?');
+      });
+  };
+
+  // Pays the run out once (the boards it cleared) and saves the record. Also when the player quits or restarts in the
+  // middle of a run, so cleared boards always count.
+  const settle = () => {
+    if (!g.started || g.ended) return null;
+    g.ended = true;
+    const out = afterBlitz(profileRef.current, { cleared: g.cleared });
+    if (uid) saveSquishdoku(uid, out.update, out.coins, out.xp, profileRef.current);
+    return out;
+  };
+
+  const gameOver = () => {
+    clk.pause();
+    const out = settle() || { coins: 0, xp: 0, levelUps: [], newTop: false };
+    const res = { ...out, cleared: g.cleared, best: Math.max(top, g.cleared) };
+    setOver(res);
+    setPhase('over');
+    buddy.current?.react('timeup');
+    if (res.newTop) {
+      sfx.play('sd_blitzWin');
+      haptics.win();
+      [0, 300, 600].forEach((d, i) => setTimeout(() => fx.current?.burst('confetti', width * (0.25 + 0.25 * i), height * 0.3, 1), d));
+    } else {
+      sfx.play('sd_blitzFail');
+      setTimeout(() => sfx.play('sd_drain'), 600);
     }
-    setTimeout(() => sfx.play('sd_blitzFail'), reason === 'time' ? 900 : 0);
-    setTimeout(() => {
-      sfx.play('sd_drain');
-      setDone(0);
-    }, reason === 'time' ? 1500 : 600);
-    const out = afterBlitz(profileRef.current, { won: false, reached: idx + 1, head });
-    if (uid) saveSquishdoku(uid, out.update, 0);
   };
 
   const boardDone = () => {
     clk.pause();
     setPhase('between');
-    const last = idx === BOARDS - 1;
+    g.cleared = idx + 1;
     buddy.current?.react('solve');
     board.current?.hopAll();
     for (let r = 0; r < game.spec.n; r++) sfx.play('sd_hop', { delay: r * 70, rate: 0.95 + r * 0.06 });
     setTimeout(() => {
-      setDone(idx + 1);
-      sfx.play('sd_pip', { rate: 0.9 + idx * 0.06 });
+      setCleared(idx + 1);
+      sfx.play('sd_pip', { rate: 0.9 + Math.min(12, idx) * 0.05 });
     }, 300);
-    if (last) {
-      setTimeout(() => {
-        const ms = clk.elapsed();
-        const out = afterBlitz(profileRef.current, { won: true, reached: BOARDS, ms, head });
-        if (uid) saveSquishdoku(uid, out.update, out.coins, out.xp, profileRef.current);
-        const rec = record(profileRef.current);
-        setWinUris(pickCreatures(roster, 3));
-        setWin({ ...out, ms, newBest: !rec.blitz.bestMs || ms < rec.blitz.bestMs });
-        setPhase('win');
-        sfx.play('sd_blitzWin');
-        haptics.win();
-        [0, 300, 600].forEach((d, i) => setTimeout(() => fx.current?.burst('confetti', width * (0.25 + 0.25 * i), height * 0.3, 1), d));
-      }, 900);
-      return;
-    }
     setTimeout(() => {
       sfx.play('sd_blitzNext');
       board.current?.outro();
@@ -260,29 +316,15 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, he
       buddy.current?.react('wrong');
       setTimeout(() => haptics.wrong(), 200);
       g.combo = 0;
-      setTimeout(() => {
-        if (revived) fail('mistake');
-        else setPhase('revive');
-      }, 1000);
+      setTimeout(() => lose('mistake'), 1000);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [game, revived, idx],
+    [game, idx],
   );
   const onTapPiece = useCallback((cell) => {
     board.current?.wiggle(cell);
     sfx.play('sd_squeak', { rate: 0.85 + Math.random() * 0.35 });
   }, []);
-
-  const revive = () => {
-    const back = () => {
-      setRevived(true);
-      sfx.play('sd_revive');
-      setPhase('play');
-      clk.resume();
-    };
-    if (adsFree) back();
-    else ad.show(back);
-  };
 
   // --- pause, back, leaving ------------------------------------------------------------------
   const pause = useCallback(() => {
@@ -297,15 +339,19 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, he
   };
   const exit = useCallback(() => {
     clk.pause();
+    settle();
     onExit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clk, onExit]);
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (phaseRef.current === 'play') pause();
+      else if (phaseRef.current === 'save') gameOver();
       else exit();
       return true;
     });
     return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pause, exit]);
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
@@ -314,8 +360,11 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, he
     return () => sub.remove();
   }, [pause]);
 
-  const again = () => setRun((r) => r + 1);
-  const barW = Math.min(width - 48, 400);
+  const again = () => {
+    settle();
+    setRun((r) => r + 1);
+  };
+  const barW = width > height ? 196 : Math.min(width - 48, 400);
   // the room fills the screen; the board lies on its floor
   const [root, setRoot] = useState(null);
   const [area, setArea] = useState(null);
@@ -331,31 +380,47 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, he
   const floorY = root ? roomGeometry(ROOM, root.w, root.h).floorY : 0;
   const B = useMemo(() => (area && root ? layout(n, n, area.w, area.h, floorY - area.y, SDK_TILT, 80) : null), [area, root, n, floorY]);
 
-  return (
-    <View style={styles.fill} onLayout={onRoot}>
-      {root ? <Room room={ROOM} phase="day" width={root.w} height={root.h} /> : null}
-      {/* the Crib's top bar: pause (back once it's over), BLITZ and the board */}
-      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <CribButton face="pink" icon={phase === 'play' ? 'pause' : 'back'} size={44} onPress={phase === 'play' ? pause : exit} />
+  // REDESIGN_V8: in landscape the top bar and the run's glass on the left, the board in the middle, the buddy right
+  const wide = width > height;
+  const beat = cleared > top && top > 0;
+  const headerEl = (
+    <>
+      {/* the Crib's top bar: pause (back once it's over), BLITZ MODE and the board */}
+      <View style={[styles.header, wide ? styles.wHeader : { paddingTop: insets.top + 6 }]}>
+        <CribButton face="orange" icon={phase === 'play' ? 'pause' : 'back'} size={44} onPress={phase === 'play' ? pause : exit} />
         <View style={styles.titleBox}>
-          <RoomTitle title="Blitz ⚡" />
-          <Text style={styles.boardNo}>{`BOARD ${Math.min(idx + 1, BOARDS)} OF ${BOARDS}`}</Text>
+          <RoomTitle title="Blitz Mode" />
+          <Text style={styles.boardNo}>{`BOARD ${idx + 1}`}</Text>
         </View>
       </View>
-      {/* the boards done, the rules and the run's clock, on the Crib's brown glass */}
-      <View style={styles.glass}>
-        <Pips done={done} current={phase === 'fail' || phase === 'win' ? -1 : idx} />
+    </>
+  );
+  const glassEl = (
+    <>
+      {/* the boards cleared, the record, the rule and the board's clock, on the Crib's brown glass */}
+      <View style={[styles.glass, wide && styles.wGlass]}>
+        <View style={styles.scoreRow}>
+          <View style={styles.score}>
+            <Text style={styles.scoreNum}>{cleared}</Text>
+            <Text style={styles.scoreLabel}>CLEARED</Text>
+          </View>
+          <View style={styles.scoreSep} />
+          <View style={styles.score}>
+            <Text style={[styles.scoreNum, beat && styles.scoreGold]}>{Math.max(top, cleared)}</Text>
+            <Text style={[styles.scoreLabel, beat && styles.scoreGold]}>{beat ? 'NEW BEST!' : 'BEST'}</Text>
+          </View>
+        </View>
         <View style={styles.rules}>
-          <Chip bg="#e01e4a" color="#ffffff">1 MISTAKE = BOARD 1</Chip>
-          <Chip bg={revived ? '#b9a6cc' : '#ffb02e'} color="#ffffff">
-            {revived ? 'REVIVE USED' : '♥ 1 REVIVE'}
-          </Chip>
+          <Chip bg="#e01e4a" color="#ffffff">1 MISTAKE = GAME OVER</Chip>
         </View>
         <View style={styles.barRow}>
           <TimerBar frac={clk.frac} width={barW} warn={warn} label={label} />
         </View>
       </View>
-
+    </>
+  );
+  const boardEl = (
+    <>
       <View style={styles.boardArea} onLayout={onArea}>
         {game && B ? (
           // hidden while paused, and during the countdown until GO drops it in
@@ -375,24 +440,57 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, he
         ) : null}
         {count != null ? <Countdown value={count} /> : null}
       </View>
+    </>
+  );
+  const bottomEl = (
+    <>
       {/* the player's Lobby creature cheering them on */}
-      <View style={[styles.bottom, { marginBottom: Math.max(insets.bottom, 6) + 4 }]}>
-        <Buddy ref={buddy} creatureKey={buddyKey} uri={buddyUri} paused={phase === 'paused' || phase === 'fail' || phase === 'win' || phase === 'revive'} size={80} />
-        <Text style={styles.hint}>{'Tap to place · no ✕ in Blitz\nthink before you tap!'}</Text>
+      <View style={[styles.bottom, wide ? styles.wBottom : { marginBottom: Math.max(insets.bottom, 6) + 4 }]}>
+        <Buddy ref={buddy} creatureKey={buddyKey} uri={buddyUri} paused={phase === 'paused' || phase === 'over' || phase === 'save'} size={80} />
+        <Text style={styles.hint}>{'Tap to place · no ✕ in Blitz\none mistake ends the run!'}</Text>
       </View>
+    </>
+  );
+  return (
+    <View style={styles.fill} onLayout={onRoot}>
+      {root ? <Room room={ROOM} phase="day" width={root.w} height={root.h} /> : null}
+      {wide ? (
+        <View style={styles.wRow}>
+          <View style={styles.wLeft}>
+            {headerEl}
+            {glassEl}
+          </View>
+          {boardEl}
+          <View style={styles.wRight}>{bottomEl}</View>
+        </View>
+      ) : (
+        <>
+          {headerEl}
+          {glassEl}
+          {boardEl}
+          {bottomEl}
+        </>
+      )}
 
       <PauseCard blitz visible={phase === 'paused'} onResume={resume} onRestart={again} onQuit={exit} />
-      <ReviveCard
-        visible={phase === 'revive'}
+      <BlitzSaveCard
+        visible={phase === 'save'}
+        reason={failReason}
         board={idx + 1}
+        cleared={cleared}
+        adUsed={adUsed}
         adReady={ad.ready}
         adsFree={adsFree}
-        onRevive={revive}
-        onGiveUp={() => fail('mistake')}
+        gems={Number(profile && profile.gems) || 0}
+        price={blitzSaveGems(gemSaves)}
+        saving={saving}
+        error={saveErr}
+        onAd={saveByAd}
+        onGems={saveByGems}
+        onEnd={gameOver}
       />
-      <BlitzFailCard visible={phase === 'fail'} reason={failReason} reached={idx + 1} best={best} onAgain={again} onQuit={exit} />
-      <BlitzWinCard visible={phase === 'win'} res={win} uris={winUris} onAgain={again} onQuit={exit} />
-      {/* over the cards: the win's confetti rains on top of everything */}
+      <BlitzOverCard visible={phase === 'over'} res={over} onAgain={again} onQuit={exit} />
+      {/* over the cards: a new best's confetti rains on top of everything */}
       <FxLayer ref={fx} style={styles.fxTop} />
     </View>
   );
@@ -433,8 +531,21 @@ const styles = StyleSheet.create({
   boardNo: { fontFamily: F.heavy, fontSize: 11, color: '#ffffff', letterSpacing: 0.8, marginTop: -2, textShadowColor: '#5b3a29', textShadowRadius: 1.5, textShadowOffset: { width: 0, height: 1 } },
   glass: { alignSelf: 'center', alignItems: 'center', marginTop: 6, paddingHorizontal: 12, paddingTop: 6, paddingBottom: 6, borderRadius: 20, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
   rules: { flexDirection: 'row', gap: 6, marginTop: 6 },
+  scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  score: { alignItems: 'center', minWidth: 64 },
+  scoreNum: { fontFamily: F.display, fontSize: 30, color: '#ffffff', includeFontPadding: false, textShadowColor: '#5b3a29', textShadowRadius: 1.5, textShadowOffset: { width: 0, height: 2 } },
+  scoreLabel: { fontFamily: F.display, fontSize: 10.5, color: '#ffe6c2', letterSpacing: 1, marginTop: -2 },
+  scoreGold: { color: '#ffd23a' },
+  scoreSep: { width: 2, alignSelf: 'stretch', marginVertical: 6, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.35)' },
   barRow: { marginTop: 8 },
   boardArea: { flex: 1, alignSelf: 'stretch', zIndex: 2 },
+  // landscape (REDESIGN_V8)
+  wRow: { flex: 1, flexDirection: 'row' },
+  wLeft: { width: 236, paddingTop: 8, paddingLeft: 10, gap: 6, zIndex: 3 },
+  wRight: { width: 206, justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 10, zIndex: 3 },
+  wHeader: { paddingHorizontal: 0 },
+  wGlass: { alignSelf: 'stretch', marginTop: 2 },
+  wBottom: { flexDirection: 'column', alignSelf: 'auto' },
   bottom: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 4, borderRadius: 22, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
   hint: { fontFamily: F.heavy, fontSize: 11.5, color: '#ffffff', lineHeight: 16 },
   // the cards sit at elevation 50 (Overlays.js)

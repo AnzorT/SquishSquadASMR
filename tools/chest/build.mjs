@@ -21,6 +21,8 @@ if (!existsSync(join(DESIGN, 'chest-models.js'))) throw new Error('unpack the de
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(join(OUT, 'fonts'), { recursive: true });
 copyFileSync(join(ROOT, 'tools', 'chest', 'host.html'), join(OUT, 'host.html'));
+// the vault room the chest stands in (tools/chest/vault-room.mjs)
+copyFileSync(join(ROOT, 'tools', 'chest', 'vault-room.jpg'), join(OUT, 'vault-room.jpg'));
 for (const f of SCRIPTS) copyFileSync(join(DESIGN, f), join(OUT, f));
 for (const [dir, f] of FONTS) copyFileSync(join(ROOT, 'node_modules', dir, f), join(OUT, 'fonts', f));
 console.log(`chest assets: host.html, ${SCRIPTS.length} scripts, ${FONTS.length} fonts -> ${OUT}`);

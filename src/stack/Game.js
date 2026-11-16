@@ -1,3 +1,4 @@
+import { GameBack, useWide } from '../royal/GameFrame';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, AppState, BackHandler, Easing, PanResponder, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -191,6 +192,7 @@ function useRefState(init) {
 // --- the game --------------------------------------------------------------------------
 
 export default function StackGame({ startLv = 1, cast, blitz = false, profile, uid, adsFree, haptics: hapticsOn = true, onExit }) {
+  const wide = useWide(); // landscape (REDESIGN_V8)
   const haptics = useRef(makeHaptics(hapticsOn)).current;
   const ad = useRewardedAd();
   const [lv, setLv] = useState(startLv);
@@ -970,14 +972,14 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   const glowOf = (p) => (glow ? (p === glow.to ? 'gold' : p === glow.from ? 'white' : null) : p === nudge ? 'white' : null);
   const playing = phase === 'play' && !paused;
 
-  return (
-    <View style={styles.fill}>
+  // landscape (REDESIGN_V8, the games sideways): the top bar, the goal and the stars / clock in a column on the left,
+  // the cushions in the middle, UNDO / RESTART / HINT down the right
+  const topEl = (
+    <>
       {/* the top bar */}
-      <View style={styles.hud}>
-        <RoundButton size={40} onPress={() => (phaseRef.current === 'play' ? acts.current.pause() : acts.current.leave())}>
-          <BackGlyph />
-        </RoundButton>
-        <View style={styles.titleBox}>
+      <View style={[styles.hud, wide && styles.wHud]}>
+        <GameBack onPress={() => (phaseRef.current === 'play' ? acts.current.pause() : acts.current.leave())} />
+        <View style={[styles.titleBox, wide && styles.wTitleBox]}>
           <Text style={styles.gameName}>{blitz ? 'SQUISH STACK · BLITZ ⚡' : 'SQUISH STACK'}</Text>
           <View style={styles.row6}>
             <Text style={styles.levelText}>{blitz ? `PUZZLE ${spec.round}/${BLITZ_ROUNDS}` : `LEVEL ${spec.lv}`}</Text>
@@ -999,13 +1001,13 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
       </View>
       {blitz ? (
         <View style={styles.pips}>
-          <Pips count={BLITZ_ROUNDS} done={done} current={blitzCard === 'fail' || blitzCard === 'win' ? -1 : idx} />
+          <Pips small={wide} count={BLITZ_ROUNDS} done={done} current={blitzCard === 'fail' || blitzCard === 'win' ? -1 : idx} />
         </View>
       ) : null}
 
       {/* the goal, and the stars still possible and the clock or a tip
           (Blitz: the run's clock and its rule) */}
-      <View style={styles.info}>
+      <View style={[styles.info, wide && styles.wInfo]}>
         <GoalCard who={who} goal={puzzle.goal} k={spec.k} star={puzzle.star} />
         <View style={styles.infoRight}>
           {blitz ? (
@@ -1040,7 +1042,10 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
           )}
         </View>
       </View>
-
+    </>
+  );
+  const areaEl = (
+    <>
       {/* the cushions: everything is placed by geometry() */}
       <View ref={areaRef} style={styles.area} onLayout={onArea} {...responder.panHandlers}>
         {g ? (
@@ -1059,11 +1064,14 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
         ) : null}
         {count != null ? <Countdown value={count} /> : null}
       </View>
-
+    </>
+  );
+  const ctrlEl = (
+    <>
       {/* undo, restart, hint */}
-      <View style={styles.controls}>
+      <View style={[styles.controls, wide && styles.wControls]}>
         <SdButton kind="white" onPress={() => acts.current.undo()} disabled={!playing || !canUndo} sound={null} faceStyle={styles.ctrlFace} style={styles.ctrl}>
-          <BtnLabel kind="purple" size={15}>
+          <BtnLabel kind="white" size={15}>
             UNDO
           </BtnLabel>
         </SdButton>
@@ -1080,6 +1088,23 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
           </SdButton>
         ) : null}
       </View>
+    </>
+  );
+  return (
+    <View style={styles.fill}>
+      {wide ? (
+        <View style={styles.wRow}>
+          <View style={styles.wLeft}>{topEl}</View>
+          {areaEl}
+          <View style={styles.wRight}>{ctrlEl}</View>
+        </View>
+      ) : (
+        <>
+          {topEl}
+          {areaEl}
+          {ctrlEl}
+        </>
+      )}
 
       {blitz ? (
         <>
@@ -1118,12 +1143,12 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   hud: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 6 },
   titleBox: { flex: 1, minWidth: 0 },
-  gameName: { fontFamily: F.display, fontSize: 13, letterSpacing: 1, color: '#8e1580' },
+  gameName: { fontFamily: F.display, fontSize: 13, letterSpacing: 1, color: '#8a3a0e' },
   row6: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   levelText: { fontFamily: F.display, fontSize: 21, color: '#ffffff', textShadowColor: INK, textShadowOffset: { width: 0, height: 2.5 }, textShadowRadius: 1, includeFontPadding: false },
   challenge: { paddingHorizontal: 7, paddingVertical: 1, borderRadius: 999, borderWidth: 2, borderColor: '#ffffff' },
   challengeText: { fontFamily: F.display, fontSize: 10, letterSpacing: 0.6, color: '#ffffff' },
-  movesPill: { alignItems: 'center', minWidth: 64, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 16, backgroundColor: 'rgba(80,12,140,0.42)', borderWidth: 2.5, borderColor: '#ffffff' },
+  movesPill: { alignItems: 'center', minWidth: 64, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 16, backgroundColor: 'rgba(107,68,38,0.5)', borderWidth: 2.5, borderColor: '#ffffff' },
   movesLabel: { fontFamily: F.display, fontSize: 10, letterSpacing: 1, color: '#ffffff' },
   movesNum: { fontFamily: F.display, fontSize: 22, color: '#ffe045', includeFontPadding: false, fontVariant: ['tabular-nums'] },
   info: { flexDirection: 'row', alignItems: 'stretch', gap: 10, paddingHorizontal: 14, marginTop: 8, minHeight: 72 },
@@ -1138,6 +1163,14 @@ const styles = StyleSheet.create({
   blitzRule: { fontFamily: F.display, fontSize: 12.5, color: '#e01e4a' },
   pips: { marginTop: 8 },
   area: { flex: 1 },
+  // landscape (REDESIGN_V8)
+  wRow: { flex: 1, flexDirection: 'row' },
+  wLeft: { width: 250, paddingTop: 6, gap: 4 },
+  wRight: { width: 150, justifyContent: 'center' },
+  wHud: { flexWrap: 'wrap', rowGap: 6, paddingHorizontal: 12 },
+  wTitleBox: { flexBasis: 150 },
+  wInfo: { flexDirection: 'column', paddingHorizontal: 12 },
+  wControls: { flexDirection: 'column', alignItems: 'stretch', paddingHorizontal: 14, gap: 10 },
   rug: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)', borderStyle: 'dashed' },
   colGlow: { position: 'absolute', top: 0, bottom: 0, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.16)' },
   seat: { position: 'absolute' },

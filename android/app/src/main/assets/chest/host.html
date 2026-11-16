@@ -14,7 +14,7 @@
   @font-face { font-family: 'Nunito'; font-weight: 700; src: url('fonts/Nunito_700Bold.ttf'); }
   @font-face { font-family: 'Nunito'; font-weight: 800; src: url('fonts/Nunito_800ExtraBold.ttf'); }
   @font-face { font-family: 'Nunito'; font-weight: 900; src: url('fonts/Nunito_900Black.ttf'); }
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a0f4a; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; font-family: 'Nunito', sans-serif; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #22160e; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; font-family: 'Nunito', sans-serif; }
   @keyframes c2Slam { 0%{ transform:scale(2.6) rotate(-8deg); opacity:0;} 40%{ transform:scale(0.92) rotate(2deg); opacity:1;} 65%{ transform:scale(1.06) rotate(-1deg);} 100%{ transform:scale(1) rotate(0deg); opacity:1;} }
   @keyframes c2Rise { from{ opacity:0; transform:translateY(10px);} to{ opacity:1; transform:translateY(0);} }
   @keyframes c2Hue { from{ filter:hue-rotate(0deg);} to{ filter:hue-rotate(360deg);} }
@@ -27,21 +27,35 @@
   .abs { position: absolute; }
   #stage { position: absolute; inset: 0; }
   #bg { position: absolute; inset: 0; }
+  /* REDESIGN_V9 (2026-11-16, the user: the vault room, where every chest is opened): the chest stands in an underground
+     treasure vault (tools/chest/vault-room.mjs -> vault-room.jpg) where "To the treasure vault" flies in; its torches
+     flicker and two banners on the wall wear the chest's group's colour. The picture has its own floor. */
+  #floor { display: none; }
+  #vault { position: absolute; inset: 0; pointer-events: none; }
+  #vault .torch { position: absolute; top: 22.6%; width: 15%; aspect-ratio: 1; margin: -7.5% 0 0 -7.5%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255,214,120,0.5), rgba(255,160,60,0.18) 55%, rgba(255,160,60,0)); animation: vFlick 1.6s ease-in-out infinite; }
+  #vault .torch.l { left: 20%; }
+  #vault .torch.r { left: 80%; animation-delay: -0.7s; }
+  @keyframes vFlick { 0%,100% { opacity: 0.7; transform: scale(1); } 30% { opacity: 1; transform: scale(1.08); } 55% { opacity: 0.8; transform: scale(0.95); } 80% { opacity: 0.95; transform: scale(1.04); } }
+  #vault .ban { position: absolute; top: 5%; width: 4.8%; height: 33%; margin-left: -2.4%; }
+  #vault .ban.l { left: 26.5%; }
+  #vault .ban.r { left: 73.5%; }
+  #vault .ban i { position: absolute; left: 0; right: 0; top: 4px; bottom: 0; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 84%, 0 100%); background: linear-gradient(90deg, rgba(0,0,0,0.18), rgba(255,255,255,0.12) 45%, rgba(0,0,0,0.22)), var(--ban, #e6caff); box-shadow: inset 4px 0 0 #e8b84a, inset -4px 0 0 #e8b84a; }
+  #vault .ban b { position: absolute; left: -18%; right: -18%; top: 0; height: 7px; border-radius: 4px; background: #8a5a32; box-shadow: 0 0 0 1.5px #2a1a10; }
   #floor { position: absolute; left: 0; right: 0; bottom: 0; height: 27%; box-shadow: inset 0 4px 0 rgba(255,240,220,0.55); }
   #cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; }
   #top { position: absolute; left: 0; right: 0; top: 0; padding: calc(var(--inset-top, 24px) + 28px) 16px 0; display: flex; flex-direction: column; align-items: center; gap: 7px; pointer-events: none; }
-  #tierLabel { padding: 4px 14px; border-radius: 999px; background: #fff; font-weight: 900; font-size: 12px; letter-spacing: 1.4px; box-shadow: 0 3px 0 rgba(40,0,70,0.22); }
-  #name { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 28px; line-height: 1.05; color: #fff; text-align: center; text-shadow: 1.5px 0 0 #45107a, -1.5px 0 0 #45107a, 0 1.5px 0 #45107a, 0 -1.5px 0 #45107a, 1.2px 1.2px 0 #45107a, -1.2px -1.2px 0 #45107a, 1.2px -1.2px 0 #45107a, -1.2px 1.2px 0 #45107a, 0 3px 0 #45107a; }
-  #hpbar { display: flex; align-items: center; gap: 8px; width: 300px; max-width: 100%; box-sizing: border-box; padding: 5px 6px 5px 8px; border-radius: 999px; background: rgba(40,10,70,0.5); border: 2px solid rgba(255,255,255,0.7); }
+  #tierLabel { padding: 4px 14px; border-radius: 999px; background: #fff; font-weight: 900; font-size: 12px; letter-spacing: 1.4px; box-shadow: 0 3px 0 rgba(60,30,10,0.25); }
+  #name { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 28px; line-height: 1.05; color: #fff; text-align: center; text-shadow: 1.5px 0 0 #5b3418, -1.5px 0 0 #5b3418, 0 1.5px 0 #5b3418, 0 -1.5px 0 #5b3418, 1.2px 1.2px 0 #5b3418, -1.2px -1.2px 0 #5b3418, 1.2px -1.2px 0 #5b3418, -1.2px 1.2px 0 #5b3418, 0 3px 0 #5b3418; }
+  #hpbar { display: flex; align-items: center; gap: 8px; width: 300px; max-width: 100%; box-sizing: border-box; padding: 5px 6px 5px 8px; border-radius: 999px; background: rgba(50,28,12,0.55); border: 2px solid rgba(255,255,255,0.7); }
   #pips { flex: 1; min-width: 0; display: flex; gap: 3px; }
   .pip { flex: 1; min-width: 0; height: 13px; border-radius: 7px; transition: background 0.2s; }
-  #hp { flex-shrink: 0; padding: 2px 8px; border-radius: 999px; background: #fff; color: #45107a; font-weight: 900; font-size: 11px; }
+  #hp { flex-shrink: 0; padding: 2px 8px; border-radius: 999px; background: #fff; color: #5b3418; font-weight: 900; font-size: 11px; }
   #bannerWrap { position: absolute; left: 0; right: 0; top: 30%; display: flex; justify-content: center; pointer-events: none; }
   .banner { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 50px; line-height: 1; letter-spacing: 1px; color: #fff; }
   #bottom { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 16px calc(var(--inset-bottom, 0px) + 28px); display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none; transition: opacity 0.3s; }
-  #hint { padding: 8px 18px; border-radius: 999px; background: rgba(255,255,255,0.94); color: #45107a; font-weight: 900; font-size: 14px; white-space: nowrap; box-shadow: 0 3px 0 rgba(90,40,10,0.25); animation: c2Rise 0.3s ease-out both; }
+  #hint { padding: 8px 18px; border-radius: 999px; background: rgba(255,255,255,0.94); color: #5b3418; font-weight: 900; font-size: 14px; white-space: nowrap; box-shadow: 0 3px 0 rgba(90,40,10,0.25); animation: c2Rise 0.3s ease-out both; }
   #reveal.on { display: flex; }
-  #reveal { position: absolute; inset: 0; z-index: 20; overflow: hidden; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; box-sizing: border-box; background: radial-gradient(circle at 50% 42%, rgba(120,40,200,0.55) 0, rgba(28,6,56,0.92) 70%); animation: c2Fade 0.3s ease-out both; }
+  #reveal { position: absolute; inset: 0; z-index: 20; overflow: hidden; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; box-sizing: border-box; background: radial-gradient(circle at 50% 42%, rgba(255,184,90,0.5) 0, rgba(34,22,14,0.92) 70%); animation: c2Fade 0.3s ease-out both; }
   #rays { position: absolute; left: 50%; top: 40%; width: 820px; height: 820px; margin: -410px 0 0 -410px; border-radius: 50%; background: repeating-conic-gradient(rgba(255,230,140,0.32) 0 8deg, rgba(255,255,255,0) 8deg 20deg); -webkit-mask-image: radial-gradient(circle, #000 15%, transparent 62%); mask-image: radial-gradient(circle, #000 15%, transparent 62%); animation: c2Rays 14s linear infinite; pointer-events: none; }
   #rvUp { position: relative; padding: 4px 14px; border-radius: 999px; background: #fff; font-weight: 900; font-size: 12px; letter-spacing: 1px; animation: c2Rise 0.4s 0.25s ease-out both; }
   #rvNew { position: relative; padding: 5px 16px; border-radius: 999px; background: linear-gradient(180deg,#ff8f8f,#e01e4a); border: 3px solid #fff; box-shadow: 0 3px 0 #8e1030; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: 1px; color: #fff; animation: c2Rise 0.4s 0.35s ease-out both; }
@@ -50,7 +64,7 @@
   #art { position: relative; width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; animation: c2Bob 2.4s ease-in-out infinite; }
   #art img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 8px 10px rgba(60,20,110,0.25)); }
   #rvRar { padding: 3px 12px; border-radius: 999px; font-weight: 900; font-size: 12px; letter-spacing: 1px; }
-  #rvName { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 30px; line-height: 1; color: #45107a; }
+  #rvName { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 30px; line-height: 1; color: #5b3418; }
   #rvConcept { font-weight: 700; font-size: 12.5px; color: #6a4a9a; text-align: center; }
   #loot { position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; animation: c2Rise 0.4s 0.5s ease-out both; }
   .chip { display: flex; align-items: center; gap: 6px; padding: 6px 14px 6px 8px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 2px #a04a00, 0 3px 0 2px #a04a00; }
@@ -60,10 +74,10 @@
   #rvPity { position: relative; font-weight: 900; font-size: 13px; color: #ffe27a; }
   #rvNew.copy { background: linear-gradient(180deg,#d9b8ff,#8f3cf2); box-shadow: 0 3px 0 #45189a; }
   #rvCopies { position: relative; width: 250px; display: none; flex-direction: column; align-items: center; gap: 5px; animation: c2Rise 0.4s 0.45s ease-out both; }
-  #cpTrack { position: relative; width: 100%; height: 26px; border-radius: 13px; background: rgba(255,255,255,0.2); border: 3px solid #fff; box-sizing: border-box; overflow: hidden; box-shadow: 0 4px 0 rgba(20,0,50,0.45); }
+  #cpTrack { position: relative; width: 100%; height: 26px; border-radius: 13px; background: rgba(255,255,255,0.2); border: 3px solid #fff; box-sizing: border-box; overflow: hidden; box-shadow: 0 4px 0 rgba(40,22,10,0.45); }
   #cpFill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 13px; background: linear-gradient(180deg,#ffd6f4 0%,#ff5cc6 45%,#c02bd9 100%); box-shadow: inset 0 2px 0 rgba(255,255,255,0.6); transition: width 0.8s cubic-bezier(0.2,0.9,0.3,1.2); }
   #cpFill.full { background: linear-gradient(180deg,#d8ffc2 0%,#6fe07a 55%,#26a94e 100%); }
-  #cpText { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 0.8px; color: #fff; text-shadow: 0 1.5px 0 #45107a, 1px 0 0 #45107a, -1px 0 0 #45107a, 0 -1px 0 #45107a; }
+  #cpText { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 0.8px; color: #fff; text-shadow: 0 1.5px 0 #5b3418, 1px 0 0 #5b3418, -1px 0 0 #5b3418, 0 -1px 0 #5b3418; }
   #cpNote { font-weight: 900; font-size: 13px; color: #ffe27a; text-align: center; }
   #collect { position: relative; overflow: hidden; width: 230px; height: 64px; border: 3px solid #fff; border-radius: 24px; background: linear-gradient(180deg,#d8ffc2 0%,#6fe07a 55%,#26a94e 100%); box-shadow: 0 0 0 2.5px #17652f, 0 6px 0 2.5px #17652f, 0 12px 20px rgba(20,80,40,0.35); font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 26px; letter-spacing: 1px; color: #fff; text-shadow: 0 2.5px 0 #17652f, 2px 0 0 #17652f, -2px 0 0 #17652f; animation: c2Rise 0.4s 0.7s ease-out both; }
   #collect:active { transform: translateY(4px); }
@@ -89,6 +103,32 @@
     #reveal.on > #collect { grid-row: 6; margin-top: 6px; }
   }
 </style>
+<script>
+// Performance (2026-11-14): the chest engine draws its whole canvas every frame at up to 2x the CSS size, so its cost
+// grows with the resolution. Here it's capped at 1.5x, and drops to 1x (with half the particles) when the phone
+// can't keep up (fps watched while the chest is up, watchFps below), or from the start on a phone with 2 GB of memory
+// or 2 cores or fewer.
+// Each chest opening loads this page afresh, so on a slow phone every smash began at full quality and stuttered until
+// the watcher stepped down. It's remembered now (localStorage, shared with the menu's page): a smash that needed lite,
+// or the menu having had to slow its creatures (webgame/app/perf.js 'sq.perfStep'), starts the next chests in lite.
+// Forgotten after 14 days, so a phone is tried at full quality again now and then.
+(function () {
+  var DAYS14 = 14 * 864e5, now = Date.now(), seen = false;
+  try {
+    seen = now - (+localStorage.getItem('sq.chestLite') || 0) < DAYS14;
+    var m = JSON.parse(localStorage.getItem('sq.perfStep') || 'null');
+    if (m && m.step >= 2 && now - m.t < DAYS14) seen = true;
+  } catch (e) { /* no storage */ }
+  var weak = (navigator.deviceMemory && navigator.deviceMemory <= 2) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2);
+  var lite = !!(weak || seen);
+  var real = window.devicePixelRatio || 1, cap = Math.min(real, lite ? 1 : 1.5);
+  try { Object.defineProperty(window, 'devicePixelRatio', { configurable: true, get: function () { return cap; } }); } catch (e) { /* old WebView */ }
+  window.chestPerf = {
+    lite: lite, remembered: seen, real: real, cap: function () { return cap; }, setCap: function (c) { cap = c; },
+    remember: function () { try { localStorage.setItem('sq.chestLite', String(Date.now())); } catch (e) { /* no storage */ } },
+  };
+})();
+</script>
 <script src="chest-sfx.js"></script>
 <script src="chest-models.js"></script>
 <script src="chest-fruit.js"></script>
@@ -106,6 +146,7 @@
 <body>
 <div id="stage">
   <div id="bg"></div>
+  <div id="vault"><i class="torch l"></i><i class="torch r"></i><span class="ban l"><i></i><b></b></span><span class="ban r"><i></i><b></b></span></div>
   <div id="floor"></div>
   <canvas id="cv"></canvas>
   <div id="top">
@@ -165,7 +206,9 @@
   function paint() {
     if (!st) return;
     const T = TN[st.tier] || TN[2], G = GROUPS[st.gk] || GROUPS.ocean;
-    $('bg').style.background = 'radial-gradient(circle at 50% 50%, rgba(255,250,232,0.92) 0, rgba(255,250,232,0) 50%), ' + G.bg;
+    // the vault room, a warm light where the chest stands; the banners in the group's colour
+    $('bg').style.background = 'radial-gradient(circle at 50% 66%, rgba(255,226,160,0.3) 0, rgba(255,226,160,0) 30%), url(vault-room.jpg) center bottom / cover no-repeat, #22160e';
+    $('vault').style.setProperty('--ban', (G.bg.match(/#[0-9a-f]{6}/i) || ['#e6caff'])[0]);
     $('floor').style.background = G.floor;
     $('tierLabel').textContent = G.n.toUpperCase() + ' · ' + T.n.toUpperCase();
     $('tierLabel').style.color = T.c;
@@ -225,7 +268,7 @@
     if (rw.img) $('rvImg').src = rw.img;
     $('rvRar').textContent = has ? rw.rarLabel : G.n.toUpperCase();
     $('rvRar').style.background = has ? rw.rarBg : '#ffffff';
-    $('rvRar').style.color = has ? rw.rarInk : '#45107a';
+    $('rvRar').style.color = has ? rw.rarInk : '#5b3418';
     $('rvName').textContent = has ? rw.name : 'Loot!';
     $('rvConcept').textContent = rw.concept || '';
     // coins only for a duplicate (or a finished set): no chip at all otherwise
@@ -285,8 +328,14 @@
       const gk = GROUPS[o.group] ? o.group : 'ocean', start = TI[o.size] ?? 0, final = Math.max(start, TI[o.final] ?? start);
       st = { gk, start, final, tier: start, hp: 0, max: 1, name: '', phase: o.wait ? 'wait' : 'idle', first: true, reward: o.reward || null, held: null };
       const CM = window.ChestModels;
-      if (!S) { S = new CM.Stage($('cv'), { group: gk, ground: 0.73, top: 178 + (o.insetTop || 0), onEvent: ev }); S.load(gk, start, true); }
+      if (!S) {
+        // lite: every other particle (bursts and dust are the costliest part of a smash)
+        const P0 = CM.Stage.prototype.P;
+        if (!CM.Stage.prototype._sqP) { CM.Stage.prototype._sqP = 1; CM.Stage.prototype.P = function (q) { if (chestPerf.lite && (this._pk = (this._pk || 0) + 1) % 2) return; return P0.call(this, q); }; cacheLayer(CM.Stage.prototype); }
+        S = new CM.Stage($('cv'), { group: gk, ground: 0.73, top: 178 + (o.insetTop || 0), onEvent: ev }); S.load(gk, start, true);
+      }
       else S.reset(gk, start);
+      watchFps();
       S.sound = o.sound !== false;
       paint();
       requestAnimationFrame(() => requestAnimationFrame(() => post({ type: 'shown' })));
@@ -303,8 +352,81 @@
       if (h) tap(h); else paint();
     },
     sound(on) { if (S) S.sound = !!on; },
+    // The tester's FPS counter (src/components/FpsCounter.js): while on, this page's own frames go to the app every
+    // half second: { type: 'fps', fps, low: the slowest frame as fps, lite }. Off unless the app asks.
+    meter(on) {
+      if (on && !meterId) { mt = 0; meterId = requestAnimationFrame(meter); }
+      else if (!on && meterId) { cancelAnimationFrame(meterId); meterId = 0; }
+    },
   };
+  let mt = 0, mlast = 0, mn = 0, mworst = 0, meterId = 0;
+  function meter(now) {
+    meterId = requestAnimationFrame(meter);
+    if (!mt || document.hidden) { mt = mlast = now; mn = 0; mworst = 0; return; }
+    const dt = now - mlast; mlast = now; mn++;
+    if (dt > mworst) mworst = dt;
+    if (now - mt < 500) return;
+    post({ type: 'fps', fps: Math.round((mn * 1000) / (now - mt)), low: Math.round(1000 / Math.max(mworst, 1)), lite: chestPerf.lite });
+    mt = now; mn = 0; mworst = 0;
+  }
 
+  // While a chest is up: a second under ~48 fps twice in a row, or one under ~35 -> lite (1x canvas, half the
+  // particles), kept for the rest of this chest. (It looked at the first ~1.5 s only: the idle chest often passed and
+  // the smash, the costliest part, then ran at full quality.) A gap of over a second is the page paused, not slow.
+  // Remembered for the next chests (chestPerf.remember) unless it was the very first second measured: that one can be
+  // slow from the page loading its art, not from the phone.
+  let watching = false;
+  function watchFps() {
+    if (chestPerf.lite || watching) return;
+    watching = true;
+    let t0 = 0, last = 0, n = 0, slow = 0, secs = 0;
+    const f = (now) => {
+      if (chestPerf.lite || !S) { watching = false; return; }
+      requestAnimationFrame(f);
+      if (document.hidden || now - last > 1000) t0 = 0;
+      last = now;
+      if (!t0) { t0 = now; n = 0; return; }
+      n++;
+      if (now - t0 < 1000) return;
+      const fps = (n * 1000) / (now - t0);
+      t0 = now; n = 0; secs++;
+      slow = fps < 48 ? slow + 1 : 0;
+      if (fps < 35 || slow >= 2) {
+        chestPerf.lite = true; chestPerf.setCap(1); S.resize(); watching = false;
+        if (secs >= 2) chestPerf.remember();
+      }
+    };
+    setTimeout(() => requestAnimationFrame(f), 400);
+  }
+
+  // The chest's picture (Stage.renderLayer: every part, dent, crack and hole drawn as vectors into an off-screen
+  // canvas) was drawn again every frame, though most frames only move it (the wobble, the hop and the shake are
+  // transforms in draw()). It's drawn again only when something it shows has changed: a hit (hp), the damage, the
+  // dents, cracks, holes and torn parts, a hinged part's swing, the hit flash, the burst, a charge-up (every frame),
+  // a spinning gradient (every frame) or the scale. resize() clears the canvas, so it forgets the picture.
+  // In lite, the soft changes (a swing, the flash fading, the burst, a charge-up, a spin) update the picture every other
+  // frame; the hard ones (a hit, the damage, the scale) at once. The chest still moves every frame. (2026-11-14)
+  function cacheLayer(proto) {
+    const RL0 = proto.renderLayer, RS0 = proto.resize;
+    const spinning = (f) => !!(f && typeof f === 'object' && f.k && f.spin);
+    const spins = (m) => {
+      if (m._sqSpin == null) m._sqSpin = m.parts.some((p) => p.sh.concat(p.scar || []).some((s) => spinning(s.f) || spinning(s.s)));
+      return m._sqSpin;
+    };
+    proto.renderLayer = function () {
+      const c = this.chest;
+      if (!c) return RL0.call(this);
+      const hard = this.k + '|' + c.seed + '|' + this.hp + '|' + c.d + '|' + c.dents.length + '|' + c.cracks.length + '|' + c.holes.length + '|' + Object.keys(c.torn).length;
+      let soft = this.flash + '|' + (this.burst > 0.55 ? this.burst : 0);
+      for (const id in c.ang) soft += '|' + Math.round(c.ang[id] * 3000);
+      if (this.charge || spins(c.m)) soft += '|' + this.time;
+      if (hard === this._sqHard && soft === this._sqSoft) return;
+      if (hard === this._sqHard && chestPerf.lite && this._sqDrew) { this._sqDrew = false; return; }
+      this._sqHard = hard; this._sqSoft = soft; this._sqDrew = true;
+      return RL0.call(this);
+    };
+    proto.resize = function () { this._sqHard = null; return RS0.apply(this, arguments); };
+  }
   const boot = () => { const CM = window.ChestModels; if (CM && Object.keys(GROUPS).every((g) => CM.groups.includes(g))) post({ type: 'ready' }); else setTimeout(boot, 30); };
   boot();
 })();

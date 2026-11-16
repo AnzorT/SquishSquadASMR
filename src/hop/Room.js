@@ -18,29 +18,36 @@ export const floorLineOf = (height) => Math.round(Math.min(330, Math.max(190, he
 
 export function roomGeometry(room, width, height) {
   const R = ROOMS[room];
+  if (width > height) {
+    // landscape (REDESIGN_V8, the games laid out sideways): the picture spans the width and is raised so its floor line
+    // sits 30% down (its ceiling cut off), the floor repeated below: the board gets most of the screen's height
+    const H = width / RATIO;
+    const top = Math.min(0, Math.round(height * 0.3) - H * R.floor);
+    return { W: width, H, left: 0, top, floorY: H * R.floor + top };
+  }
   const floorY = floorLineOf(height);
   let H = floorY / R.floor;
   if (H * RATIO < width) H = width / RATIO;
   const W = H * RATIO;
   const left = Math.min(0, Math.max(width - W, width / 2 - R.cx * W));
-  return { W, H, left, floorY: H * R.floor };
+  return { W, H, left, top: 0, floorY: H * R.floor };
 }
 
 function Room({ room, phase, width, height }) {
   const R = ROOMS[room];
   const art = ROOM_ART[room];
-  const { W, H, left } = roomGeometry(room, width, height);
+  const { W, H, left, top: T0 } = roomGeometry(room, width, height);
   // the floor again and again below
   const step = H * (1 - R.floor) - H * 0.06;
   const copies = [];
-  for (let k = 1; H + (k - 1) * step < height; k++) copies.push(H + (k - 1) * step - (R.floor + 0.05) * H);
+  for (let k = 1; T0 + H + (k - 1) * step < height; k++) copies.push(H + (k - 1) * step - (R.floor + 0.05) * H);
   const under = art.under && art.under[phase];
   const over = art.over && art.over[phase];
   const img = (source, top, key) => <Image key={key} source={source} fadeDuration={0} style={{ position: 'absolute', left: 0, top, width: W, height: H }} />;
   const tint = PH[phase] && PH[phase].tint;
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: R.bg, overflow: 'hidden' }]}>
-      <View style={{ position: 'absolute', left, top: 0, width: W, height }}>
+      <View style={{ position: 'absolute', left, top: T0, width: W, height: height - T0 }}>
         {copies.reverse().map((top, k) => img(art.base, top, `f${k}`))}
         {under ? img(under, 0, 'under') : null}
         {img(art.base, 0, 'base')}

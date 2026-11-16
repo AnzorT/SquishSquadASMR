@@ -1,8 +1,13 @@
 // The Nov 13 Main Menu's look (webgame: main-menu.js, the CSS at its top), for React Native screens: the same colours,
 // rims, fills and lettering, so a native screen (the mini-games, Squish Time) matches the menu's WebView pages.
 // Sizes are the design's own units: a screen is 393 tall (Stage.js scales them to the phone, like the menu's `k`).
+//
+// REDESIGN_V8 (2026-11-14, the user): the wood look of the house's Renovate / Catalog buttons replaces the purple velvet
+// and the pink: a striped wood panel (#e6b47c -> #b47a42), a dark brown outline and lip (#6b4426), cream labels
+// (#fff6e2) with brown lettering (#5b3418). 'vel' is now that wood (every velvet plaque turns wood); no diamond tips.
 
-export const INK = '#3d1268';
+export const INK = '#6b4426';
+export const WOOD = { light: '#e6b47c', mid: '#cf955a', dark: '#b47a42', ink: '#6b4426', text: '#5b3418', cream: '#fff6e2', rivet: ['#fff3c4', '#e2b14a', '#8a5d1a'] };
 
 // a gradient: [[offset 0-1, colour, opacity?], …]
 export const RIM = [[0, '#fffbe2'], [0.24, '#ffdd6e'], [0.55, '#f2ac2c'], [0.82, '#b8680c'], [1, '#ffd474']]; // --rimG (top to bottom)
@@ -12,12 +17,12 @@ export const TIP = [[0, '#fff6c8'], [0.55, '#f2ac2c'], [1, '#a8600a']]; // the d
 // "130% 160% at 50% -20%") or a linear gradient ({ angle }: 180 = top to bottom); `rim` its border; `gloss`: the white
 // shine over the top half; `sparkles`, `diamonds`, `stripes`: the overlays; `ink`: its text colour.
 export const PLAQUES = {
-  vel: { fill: { radial: { cx: 0.5, cy: -0.2, rx: 1.3, ry: 1.6 }, stops: [[0, '#b07cff'], [0.38, '#7a36dc'], [0.76, '#4a149a'], [1, '#320b74']] }, rim: RIM, sparkles: true, diamonds: true, ink: '#ffffff' },
+  vel: { fill: { angle: 180, stops: [[0, '#e6b47c'], [0.55, '#cf955a'], [1, '#b47a42']] }, rim: [[0, '#f8dcae'], [0.5, '#d9a066'], [1, '#a86e3a']], stripes: true, ink: '#fff6e2' },
   gold: { fill: { angle: 180, stops: [[0, '#fff1b0'], [0.4, '#ffd650'], [0.76, '#f6a524'], [1, '#ffc84a']] }, rim: [[0, '#fffbe8'], [0.6, '#e9a530'], [1, '#8a4a06']], gloss: 0.6, sparkles: true, ink: INK },
   bronze: { fill: { angle: 180, stops: [[0, '#ffd7b4'], [0.42, '#ea9a64'], [0.78, '#b45e2c'], [1, '#d98a52']] }, rim: RIM, gloss: 0.45, ink: '#ffffff' },
   wood: { fill: { angle: 180, stops: [[0, '#e9b97c'], [0.45, '#c4874a'], [1, '#8c5426']] }, rim: [[0, '#ffe3b0'], [0.6, '#a8692e'], [1, '#5a3010']], stripes: true, ink: '#ffffff' },
   amy: { fill: { radial: { cx: 0.5, cy: 0, rx: 1.2, ry: 1.4 }, stops: [[0, '#e6c8ff'], [0.4, '#a565ff'], [0.8, '#6420c8'], [1, '#4a148e']] }, rim: RIM, sparkles: true, ink: '#ffffff' },
-  pearl: { fill: { radial: { cx: 0.3, cy: 0, rx: 1.3, ry: 1.5 }, stops: [[0, '#ffffff'], [0.35, '#fbf4ff'], [0.7, '#ecdcff'], [1, '#dcc6f6']] }, rim: RIM, sparkles: true, ink: INK },
+  pearl: { fill: { radial: { cx: 0.3, cy: 0, rx: 1.3, ry: 1.5 }, stops: [[0, '#ffffff'], [0.35, '#fffaf0'], [0.7, '#fff1d8'], [1, '#f4dfba']] }, rim: [[0, '#f8dcae'], [0.5, '#d9a066'], [1, '#a86e3a']], ink: INK },
   rainbow: { fill: { angle: 100, stops: [[0, '#ffc1e6'], [0.25, '#ffe7a0'], [0.5, '#b9f6d8'], [0.75, '#b6e2ff'], [1, '#e2c8ff']] }, rim: [[0, '#ffffff'], [0.5, '#d9c4ff'], [1, '#9a78e8']], sparkles: true, ink: INK },
 };
 
@@ -25,7 +30,7 @@ export const PLAQUES = {
 export const LETTERING = {
   gold: { f: ['#fffbe6', '#ffe57e', '#ffbe2e', '#f08c10'], o: INK, w: true },
   goldB: { f: ['#fffbe6', '#ffe57e', '#ffbe2e', '#f08c10'], o: '#4a1f04' },
-  white: { f: ['#ffffff', '#ffffff', '#f6eeff', '#e4d4ff'], o: INK },
+  white: { f: ['#ffffff', '#ffffff', '#fff6e2', '#ffe6b8'], o: INK },
   whiteB: { f: ['#ffffff', '#ffffff', '#fff6e2', '#ffe6b8'], o: '#6a2c00' },
   wood: { f: ['#fffbea', '#ffe9b8', '#f2c27a', '#d08a3c'], o: '#3a1e0a' },
   bronze: { f: ['#ffffff', '#ffe9d4', '#ffc392', '#ef8f50'], o: '#4a1a06' },
@@ -37,11 +42,11 @@ export const LETTERING = {
 export const RARITY_PLAQUE = ['wood', 'bronze', 'amy', 'gold', 'rainbow'];
 export const RARITY_LETTERING = ['wood', 'bronze', 'amethyst', 'whiteB', 'white'];
 
-// the orb buttons (.mm-orb): a jewel inside a gold rim
-export const ORB = [[0, '#ffffff'], [0.07, '#ffffff'], [0.16, '#d6b4ff'], [0.38, '#9a5cf0'], [0.7, '#5a1cb8'], [1, '#330a78']];
+// the orb buttons (.mm-orb): a wooden knob inside a gold rim (was a purple jewel)
+export const ORB = [[0, '#fff6e2'], [0.07, '#fff6e2'], [0.16, '#f2cc94'], [0.38, '#dba468'], [0.7, '#b47a42'], [1, '#7f4c24']];
 
-// the full-screen pages (.mm-page2)
-export const PAGE = { stops: [[0, '#8a46ec'], [0.4, '#5a1cb8'], [0.8, '#2e0a6e'], [1, '#1e0650']] };
+// the full-screen pages (.mm-page2): a warm amber (was purple)
+export const PAGE = { stops: [[0, '#ffd98e'], [0.4, '#f3a95c'], [0.8, '#d27c3e'], [1, '#a95a2a']] };
 
 export const FONT = { display: 'Fredoka_700Bold', body: 'Nunito_700Bold', bodyHeavy: 'Nunito_800ExtraBold', bodyBlack: 'Nunito_900Black' };
 

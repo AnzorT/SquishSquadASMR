@@ -42,6 +42,9 @@ A Queens-style logic puzzle, like Pengudoku (Google Play), built with our creatu
 - The next level unlocks after any solve.
 
 ## Blitz mode
+**Since 2026-11-16 (the user): BLITZ MODE is endless.** See "Hub and Blitz redesign (2026-11-16)" at the end. What
+follows was the first Blitz, kept for history.
+
 - 10 boards in a row: 4×4, 5×5 ×2, 6×6 ×4, 7×7 ×3.
 - One shared timer for the whole run, set to 10:00 to start.
 - No ✕ marks.
@@ -70,7 +73,8 @@ Everything moves, and everything has its own sound, generated in Python (`tools/
 - **Blitz**: 3-2-1 countdown, GO, level-to-level whoosh, progress pip, the back-to-level-1 crash, pips draining, revive, the big win.
 
 ## HEAD START (added 2026-10-23)
-- A switch on the Squishdoku hub, for both modes, saved in `sdk.head`.
+- A switch on the Squishdoku hub, saved in `sdk.head`. Since 2026-11-16 it is for Regular mode only. Blitz ignores it:
+  every Blitz board gives 1 creature anyway (see the Blitz redesign below).
 - When it's on, the first row's creature drops into place after the board's intro, before the clock starts.
 - Because that makes the puzzle easier, the clock is **20% shorter** (times A and B too, and Blitz becomes 8:00) and **coins and XP are ×0.6**, PERFECT included.
 - These numbers are `HEAD_START` in `levels.js`.
@@ -257,7 +261,7 @@ The profile's `sdk` field is client-written, like coins:
 - `perfect`: `{ level: true }`
 - `xp`: the old Puzzle XP. It's no longer written; it was added to the player's `pxp` once (PLAYER_XP.md)
 - `skill` and `bSkill`
-- `blitz`: `{ reached, bestMs, wins }`
+- `blitz`: `{ top, runs }` (the endless Blitz: the most boards cleared in one run, and how many runs); `reached`, `bestMs` and `wins` were the ten-board runs' and are no longer written
 - `head`: HEAD START on or off
 - `plays` and `solves`
 
@@ -284,3 +288,55 @@ Still to do:
 - **Daily Creature Puzzle**, counted toward the streak.
 - Daily-challenge events.
 - ~~Puzzle XP feeding the season pass~~: replaced by the player XP (PLAYER_XP.md).
+
+## Hub and Blitz redesign (2026-11-16)
+
+The user's list, from a screenshot of the hub.
+
+**The hub** (`src/squishdoku/Hub.js`)
+- The two modes are **REGULAR MODE** and **BLITZ MODE** cards in the app's new design: a wood plaque like the Game
+  Park's game card, the name in the menu's lettering, a picture in a gold-ringed window, and one line under it.
+  - The pictures are the Game Park clip's last frame, as is for Regular and turned electric blue with lightning bolts
+    for Blitz (`tools/squishdoku/mode-art.mjs` -> `assets/squishdoku/mode-*.jpg`).
+- No PLAY or GO buttons: the whole card is tapped.
+- REGULAR MODE's line is the progress bar and "25/600" on one row. "Level 25 of 600" and "Beat the clock…" are gone.
+- BLITZ MODE's only line is the best run: "BEST: 12".
+- The title stands alone: the two creature heads beside it were removed (the user, 2026-11-16).
+- HEAD START has no creature picture and says plainly what it does: REGULAR MODE, "Every level starts with 1 creature
+  already placed", "20% less time · 40% fewer coins & XP".
+- HOW TO PLAY has a ? where the X was.
+- Squish Sort's and Squish Stack's hubs still use the old cards (`ModeCard`).
+
+**BLITZ MODE** (`src/squishdoku/BlitzGame.js`, `levels.js` blitzSpec / blitzPrize / afterBlitz)
+- One board after another, with no end. Each board has its own clock, and the clocks are short: 12 s for a 4×4, 20 for
+  5×5, 30 for 6×6, 42 for 7×7 and 56 for 8×8. Every one is under Regular's 3-creature time for that size (a test checks
+  it).
+- The sizes climb: 4×4 twice, 5×5 three times, 6×6 four, 7×7 five, then 8×8 for good. From there the boards are harder
+  (tier 1, tier 2 from board 21), and each clock is 3% shorter than the last, down to three quarters (42 s).
+- One mistake, or a board's clock running out, ends the run, unless the player saves it:
+  - **with a rewarded ad**, once a run (free with Remove Ads);
+  - **with gems**: 10, then 20, 40, 80 … up to 320 in the same run. The `squad` function's `blitzSave` move charges
+    them (`functions/squad.js`).
+  - A save after a mistake goes on with the board's clock where it was; after the clock ran out, the board's clock
+    starts again.
+  - **END RUN** is GAME OVER.
+  - The save card (the user's second look): the words in the middle, then the buttons in one row, 8% shorter than
+    before. The ad's button shows only until it has been used once in the run.
+- GAME OVER shows the boards cleared, the best (or NEW BEST!), and what the run paid.
+  - It's one column, with the title on top. There are no score creatures, because Blitz has no stars.
+  - QUIT and PLAY AGAIN are the same size, and PLAY AGAIN is gold like the app's other buttons.
+  - Each board cleared pays coins by its size (30, 50, 70, 100, 130).
+  - It also pays a tenth of config/levels `xp.blitz.squishdoku` in XP (40 by default).
+  - Quitting or restarting in the middle of a run pays it too.
+- HEAD START: since 2026-11-16 (the user: Blitz was a little too hard) every board starts with 1 creature placed,
+  whether the hub's HEAD START switch is on or off. It is the first row's creature, dropped in once the board has
+  landed, and the board's clock starts 0.35 s later. It costs nothing: the clocks and the pay are unchanged.
+- The HUD: BOARD n, CLEARED and BEST, "1 MISTAKE = GAME OVER", and the board's clock.
+- The skill (`bSkill`) still nudges the boards' tiers: up after a run of 10 or more, down after one under 5.
+- Checked in the web version:
+  - A board cleared, then on to board 2 with a fresh 12 s clock.
+  - A mistake opened the save card. The ad save carried on with the same board, and its button was gone at the next
+    mistake.
+  - The clock running out showed TIME'S UP.
+  - END RUN showed GAME OVER with NEW BEST and +30 coins / +40 XP.
+  - The gem save wasn't tried: it spends real gems on the test account, and the move needs a functions deploy.

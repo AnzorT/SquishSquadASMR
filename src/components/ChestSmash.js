@@ -16,8 +16,10 @@ import TutTarget from '../tutorial/Target';
 import { report as tutReport } from '../tutorial/store';
 import { BY_ID, RAR_LOOK } from '../squad/data';
 import sfx from '../audio/sfx';
+import { pageFps, useFpsActive } from './fpsMeter';
 
-const HOST = Platform.select({ android: 'file:///android_asset/chest/host.html', default: null });
+// (web: the same page, served at /android_asset/ by metro.config.js; src/web/WebView.js)
+const HOST = Platform.select({ android: 'file:///android_asset/chest/host.html', web: '/android_asset/chest/host.html', default: null });
 const SIZE_NAMES = { common: 'common', rare: 'rare', epic: 'epic', legendary: 'legendary', set: 'set' };
 
 // What the page's reveal card shows for the server's result.
@@ -84,6 +86,15 @@ export default function ChestSmash({ chest, first = null, catalog, onCollect, on
   useEffect(() => start(), [start]);
   useEffect(() => run(`chestHost.sound(${effects ? 'true' : 'false'})`), [effects, run]);
   useEffect(() => () => tutReport({ boxPhase: null }), []);
+  // the tester's FPS counter: the page counts its own frames while it's on (fpsMeter.js)
+  const fpsOn = useFpsActive();
+  const fpsOnRef = useRef(fpsOn);
+  fpsOnRef.current = fpsOn;
+  useEffect(() => {
+    run(`chestHost.meter(${fpsOn ? 'true' : 'false'})`);
+    if (!fpsOn) pageFps('chest', null);
+  }, [fpsOn, run]);
+  useEffect(() => () => pageFps('chest', null), []);
   // never left unseen over the screen if the page doesn't say 'shown'
   useEffect(() => {
     if (painted) return undefined;
@@ -102,8 +113,11 @@ export default function ChestSmash({ chest, first = null, catalog, onCollect, on
       } catch (x) {
         return;
       }
-      if (m.type === 'ready') {
+      if (m.type === 'fps') {
+        pageFps('chest', m);
+      } else if (m.type === 'ready') {
         ready.current = true;
+        if (fpsOnRef.current) run('chestHost.meter(true)');
         start();
       } else if (m.type === 'shown') {
         if (!painted) {
@@ -120,7 +134,7 @@ export default function ChestSmash({ chest, first = null, catalog, onCollect, on
         onCollect();
       }
     },
-    [start, onCollect, onShown, painted],
+    [start, onCollect, onShown, painted, run],
   );
 
   if (!HOST) return null;
@@ -133,10 +147,13 @@ export default function ChestSmash({ chest, first = null, catalog, onCollect, on
         allowFileAccess
         allowFileAccessFromFileURLs
         javaScriptEnabled
+        // (localStorage: the page remembers that this phone needs its lighter mode, for the next chests)
+        domStorageEnabled
         mediaPlaybackRequiresUserAction={false}
         onMessage={onMessage}
         style={styles.web}
-        androidLayerType="hardware"
+        // (no androidLayerType: the chest redraws every frame, and a hardware layer added an off-screen copy of the
+        //  whole screen each frame. Performance, 2026-11-14)
         overScrollMode="never"
         scrollEnabled={false}
         bounces={false}
@@ -151,7 +168,7 @@ export default function ChestSmash({ chest, first = null, catalog, onCollect, on
 }
 
 const styles = StyleSheet.create({
-  web: { flex: 1, backgroundColor: '#2a0f4a' },
+  web: { flex: 1, backgroundColor: '#22160e' }, // (the vault room's dark, REDESIGN_V9)
   unseen: { opacity: 0 },
   stageTarget: { position: 'absolute', left: '18%', right: '18%', top: '36%', height: '34%' },
 });

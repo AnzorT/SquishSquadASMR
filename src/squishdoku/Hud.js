@@ -134,7 +134,8 @@ const Marker = memo(function Marker({ x, uri, gone }) {
 
 // Blitz's ten pips: done ones filled (each popping as it fills), the
 // current one pulsing. `drain` empties them right to left (back to level 1).
-export const Pips = memo(function Pips({ count = 10, done, current }) {
+// (`small`: landscape's narrow left column, REDESIGN_V8)
+export const Pips = memo(function Pips({ count = 10, done, current, small }) {
   const vals = useRef(Array.from({ length: count }, () => new Animated.Value(0))).current;
   const now = usePingPong(1000, { eased: false });
   useEffect(() => {
@@ -144,12 +145,12 @@ export const Pips = memo(function Pips({ count = 10, done, current }) {
     });
   }, [done, vals, count]);
   return (
-    <View style={styles.pips}>
+    <View style={[styles.pips, small && styles.pipsSmall]}>
       {vals.map((v, i) => (
-        <View key={i} style={styles.pip}>
+        <View key={i} style={[styles.pip, small && styles.pipSmall]}>
           <Animated.View style={[StyleSheet.absoluteFill, styles.pipFill, { opacity: v, transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }] }]} />
           {i === current ? <Animated.View style={[StyleSheet.absoluteFill, styles.pipNow, { opacity: now }]} /> : null}
-          <Text style={styles.pipText}>{i + 1}</Text>
+          <Text style={[styles.pipText, small && styles.pipTextSmall]}>{i + 1}</Text>
         </View>
       ))}
     </View>
@@ -161,7 +162,7 @@ const styles = StyleSheet.create({
   glow: { position: 'absolute', left: -20, right: -20, top: 6, bottom: 6, borderRadius: 999, overflow: 'hidden' },
   ghost: { position: 'absolute' },
   barWrap: { height: 34, justifyContent: 'center' },
-  barTrack: { height: 22, borderRadius: 999, borderWidth: 3, borderColor: '#ffffff', backgroundColor: 'rgba(69,16,122,0.28)', overflow: 'hidden' },
+  barTrack: { height: 22, borderRadius: 999, borderWidth: 3, borderColor: '#ffffff', backgroundColor: 'rgba(91,52,24,0.28)', overflow: 'hidden' },
   barShine: { position: 'absolute', left: 6, right: 6, top: 2, height: 5, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.55)' },
   barWarn: { backgroundColor: 'rgba(255,40,80,0.35)' },
   barLabelWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
@@ -169,7 +170,10 @@ const styles = StyleSheet.create({
   marker: { position: 'absolute', top: -20, alignItems: 'center' },
   markerPin: { position: 'absolute', bottom: -8, width: 3, height: 12, borderRadius: 2, backgroundColor: '#ffffff' },
   pips: { flexDirection: 'row', gap: 5, justifyContent: 'center' },
-  pip: { width: 24, height: 24, borderRadius: 12, borderWidth: 2.5, borderColor: '#ffffff', backgroundColor: 'rgba(69,16,122,0.25)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  pip: { width: 24, height: 24, borderRadius: 12, borderWidth: 2.5, borderColor: '#ffffff', backgroundColor: 'rgba(91,52,24,0.3)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  pipsSmall: { gap: 2.5 },
+  pipSmall: { width: 17, height: 17, borderWidth: 2 },
+  pipTextSmall: { fontSize: 8.5 },
   pipFill: { backgroundColor: '#3fd7f6', borderRadius: 12 },
   pipNow: { backgroundColor: '#ffd23a', borderRadius: 12 },
   pipText: { fontFamily: F.display, fontSize: 10.5, color: '#ffffff', includeFontPadding: false },

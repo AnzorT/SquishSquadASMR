@@ -204,6 +204,12 @@ assert.strictEqual(S.MOVES.equip(p, { id: '1', f: 'r' }).error, 'not_owned');
 
 // gems → coins
 assert.deepStrictEqual(S.MOVES.swap({ gems: 250, coins: 5 }, { i: 1 }).set, { gems: 50, coins: 9005 });
+// Blitz saves: 10 gems, then twice the last each time in the run, never past 320
+assert.deepStrictEqual(S.MOVES.blitzSave({ gems: 25 }, { i: 0 }), { set: { gems: 15 }, result: { gems: 10 } });
+assert.deepStrictEqual(S.MOVES.blitzSave({ gems: 25 }, { i: 1 }).set, { gems: 5 });
+assert.strictEqual(S.MOVES.blitzSave({ gems: 25 }, { i: 2 }).error, 'not_enough_gems');
+assert.strictEqual(S.blitzSaveGems(9), 320);
+assert.strictEqual(S.blitzSaveGems(NaN), 10);
 
 // the start: 600 gems, once
 let st = S.withStart({});
@@ -465,6 +471,15 @@ assert.strictEqual(m.result.kind, 'chest');
 assert.strictEqual(m.result.chest.group, S.lineup(D20)[0]);
 assert.strictEqual(m.result.chest.size, 'common');
 assert.deepStrictEqual(m.set.levelGot, { 1: true, 3: true });
+// a chest that names its group (config/levels road g, REDESIGN_V9): that group's chest; a group that isn't (or
+// isn't out) falls back to the first HOT group
+const GROAD = { road: [{ k: 'coins', n: 1 }, { k: 'coins', n: 1 }, { k: 'chest', t: 'rare', g: 'pet' }] };
+m = S.MOVES.levelClaim({ pxp: 500 }, { i: 3, day: D20, levels: GROAD, artIds: ALL, random: seq(0.99, 0.1, 0.1, 0.5) });
+assert.strictEqual(m.result.chest.group, 'pet');
+assert.strictEqual(m.result.chest.size, 'rare');
+assert.strictEqual(S.prizeGroup({ k: 'chest', t: 'rare', g: 'nope' }, D20), S.lineup(D20)[0]);
+assert.strictEqual(S.prizeGroup({ k: 'chest', t: 'rare' }, D20), S.lineup(D20)[0]);
+assert.strictEqual(S.prizeGroup({ k: 'chest', t: 'rare', g: 'pet' }, D20, ['pet']), S.lineup(D20, ['pet'])[0]);
 // gems (level 5)
 m = S.MOVES.levelClaim({ pxp: S.xpToReach(5), gems: 1 }, { i: 5, day: D20 });
 assert.strictEqual(m.set.gems, 1 + ROAD[4].n);

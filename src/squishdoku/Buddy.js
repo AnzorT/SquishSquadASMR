@@ -104,11 +104,11 @@ function Buddy({ creatureKey, uri, paused = false, size = 96, style }, ref) {
 
 const styles = StyleSheet.create({
   floor: { position: 'absolute', bottom: 2, borderRadius: 999, backgroundColor: 'rgba(69,16,122,0.2)' },
-  bubble: { position: 'absolute', alignSelf: 'center', backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 2.5, borderColor: '#45189a', paddingHorizontal: 10, paddingVertical: 3, minWidth: 54, alignItems: 'center' },
+  bubble: { position: 'absolute', alignSelf: 'center', backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 2.5, borderColor: '#6b4426', paddingHorizontal: 10, paddingVertical: 3, minWidth: 54, alignItems: 'center' },
   bubbleBad: { borderColor: '#e01e4a', backgroundColor: '#fff0f3' },
-  bubbleText: { fontFamily: F.display, fontSize: 13, color: '#45189a', includeFontPadding: false },
+  bubbleText: { fontFamily: F.display, fontSize: 13, color: '#6b4426', includeFontPadding: false },
   bubbleTextBad: { color: '#e01e4a' },
-  tail: { position: 'absolute', bottom: -7, width: 12, height: 12, backgroundColor: '#ffffff', borderRightWidth: 2.5, borderBottomWidth: 2.5, borderColor: '#45189a', transform: [{ rotate: '45deg' }] },
+  tail: { position: 'absolute', bottom: -7, width: 12, height: 12, backgroundColor: '#ffffff', borderRightWidth: 2.5, borderBottomWidth: 2.5, borderColor: '#6b4426', transform: [{ rotate: '45deg' }] },
   tailBad: { backgroundColor: '#fff0f3', borderColor: '#e01e4a' },
 });
 

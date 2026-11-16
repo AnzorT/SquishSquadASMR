@@ -4,8 +4,9 @@ import CUSHIONS from './cushions';
 // Squishdoku's look: the candy app's fonts and rings, and the patch colours.
 export { F };
 
-export const INK = '#45107a'; // the app's deep plum
-export const RING = '#45189a';
+// (REDESIGN_V8: the wood look's browns, were plum and purple)
+export const INK = '#5b3418';
+export const RING = '#6b4426';
 
 // The nine patch colours, as plush cushions (cushions.js, made by
 // tools/squishdoku/cushions.mjs): { name, shade: [edge, body, light], src }.
@@ -18,7 +19,7 @@ export const RING = '#45189a';
 export const PATCHES = CUSHIONS;
 
 export const MODE_COLORS = {
-  regular: { ring: '#8e1580', colors: ['#ffd6f4', '#ff5cc6', '#c02bd9'] },
+  regular: { ring: '#8a3a0e', colors: ['#ffe9d6', '#ffb072', '#f07a2a'] },
   blitz: { ring: '#0c5a9c', colors: ['#b0fbff', '#3fd7f6', '#1695d6'] },
 };
 

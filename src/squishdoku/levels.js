@@ -126,25 +126,41 @@ export function xpFor(spec, { stars, perfect }) {
 }
 
 // --- Blitz -----------------------------------------------------------------------
+// BLITZ MODE (2026-11-16, the user): no more ten boards on one clock. A run goes on board after board, each on its own
+// really short clock, until a mistake (or the clock running out) ends it: GAME OVER, unless the player saves it — with
+// a rewarded ad (once a run) or with gems (functions/squad.js blitzSave: 10, then 20, 40 …). The hub's HEAD START switch
+// doesn't apply here; instead every board starts with 1 creature placed, at no cost (the user, 2026-11-16: Blitz was
+// a little too hard; BlitzGame.js). The record is the most boards cleared in one run (`sdk.blitz.top`).
 
-export const BLITZ_SIZES = [4, 5, 5, 6, 6, 6, 6, 7, 7, 7];
-const BLITZ_TIERS = [0, 0, 0, 0, 0, 1, 1, 0, 1, 1];
-export const BLITZ_MS = 10 * 60 * 1000;
-export const BLITZ_COINS = 1500;
-// a won run's XP: config/levels `xp.blitz.squishdoku` (this by default)
-export const BLITZ_XP = 400;
+// the sizes the run climbs through: 4×4 twice, 5×5 three times, 6×6 four, 7×7 five, then 8×8 for good
+const BLITZ_RAMP = [4, 4, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 7];
+// a board's clock, in seconds, by size: well under Regular's 3-creature times (TIMES' A) for boards this easy
+export const BLITZ_SECS = { 4: 12, 5: 20, 6: 30, 7: 42, 8: 56 };
+// coins for each board cleared, by size (twice Regular's base, BASE_COINS)
+export const BLITZ_COINS = { 4: 30, 5: 50, 6: 70, 7: 100, 8: 130 };
 
+// Board `i` of a run (0 = the first): { lv, n, tier, ms }. Past the climb the boards get harder (tier 1, then 2 from
+// board 21) and each clock is 3% shorter than the last, down to three quarters.
 export function blitzSpec(i, skill = 0) {
-  const tier = Math.max(0, Math.min(2, BLITZ_TIERS[i] + skillShift(skill)));
-  return { lv: i + 1, n: BLITZ_SIZES[i], tier };
+  const n = i < BLITZ_RAMP.length ? BLITZ_RAMP[i] : 8;
+  const past = Math.max(0, i - BLITZ_RAMP.length + 1);
+  const base = i < 5 ? 0 : i < BLITZ_RAMP.length ? i % 2 : past >= 7 ? 2 : 1;
+  const tier = Math.max(0, Math.min(2, base + skillShift(skill)));
+  const ms = Math.round(BLITZ_SECS[n] * Math.max(0.75, 1 - 0.03 * past)) * 1000;
+  return { lv: i + 1, n, tier, ms };
 }
 
-// A run's clock and prize, with or without HEAD START.
-export const blitzMs = (head) => Math.round(BLITZ_MS * (head ? HEAD_START.time : 1));
-export const blitzPrize = (head) => ({
-  coins: Math.round(BLITZ_COINS * (head ? HEAD_START.reward : 1)),
-  xp: Math.round(xpRules().blitz.squishdoku * (head ? HEAD_START.reward : 1)),
-});
+// A gem save's price: 10, then twice the last each time in the same run, up to 320 (functions/squad.js blitzSaveGems,
+// which charges it). `i`: the gem saves the run has had.
+export const blitzSaveGems = (i) => 10 * 2 ** Math.max(0, Math.min(5, Math.floor(Number(i) || 0)));
+
+// What `cleared` boards pay: their coins, and the player's XP (config/levels `xp.blitz.squishdoku` is the XP for ten
+// boards: 40 a board by default).
+export function blitzPrize(cleared, skill = 0) {
+  let coins = 0;
+  for (let i = 0; i < cleared; i++) coins += BLITZ_COINS[blitzSpec(i, skill).n];
+  return { coins, xp: Math.round((xpRules().blitz.squishdoku / 10) * cleared) };
+}
 
 // --- the profile's record -------------------------------------------------------
 
@@ -156,7 +172,9 @@ export function record(profile) {
     perfect: s.perfect || {},
     skill: s.skill || 0,
     bSkill: s.bSkill || 0,
-    blitz: { reached: 0, bestMs: 0, wins: 0, ...(s.blitz || {}) },
+    // top: the most boards cleared in one run (the endless Blitz, 2026-11-16; `reached` / `bestMs` / `wins` were the
+    // ten-board runs')
+    blitz: { top: 0, runs: 0, reached: 0, bestMs: 0, wins: 0, ...(s.blitz || {}) },
     plays: s.plays || 0,
     solves: s.solves || 0,
     head: !!s.head,
@@ -183,19 +201,21 @@ export function afterLevel(profile, spec, result) {
   return { update, coins, levelCoins: coins, xp, levelUps, unlocked, before, after };
 }
 
-// The fields to write after a Blitz run ends (won or not).
-export function afterBlitz(profile, { won, reached, ms, head = false }) {
+// The fields to write when a Blitz run is over (`cleared`: the boards it cleared), and what it paid. The skill moves up
+// after a run of 10 or more, down after one of under 5.
+export function afterBlitz(profile, { cleared }) {
   const rec = record(profile);
   const update = {
-    'sdk.bSkill': clampSkill(rec.bSkill + (won ? 0.4 : reached >= 6 ? 0 : -0.3)),
-    'sdk.blitz.reached': Math.max(rec.blitz.reached, reached),
+    'sdk.bSkill': clampSkill(rec.bSkill + (cleared >= 10 ? 0.4 : cleared < 5 ? -0.3 : 0)),
+    'sdk.blitz.runs': (rec.blitz.runs || 0) + 1,
   };
-  if (!won) return { update, coins: 0, xp: 0, levelUps: [] };
-  update['sdk.blitz.wins'] = rec.blitz.wins + 1;
-  if (!rec.blitz.bestMs || ms < rec.blitz.bestMs) update['sdk.blitz.bestMs'] = ms;
-  const prize = blitzPrize(head);
+  const newTop = cleared > rec.blitz.top;
+  if (newTop) update['sdk.blitz.top'] = cleared;
+  if (!cleared) return { update, coins: 0, xp: 0, levelUps: [], newTop: false };
+  // the skill the run's boards were dealt at (blitzSpec), so the coins match what was played
+  const prize = blitzPrize(cleared, rec.bSkill);
   const { before, after, levelUps } = addXp(profile, prize.xp);
-  return { update, coins: prize.coins, xp: prize.xp, levelUps, before, after };
+  return { update, coins: prize.coins, xp: prize.xp, levelUps, before, after, newTop };
 }
 
 // 1:05 / 0:09

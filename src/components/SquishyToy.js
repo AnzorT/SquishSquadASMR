@@ -180,8 +180,6 @@ function buildCreature(id, visual) {
   shadowMesh.scale.set(1.25, 0.5, 1);
   shadowMesh.position.set(0, -1.3, -0.3);
   shadowMesh.rotation.x = -Math.PI / 2.5;
-  // the design's card casts no floor shadow
-  if (card) shadowMesh.visible = false;
 
   const s = {
     group,

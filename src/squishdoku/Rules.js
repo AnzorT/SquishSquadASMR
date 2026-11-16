@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import OutlinedTitle from '../components/candy/OutlinedTitle';
 import { makePuzzle } from './engine';
-import { Overlay } from './Overlays';
+import { Overlay, Split } from './Overlays';
+import { useWide } from '../royal/GameFrame';
 import { PopIn, SlideIn } from './fx';
 import { BtnLabel, SdButton, XGlyph } from './ui';
 import Tile from './Tile';
@@ -39,39 +40,65 @@ const RULES = [
   ['3', "Creatures can't TOUCH, not even corner to corner."],
   ['✕', 'Tap to place. Rule cells out with ✕ (MARK, or long-press). A wrong tap is a mistake. From level 46 you have 3 hearts: the third mistake and you try the board again.'],
   ['★', 'No ✕ and no mistakes = PERFECT: all 3 creatures and triple coins. Otherwise beat the clock to keep them.'],
-  ['⚡', 'BLITZ: 10 boards, one clock, no ✕. One mistake sends you back to board 1, with one revive per run.'],
+  ['⚡', 'BLITZ: board after board, each on a short clock, with 1 creature placed for you and no ✕. A mistake or the clock running out ends the run.'],
 ];
 
 export default function RulesCard({ visible, roster, onClose }) {
+  const wide = useWide();
+  const title = (
+    <PopIn key="title" trigger={visible} delay={40}>
+      <OutlinedTitle text="HOW TO PLAY" size={26} fill="pink" />
+    </PopIn>
+  );
+  const board = (
+    <PopIn key="board" trigger={visible} delay={140}>
+      <MiniBoard roster={roster} size={wide ? 150 : 130} />
+    </PopIn>
+  );
+  const rules = RULES.map(([k, text], i) => (
+    <SlideIn key={k} trigger={visible} delay={200 + i * 70} dy={14} style={styles.rule}>
+      <View style={styles.ruleBadge}>{k === '✕' ? <XGlyph size={11} color="#ffffff" /> : <Text style={styles.ruleKey}>{k}</Text>}</View>
+      <Text style={[styles.ruleText, wide && styles.ruleTextWide]}>{text}</Text>
+    </SlideIn>
+  ));
+  const ok = (
+    <SdButton key="ok" kind="green" onPress={onClose} sound="sd_select" faceStyle={{ paddingHorizontal: 30, paddingVertical: wide ? 9 : 11 }} style={{ marginTop: 4 }}>
+      <BtnLabel kind="green" size={18}>
+        GOT IT!
+      </BtnLabel>
+    </SdButton>
+  );
+  // landscape: the title, the little board and GOT IT! on the left, the rules on the right
+  if (wide) {
+    return (
+      <Overlay visible={visible}>
+        {title}
+        {board}
+        {ok}
+        <Split />
+        <ScrollView style={{ maxHeight: 340, alignSelf: 'stretch' }} contentContainerStyle={{ alignItems: 'center', gap: 6 }} showsVerticalScrollIndicator={false}>
+          {rules}
+        </ScrollView>
+      </Overlay>
+    );
+  }
   return (
     <Overlay visible={visible}>
       <ScrollView style={{ maxHeight: 560, alignSelf: 'stretch' }} contentContainerStyle={{ alignItems: 'center', gap: 8 }} showsVerticalScrollIndicator={false}>
-        <PopIn trigger={visible} delay={40}>
-          <OutlinedTitle text="HOW TO PLAY" size={26} fill="pink" />
-        </PopIn>
-        <PopIn trigger={visible} delay={140}>
-          <MiniBoard roster={roster} />
-        </PopIn>
-        {RULES.map(([k, text], i) => (
-          <SlideIn key={k} trigger={visible} delay={200 + i * 70} dy={14} style={styles.rule}>
-            <View style={styles.ruleBadge}>{k === '✕' ? <XGlyph size={11} color="#ffffff" /> : <Text style={styles.ruleKey}>{k}</Text>}</View>
-            <Text style={styles.ruleText}>{text}</Text>
-          </SlideIn>
-        ))}
-        <SdButton kind="green" onPress={onClose} sound="sd_select" faceStyle={{ paddingHorizontal: 30, paddingVertical: 11 }} style={{ marginTop: 4 }}>
-          <BtnLabel kind="green" size={18}>
-            GOT IT!
-          </BtnLabel>
-        </SdButton>
+        {title}
+        {board}
+        {rules}
+        {ok}
       </ScrollView>
     </Overlay>
   );
 }
 
 const styles = StyleSheet.create({
-  mini: { borderRadius: 12, backgroundColor: '#e9dcf7', borderWidth: 2.5, borderColor: '#45189a', overflow: 'hidden' },
+  mini: { borderRadius: 12, backgroundColor: '#f3e6d4', borderWidth: 2.5, borderColor: '#6b4426', overflow: 'hidden' },
   rule: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, alignSelf: 'stretch', paddingHorizontal: 4 },
-  ruleBadge: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#ff5cc6', borderWidth: 2, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  ruleBadge: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#ff8a3d', borderWidth: 2, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   ruleKey: { fontFamily: F.display, fontSize: 12, color: '#ffffff', includeFontPadding: false },
   ruleText: { flex: 1, fontFamily: F.heavy, fontSize: 13, color: INK, lineHeight: 18 },
+  ruleTextWide: { fontSize: 12, lineHeight: 16 },
 });

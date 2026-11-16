@@ -8,13 +8,14 @@ import { fmtNum } from './format';
 // The shell's wheel (2026-10-08): coins and gems; `color` is the
 // slice's (the design's WCOL).
 export const WHEEL = [
-  { kind: 'coins', amount: 100, color: '#ff4fbf' },
-  { kind: 'gems', amount: 5, color: '#9d4dff' },
-  { kind: 'coins', amount: 250, color: '#ff4fbf' },
-  { kind: 'coins', amount: 150, color: '#9d4dff' },
-  { kind: 'coins', amount: 50, color: '#ff4fbf' },
+  // (REDESIGN_V8: orange and wood brown instead of pink and purple)
+  { kind: 'coins', amount: 100, color: '#ff8a3d' },
+  { kind: 'gems', amount: 5, color: '#c0702e' },
+  { kind: 'coins', amount: 250, color: '#ff8a3d' },
+  { kind: 'coins', amount: 150, color: '#c0702e' },
+  { kind: 'coins', amount: 50, color: '#ff8a3d' },
   { kind: 'gems', amount: 15, color: '#2fc8f0' },
-  { kind: 'coins', amount: 500, color: '#ff4fbf' },
+  { kind: 'coins', amount: 500, color: '#ff8a3d' },
   { kind: 'gems', amount: 50, color: '#ffb81f' },
 ];
 export const SLICE = 360 / WHEEL.length;

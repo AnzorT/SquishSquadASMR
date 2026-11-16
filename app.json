@@ -7,7 +7,7 @@
     "orientation": "landscape",
     "userInterfaceStyle": "light",
     "splash": {
-      "backgroundColor": "#1A1326"
+      "backgroundColor": "#2A1608"
     },
     "assetBundlePatterns": [
       "**/*"

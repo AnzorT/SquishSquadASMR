@@ -4,7 +4,7 @@ import Svg, { Defs, LinearGradient, Stop, Rect, Pattern, Circle } from 'react-na
 
 // The background of the app shell's intro screens (log in / register and the
 // daily spin) in "Squish Squad App.html": blue at the top through pale blue
-// and lavender to pink, under white dots every 26px. One static SVG, memoized
+// to a warm cream and peach (REDESIGN_V8: was lavender to pink), under white dots every 26px. One static SVG, memoized
 // and kept as a hardware layer, as SkyBackground.
 
 const Intro = memo(function Intro({ width: w, height: h }) {
@@ -14,8 +14,8 @@ const Intro = memo(function Intro({ width: w, height: h }) {
         <LinearGradient id="introBg" x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor="#8fd0ff" />
           <Stop offset="0.38" stopColor="#b9e2ff" />
-          <Stop offset="0.68" stopColor="#e6dcff" />
-          <Stop offset="1" stopColor="#ffd6f4" />
+          <Stop offset="0.68" stopColor="#fff1d6" />
+          <Stop offset="1" stopColor="#ffd9a8" />
         </LinearGradient>
         <Pattern id="introDots" width={26} height={26} patternUnits="userSpaceOnUse">
           <Circle cx={1} cy={1} r={1.3} fill="rgba(255,255,255,0.8)" />

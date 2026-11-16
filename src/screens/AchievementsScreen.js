@@ -18,7 +18,7 @@ import { Bone, Reveal, useProgressive } from '../components/Skeleton';
 import { useScreenReady } from '../components/ScreenLayer';
 import sfx from '../audio/sfx';
 import { fmtNum } from '../format';
-import { Lettering, Orb, PageBg, Plaque, Stage, FONT as RFONT } from '../royal';
+import { Lettering, Orb, Stage, WoodBg, FONT as RFONT } from '../royal';
 
 // Achievements, as the v3 design's carousel: one big badge at a time under
 // spinning rays and a pulsing halo, neighbours fanned out smaller to either
@@ -40,6 +40,9 @@ const xOf = (d) => (d === 0 ? 0 : Math.sign(d) * (112 + (Math.abs(d) - 1) * 80))
 const yOf = (d) => (d === 0 ? -14 : 24 + (Math.abs(d) - 1) * 8);
 const scaleOf = (d) => (d === 0 ? 1 : Math.max(0.5, 0.76 - (Math.abs(d) - 1) * 0.1));
 const opacityOf = (d) => (Math.abs(d) > 3 ? 0 : d === 0 ? 1 : 0.9 - (Math.abs(d) - 1) * 0.18);
+// landscape (REDESIGN_V8, the user): the carousel spans the screen's width, so its badges spread wider
+const xOfWide = (d) => (d === 0 ? 0 : Math.sign(d) * (150 + (Math.abs(d) - 1) * 118));
+const yOfWide = (d) => (d === 0 ? -6 : 16 + (Math.abs(d) - 1) * 6);
 
 // transform: 0.5s cubic-bezier(0.3,1.3,0.5,1) (a little overshoot);
 // opacity: 0.35s ease — as the design's two transitions.
@@ -50,6 +53,8 @@ const FADE = { duration: 350, easing: Easing.bezier(0.25, 0.1, 0.25, 1) };
 // arrays: [offset, color, opacity].
 const DONE_STOPS = [[0, '#fffbe0', 1], [0.3, '#ffe45c', 1], [0.62, '#ffc21a', 1], [1, '#e08a00', 1]];
 const LOCKED_STOPS = [[0, '#ffffff', 0.55], [0.45, '#e6b4ff', 0.4], [1, '#823cd2', 0.55]];
+// (landscape, REDESIGN_V8: warm, no purple)
+const LOCKED_STOPS_WOOD = [[0, '#ffffff', 0.6], [0.45, '#ffdcae', 0.5], [1, '#b8763a', 0.6]];
 
 // the curves' key points: d = -5 … 5 (they don't depend on WINDOW)
 const OFFSETS = Array.from({ length: 11 }, (_, k) => k - 5);
@@ -64,14 +69,14 @@ function curve(pos, index, fn) {
 // re-rendering it every 3 s); with every mounted badge cycling on its own
 // clock, the screen re-rendered a creature about every 270 ms and taps
 // (the back button too) waited behind those renders.
-const Badge = memo(function Badge({ entry, index, move, fade, z, live, onSelect }) {
+const Badge = memo(function Badge({ entry, index, move, fade, z, live, onSelect, wide }) {
   const done = entry.done;
-  const ring = done ? '#a0520a' : candyColors.outline;
+  const ring = done ? '#a0520a' : wide ? '#6b4426' : candyColors.outline;
   const label = String(entry.badgeLabel ?? '');
   const anim = useMemo(
     () => ({
-      translateX: curve(move, index, xOf),
-      translateY: curve(move, index, yOf),
+      translateX: curve(move, index, wide ? xOfWide : xOf),
+      translateY: curve(move, index, wide ? yOfWide : yOf),
       scale: curve(move, index, scaleOf),
       opacity: curve(fade, index, opacityOf),
       // centre only: the gold glow (box-shadow 0 0 34/16px) — side badges get
@@ -79,7 +84,7 @@ const Badge = memo(function Badge({ entry, index, move, fade, z, live, onSelect 
       glow: curve(fade, index, (d) => (d === 0 ? 1 : 0)),
       dim: curve(fade, index, (d) => (d === 0 ? 0 : 0.08)),
     }),
-    [move, fade, index]
+    [move, fade, index, wide]
   );
   const glowR = BADGE / 2 + (done ? 34 : 16);
 
@@ -113,7 +118,7 @@ const Badge = memo(function Badge({ entry, index, move, fade, z, live, onSelect 
             <Svg width={BADGE - 10} height={BADGE - 10} style={StyleSheet.absoluteFill}>
               <Defs>
                 <RadialGradient id="badgeFill" cx="35%" cy={done ? '28%' : '25%'} r={done ? '97%' : '99%'}>
-                  {(done ? DONE_STOPS : LOCKED_STOPS).map(([o, c, a]) => (
+                  {(done ? DONE_STOPS : wide ? LOCKED_STOPS_WOOD : LOCKED_STOPS).map(([o, c, a]) => (
                     <Stop key={o} offset={o} stopColor={c} stopOpacity={a} />
                   ))}
                 </RadialGradient>
@@ -146,8 +151,8 @@ const Badge = memo(function Badge({ entry, index, move, fade, z, live, onSelect 
             </LinearGradient>
           </View>
         ) : !entry.creature ? (
-          <View style={[styles.corner, styles.cornerLockRing]}>
-            <View style={[styles.cornerFace, styles.cornerLockFace]}>
+          <View style={[styles.corner, styles.cornerLockRing, wide && { backgroundColor: '#6b4426' }]}>
+            <View style={[styles.cornerFace, styles.cornerLockFace, wide && { backgroundColor: '#c98d52' }]}>
               <View style={styles.miniShackle} />
               <View style={styles.miniBody} />
             </View>
@@ -180,7 +185,7 @@ function Halo() {
           <RadialGradient id="halo" cx="50%" cy="50%" r="50%">
             <Stop offset="0" stopColor="#ffffff" stopOpacity={0.9} />
             <Stop offset="0.3" stopColor="#ffe6a0" stopOpacity={0.55} />
-            <Stop offset="0.5" stopColor="#ff78dc" stopOpacity={0.3} />
+            <Stop offset="0.5" stopColor="#ffa64a" stopOpacity={0.3} />
             <Stop offset="0.7" stopColor="#ffffff" stopOpacity={0} />
           </RadialGradient>
         </Defs>
@@ -232,6 +237,38 @@ function Details({ entry, index, total }) {
         {done ? '★ UNLOCKED' : 'LOCKED'}
       </ShadowText>
       {prog ? null : bar}
+    </Animated.View>
+  );
+}
+
+// landscape (REDESIGN_V8, the user: "the texts below"): the current badge's details in one wide bar under the
+// carousel. REDESIGN_V9 (the user): the title in the middle, how to unlock it below; no LOCKED / UNLOCKED. Its
+// progress, when it counts something, sits under the text. Its "N OF M" is not in here: it stays still at the
+// bottom centre while these fade in (the user, 2026-11-16).
+function WideDetails({ entry, index }) {
+  const t = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    t.setValue(0);
+    Animated.timing(t, { toValue: 1, duration: 320, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+  }, [t, index]);
+  const opacity = t;
+  const translateY = t.interpolate({ inputRange: [0, 1], outputRange: [10, 0] });
+  const done = entry.done;
+  const prog = entry.progress;
+  return (
+    <Animated.View style={[styles.wDet, { opacity, transform: [{ translateY }] }]}>
+      <Lettering text={entry.title} variant={done ? 'gold' : 'white'} size={22} />
+      <Text style={styles.wDesc} numberOfLines={1}>
+        {entry.desc}
+      </Text>
+      {prog && !done ? (
+        <View style={styles.wProg}>
+          <View style={[styles.wBar, styles.wBarSmall]}>
+            <LinearGradient colors={['#fff1b0', '#ffd24a', '#f0a21c']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={[styles.wBarFill, { width: `${Math.max(3, Math.min(100, (prog.cur / prog.max) * 100))}%` }]} />
+          </View>
+          <Text style={styles.wProgT}>{`${fmtNum(prog.cur)} / ${fmtNum(prog.max)}`}</Text>
+        </View>
+      ) : null}
     </Animated.View>
   );
 }
@@ -290,6 +327,8 @@ function AchievementsScreen({ creatures = [], profile = null, customCount = 0, o
     []
   );
 
+  const { width: winW, height: winH } = useWindowDimensions();
+  const wide = winW > winH;
   const current = entries[index] || entries[0];
   // the badge in view first, then one more each side a frame: all seven at
   // once (each with its SVG glow) were one 0.15 s frame as the screen's
@@ -299,38 +338,41 @@ function AchievementsScreen({ creatures = [], profile = null, customCount = 0, o
   const hi = Math.min(entries.length - 1, span[1] + win);
   const badges = [];
   for (let i = lo; i <= hi; i++) {
-    badges.push(<Badge key={entries[i].key} entry={entries[i]} index={i} move={move} fade={fade} z={50 - Math.abs(i - index)} live={i === index} onSelect={select} />);
+    badges.push(<Badge key={entries[i].key} entry={entries[i]} index={i} move={move} fade={fade} z={50 - Math.abs(i - index)} live={i === index} onSelect={select} wide={wide} />);
   }
 
-  // landscape, the new look (REDESIGN_V7 step 3): the badge carousel on the left, its details on the right
-  const wide = useWindowDimensions().width > useWindowDimensions().height;
+  // landscape (REDESIGN_V8, the user's remodel): the carousel across the whole width in the middle, the details in
+  // one bar below it; the wood look
   if (wide)
     return (
       <View style={styles.wRoot}>
-        <PageBg />
+        <WoodBg />
         <Stage>
           <View style={styles.wHead}>
             <Orb icon="back" onPress={onBack} />
             <Lettering text="Achievements" variant="gold" size={30} />
             <View style={styles.wTotal}>
-              <CandyProgress pct={(doneCount / Math.max(1, entries.length)) * 100} height={12} />
+              <View style={styles.wBar}>
+                <LinearGradient colors={['#fff1b0', '#ffd24a', '#f0a21c']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={[styles.wBarFill, { width: `${Math.max(3, (doneCount / Math.max(1, entries.length)) * 100)}%` }]} />
+              </View>
             </View>
             <Text style={styles.wCount}>{`${doneCount} / ${entries.length}`}</Text>
           </View>
           <View style={styles.wStage} {...pan.panHandlers}>
             <View style={styles.center} pointerEvents="none">
-              <RaysSpin size={330} durationMs={12000} rayDeg={9} gapDeg={13} opacity={0.4} fadeStart={0.14} fadeEnd={0.62} />
+              <RaysSpin size={360} durationMs={12000} rayDeg={9} gapDeg={13} opacity={0.4} fadeStart={0.14} fadeEnd={0.62} />
               <Halo />
             </View>
             <View style={styles.center}>{ready ? badges : null}</View>
-            <Orb icon="left" onPress={() => go(index - 1)} style={[styles.wArrow, { left: 8, opacity: index === 0 ? 0.4 : 1 }]} />
-            <Orb icon="right" onPress={() => go(index + 1)} style={[styles.wArrow, { right: 8, opacity: index === entries.length - 1 ? 0.4 : 1 }]} />
+            <Orb icon="left" onPress={() => go(index - 1)} style={[styles.wArrow, { left: 16, opacity: index === 0 ? 0.4 : 1 }]} />
+            <Orb icon="right" onPress={() => go(index + 1)} style={[styles.wArrow, { right: 16, opacity: index === entries.length - 1 ? 0.4 : 1 }]} />
           </View>
           {current ? (
-            <Plaque variant="vel" radius={22} rim={3.5} ring={2} lip={4} style={styles.wPanel}>
-              <Details key={current.key} entry={current} index={index} total={entries.length} />
-            </Plaque>
+            <View style={styles.wPanel}>
+              <WideDetails key={current.key} entry={current} index={index} />
+            </View>
           ) : null}
+          {current ? <Text style={styles.wPos}>{`${index + 1} OF ${entries.length}`}</Text> : null}
         </Stage>
       </View>
     );
@@ -410,13 +452,25 @@ const SLOT = BADGE + RING * 2;
 
 const styles = StyleSheet.create({
   // landscape (REDESIGN_V7), in the design's 393-tall units
-  wRoot: { ...StyleSheet.absoluteFillObject, backgroundColor: '#24123f' },
+  // (REDESIGN_V8: the carousel the page's full width in the middle, the details in a bar along the bottom)
+  wRoot: { ...StyleSheet.absoluteFillObject, backgroundColor: '#d27c3e' },
   wHead: { position: 'absolute', left: 16, right: 16, top: 12, height: 46, flexDirection: 'row', alignItems: 'center', gap: 12 },
   wTotal: { flex: 1, marginLeft: 12, maxWidth: 300 },
-  wCount: { fontFamily: RFONT.bodyBlack, fontSize: 15, color: '#ffe27a', textShadowColor: '#3d1268', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 0.1 },
-  wStage: { position: 'absolute', left: 16, width: 470, top: 66, bottom: 10, overflow: 'hidden' },
-  wArrow: { position: 'absolute', top: '46%', marginTop: -20, zIndex: 60 },
-  wPanel: { position: 'absolute', right: 24, top: 82, bottom: 24, left: 506, paddingHorizontal: 16, justifyContent: 'center' },
+  wBar: { height: 12, borderRadius: 6, backgroundColor: 'rgba(107,68,38,0.45)', borderWidth: 1.5, borderColor: '#6b4426', overflow: 'hidden' },
+  wBarFill: { height: '100%', borderRadius: 5 },
+  wCount: { fontFamily: RFONT.bodyBlack, fontSize: 15, color: '#fff6e2', textShadowColor: '#6b4426', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 0.1 },
+  wStage: { position: 'absolute', left: 0, right: 0, top: 60, bottom: 100, overflow: 'hidden' },
+  wArrow: { position: 'absolute', top: '50%', marginTop: -20, zIndex: 60 },
+  // the details between the carousel (bottom 100) and the "N OF M" line under them
+  wPanel: { position: 'absolute', left: 24, right: 24, bottom: 24, height: 76, paddingHorizontal: 18, alignItems: 'stretch', justifyContent: 'center' },
+  wDet: { alignItems: 'center', justifyContent: 'center', gap: 1 },
+  // no card behind the details (the user, 2026-11-16): the text sits straight on the wood, so every line gets
+  // the brown drop the description has
+  wPos: { position: 'absolute', left: 0, right: 0, bottom: 7, textAlign: 'center', fontFamily: RFONT.bodyBlack, fontSize: 12, letterSpacing: 1.2, color: '#fff6e2', textShadowColor: '#6b4426', textShadowOffset: { width: 0, height: 1.5 }, textShadowRadius: 0.1 },
+  wDesc: { alignSelf: 'stretch', textAlign: 'center', fontFamily: RFONT.bodyHeavy, fontSize: 14, lineHeight: 19, color: '#ffffff', textShadowColor: '#6b4426', textShadowOffset: { width: 0, height: 1.5 }, textShadowRadius: 0.1 },
+  wProg: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
+  wBarSmall: { width: 170, height: 10 },
+  wProgT: { fontFamily: RFONT.bodyBlack, fontSize: 11, color: '#fff6e2', textAlign: 'center', textShadowColor: '#6b4426', textShadowOffset: { width: 0, height: 1.5 }, textShadowRadius: 0.1 },
   fill: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   count: {

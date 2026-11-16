@@ -120,6 +120,61 @@ export const PATCHES = [
     find: "if (page && page.contains(mid)) openGames(); }, 0);",
     replace: "if (page && page.contains(mid)) openGames(opts._yard ? 'yard' : undefined); }, 0);",
   },
+  // ---- REDESIGN_V8 (2026-11-14): the wood look; the lettering's purple outline and lavender white turn brown and cream ----
+  {
+    file: 'main-menu.js',
+    why: 'the gold lettering\'s outline is the wood\'s brown, not purple (REDESIGN_V8)',
+    find: "    gold: { f: ['#fffbe6', '#ffe57e', '#ffbe2e', '#f08c10'], o: '#3d1268', w: 1 },",
+    replace: "    gold: { f: ['#fffbe6', '#ffe57e', '#ffbe2e', '#f08c10'], o: '#6b4426', w: 1 },",
+  },
+  {
+    file: 'main-menu.js',
+    why: 'the white lettering: cream to warm, with a brown outline (was lavender and purple)',
+    find: "    white: { f: ['#ffffff', '#ffffff', '#f6eeff', '#e4d4ff'], o: '#3d1268' },",
+    replace: "    white: { f: ['#ffffff', '#ffffff', '#fff6e2', '#ffe6b8'], o: '#6b4426' },",
+  },
+  {
+    file: 'main-menu.js',
+    why: 'the gold tab\'s icon in the wood\'s brown (was purple)',
+    find: "ic(d, cls === 'v-gold' ? '#3d1268' : '#fff', 2.5)",
+    replace: "ic(d, cls === 'v-gold' ? '#6b4426' : '#fff6e2', 2.5)",
+  },
+  {
+    file: 'main-menu.js',
+    why: 'no SQUAD logo in the top bar (REDESIGN_V8): MY HOUSE / CHARACTERS / SHOP move to the left',
+    find: "hud.innerHTML = '<div class=\"mm-top\">' + ft('SQUAD', 'gold', 30, 'mm-logo') + '<div class=\"mm-tabs\">'",
+    replace: "hud.innerHTML = '<div class=\"mm-top\"><div class=\"mm-tabs\">'",
+  },
+  {
+    file: 'main-menu.js',
+    why: 'a trophy button next to the gear opens Achievements (REDESIGN_V8: taken out of Settings)',
+    find: "+ '<button class=\"mm-orb\" data-act=\"settings\" aria-label=\"Settings\">' + ic(GEAR, '#fff', 2.2) + '</button></div>'",
+    replace: "+ (window.SquishMenu && window.SquishMenu.trophy ? '<button class=\"mm-orb sq-troph\" data-act=\"trophies\" aria-label=\"Achievements\">' + window.SquishMenu.trophy() + '</button>' : '') + '<button class=\"mm-orb\" data-act=\"settings\" aria-label=\"Settings\">' + ic(GEAR, '#fff', 2.2) + '</button></div>'",
+  },
+  {
+    file: 'main-menu.js',
+    why: 'the trophy button asks the app for its Achievements screen',
+    find: "        else if (a === 'settings') { if (opts.onSettings) opts.onSettings(); else toast('Settings open in the full app'); }",
+    replace: "        else if (a === 'settings') { if (opts.onSettings) opts.onSettings(); else toast('Settings open in the full app'); }\n        else if (a === 'trophies') { if (window.SquishApp && window.SquishApp.inApp) window.SquishApp.send('open', { what: 'achievements' }); else toast('Achievements open in the full app'); }",
+  },
+  {
+    file: 'Main Menu.dc.html',
+    why: 'the page under the menu while the house loads: warm dark brown, not dark purple (REDESIGN_V8)',
+    find: 'body { margin:0; background:#24123f; }',
+    replace: 'body { margin:0; background:#3a2210; }',
+  },
+  {
+    file: 'Main Menu.dc.html',
+    why: 'its glow: amber, not violet (REDESIGN_V8)',
+    find: 'background:radial-gradient(ellipse at 50% 0%, #4a2a7a 0%, #24123f 70%);',
+    replace: 'background:radial-gradient(ellipse at 50% 0%, #6b4426 0%, #3a2210 70%);',
+  },
+  {
+    file: 'Main Menu.dc.html',
+    why: '"Loading your house…" in cream, not lavender (REDESIGN_V8)',
+    find: "font:700 22px/1 'Fredoka',sans-serif; color:#e8dcff; }",
+    replace: "font:700 22px/1 'Fredoka',sans-serif; color:#ffe9c8; }",
+  },
   // ---- round 11 (2026-11-14, the user's requests): app/menu.js does the new parts; these hand it the menu's insides ----
   {
     file: 'main-menu.js',
@@ -136,6 +191,12 @@ export const PATCHES = [
     why: 'CREATURES is CHARACTERS (the user)',
     find: "tab('creatures', 'CREATURES', ",
     replace: "tab('creatures', 'CHARACTERS', ",
+  },
+  {
+    file: 'main-menu.js',
+    why: 'MY HOUSE is CRIBFLUF (the user, 2026-11-16)',
+    find: "tab('house', 'MY HOUSE', ",
+    replace: "tab('house', 'CRIBFLUF', ",
   },
   {
     file: 'main-menu.js',
@@ -185,6 +246,44 @@ export const PATCHES = [
     find: "        if (a === 'play') openGames();",
     replace: "        if (a === 'level') { if (window.SquishMenu) window.SquishMenu.levels(opts._x); else goHome('living'); }\n        else if (a === 'play') { if (!(window.SquishMenu && window.SquishMenu.play(opts._x))) openGames(); }",
   },
+  // ---- performance (2026-11-14): the scene is drawn still; the weather moves on its own layer (app/menu.js) ----
+  {
+    file: 'rive-rig.js',
+    why: 'every creature on its own layer: its frame-by-frame redraw no longer repaints the room / scene under it (opacity, not transform: a transform hint would freeze its sharpness when the house zooms)',
+    find: "const wrap = document.createElement('div'); wrap.style.cssText = 'position:relative;width:100%;height:100%;touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none;';",
+    replace: "const wrap = document.createElement('div'); wrap.style.cssText = 'position:relative;width:100%;height:100%;touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none;will-change:opacity;';",
+  },
+  {
+    file: 'rive-rig.js',
+    why: 'creatures: every other frame when the phone cannot keep 60 (app/perf.js), none at all while hidden (sqHold); a creature\'s house moves are built before its first frame (SquishLazy, app/perf.js)',
+    find: "function loop(now) { raf = ALL.size ? requestAnimationFrame(loop) : 0; const dt = clamp((now - (last || now - 16)) / 1000, 0.001, 1 / 20); last = now; ALL.forEach(I => { try { tick(I, now, dt); }",
+    replace: "function loop(now) { raf = ALL.size ? requestAnimationFrame(loop) : 0; if (window.SquishPerf && window.SquishPerf.skipRig()) return; const dt = clamp((now - (last || now - 16)) / 1000, 0.001, 1 / 20); last = now; ALL.forEach(I => { if (I.sqHold) return; if (I.key && window.SquishLazy) window.SquishLazy.need(I.key); try { tick(I, now, dt); }",
+  },
+  // ---- memory (2026-11-14): every creature's house moves were built at page load (~230 MB); now on demand ----
+  {
+    file: 'house-moves.js',
+    why: 'the house builders keep each creature\'s calls until it is drawn (SquishLazy in app/perf.js): only the creatures on screen get their moves built',
+    find: "  if (window.HouseCreatures) window.HouseCreatures.forEach(f => f(R.HOUSE));\n  window.HouseCreatures = { push: f => f(R.HOUSE) };",
+    replace: "  if (window.SquishLazy) window.SquishLazy.house(R.HOUSE);\n  if (window.HouseCreatures) window.HouseCreatures.forEach(f => f(R.HOUSE));\n  window.HouseCreatures = { push: f => f(R.HOUSE) };",
+  },
+  {
+    file: 'rive-rig.js',
+    why: 'a pose asked for by name and creature (thumbnails, _pose) builds that creature\'s house moves first',
+    find: "  function poseAt(name, t, key) {\n",
+    replace: "  function poseAt(name, t, key) {\n    if (key && window.SquishLazy) window.SquishLazy.need(key);\n",
+  },
+  {
+    file: 'main-menu.js',
+    why: 'the menu\'s picture without its animations (they repainted the whole full-screen SVG, blur filters included, every frame: ~30 fps on a weak phone)',
+    find: 'function draw() { st = Sc.state({ level: level(), season: season === \'auto\' ? null : season }); scene.innerHTML = Sc.svg(st);',
+    replace: 'function draw() { st = Sc.state({ level: level(), season: season === \'auto\' ? null : season }); scene.innerHTML = window.SquishMenu && window.SquishMenu.still ? window.SquishMenu.still(Sc.svg(st), st, scene) : Sc.svg(st);',
+  },
+  {
+    file: 'main-menu-scene.js',
+    why: 'rain, snow and birds: app/menu.js draws them on a layer the GPU slides (no repaint), so the scene leaves them out',
+    find: '  function weather(st) {\n',
+    replace: '  function weather(st) {\n    if (window.SquishMenu && window.SquishMenu.still) return \'\';\n',
+  },
   {
     file: 'main-menu-scene.js',
     why: 'no "Lv n · room" sign hanging on each locked part of the house (the user: not needed). The boards stay, so locked still shows.',
@@ -219,6 +318,39 @@ export const PATCHES = [
       return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 460" preserveAspectRatio="xMidYMax slice" width="100%" height="100%" style="display:block">' + pg + '</svg>';
     }
     let g = defs + sky(st) + ground(st);`,
+  },
+  // REDESIGN_V9 (2026-11-16, the user's zip): the trip home gets its loading screen, "Heading home" (app/menu.js
+  // headingHome): after the walk to the door, night falls on the house while the house loads underneath, then the
+  // camera flies in through the door as before. These three let the trip, the house and the loader meet.
+  {
+    file: 'main-menu.js',
+    why: 'the trip home: the house starts loading as the creature reaches the door, under the Heading home screen; the fly-in waits for it',
+    find: "      await tween(900, (e, t) => { world.style.transform = 'scale(' + (1 + 5.2 * e).toFixed(3) + ')'; veil.style.opacity = t > 0.45 ? Math.min(1, (t - 0.45) / 0.5).toFixed(3) : 0; }, easeIn);\n      veil.style.pointerEvents = 'auto'; inside = true; busy = false;\n      const r = frame.getBoundingClientRect();\n      if (opts.onHome) opts.onHome(room || 'living', r);",
+    replace: "      const HH = window.SquishMenu && window.SquishMenu.headingHome && opts.onHome ? window.SquishMenu.headingHome(frame, world, st) : null;\n      if (HH) { opts.onHome(room || 'living', frame.getBoundingClientRect()); if ((await HH.ready()) === 'cancel') { inside = true; busy = false; back(); return; } HH.zoom(); }\n      await tween(900, (e, t) => { world.style.transform = 'scale(' + (1 + 5.2 * e).toFixed(3) + ')'; veil.style.opacity = t > 0.45 ? Math.min(1, (t - 0.45) / 0.5).toFixed(3) : 0; }, easeIn);\n      veil.style.pointerEvents = 'auto'; inside = true; busy = false;\n      const r = frame.getBoundingClientRect();\n      if (HH) HH.end(); else if (opts.onHome) opts.onHome(room || 'living', r);",
+  },
+  {
+    file: 'Main Menu.dc.html',
+    why: 'the house is ready when it says so (its state.ready, after its first room is set up), not only when it has more than 12 pictures: a house with few things in it (11) always waited out the 12 s limit',
+    find: "const el = this._hs, ok = el && el.querySelectorAll('svg').length > 12;",
+    replace: "const el = this._hs, sh = window.__sh, ok = el && (el.querySelectorAll('svg').length > 12 || !!(sh && !sh.dead && sh.state && sh.state.ready));",
+  },
+  {
+    file: 'Main Menu.dc.html',
+    why: 'the house has drawn: with the Heading home screen up, it fades in once the camera has flown in through the door',
+    find: 'if (ok || Date.now() - t0 > 12000) { clearInterval(this._poll); setTimeout(() => this.setState({ hop: 1 }), ok ? 250 : 0); }',
+    replace: 'if (ok || Date.now() - t0 > 12000) { clearInterval(this._poll); const show = () => { if (this.state.house) this.setState({ hop: 1 }); }; if (window.SquishMenu && window.SquishMenu.houseDrawn) window.SquishMenu.houseDrawn(show); else setTimeout(show, ok ? 250 : 0); }',
+  },
+  {
+    file: 'Main Menu.dc.html',
+    why: 'back while the house is still loading: the Heading home screen gives up and the creature walks back out',
+    find: '  leaveHouse = () => { clearInterval(this._poll); this.setState({ hop: 0 });',
+    replace: '  leaveHouse = () => { clearInterval(this._poll); if (window.SquishMenu && window.SquishMenu.houseLeft) window.SquishMenu.houseLeft(); this.setState({ hop: 0 });',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: "the Dance Room's speakers play the room's own built-in beat, not the design's song (music/rubber-band-hustle.mp3, which the build no longer ships: the user kept only Velvet Map Study, 2026-11-16)",
+    find: "const want = !this.dead && this.state.cur === 'dance' && !!(this.jams && this.jams.size), MN = window.MovieNight;",
+    replace: 'const want = false, MN = window.MovieNight;',
   },
 ];
 

@@ -4,7 +4,7 @@ import OutlinedTitle from '../components/candy/OutlinedTitle';
 import { CoinIcon } from '../squad/ui';
 import sfx from '../audio/sfx';
 import { CountUp, PopIn, Rock, SlideIn } from '../squishdoku/fx';
-import { Overlay, XpGain, XpPlus } from '../squishdoku/Overlays';
+import { Overlay, Split, XpGain, XpPlus } from '../squishdoku/Overlays';
 import { BtnLabel, Head, SdButton } from '../squishdoku/ui';
 import { F, INK } from '../squishdoku/theme';
 import { Star } from '../sort/Cards';
@@ -45,6 +45,7 @@ export function ResultCard({ visible, res, spec, nextRoom, onNext, onReplay, onH
           <Star key={i} earned={i < res.stars} delay={380 + i * STEP} big={i === 1} />
         ))}
       </View>
+      <Split />
       <SlideIn trigger={key} delay={coinsAt - 150} dy={20} style={styles.rewardRow}>
         <CoinIcon size={26} />
         <CountUp value={res.coins} delay={coinsAt} ms={800} style={styles.coins} prefix="+" onTick={() => sfx.play('sd_coinTick')} />
@@ -56,7 +57,7 @@ export function ResultCard({ visible, res, spec, nextRoom, onNext, onReplay, onH
       </PopIn>
       <SlideIn trigger={key} delay={380 + 2 * STEP + 300} dy={30} style={styles.btnRow}>
         <SdButton kind="white" onPress={onHub} sound="sd_select" faceStyle={styles.smallFace}>
-          <BtnLabel kind="purple" size={15}>
+          <BtnLabel kind="white" size={15}>
             MENU
           </BtnLabel>
         </SdButton>
@@ -83,7 +84,7 @@ export function StuckCard({ visible, head, uri, shut, onUndo, onRetry }) {
   return (
     <Overlay visible={visible} tint="rgba(80,0,30,0.5)">
       <PopIn trigger={visible} delay={60}>
-        <OutlinedTitle text="STUCK!" size={32} fill="pink" />
+        <OutlinedTitle text="STUCK!" size={32} fill="gold" />
       </PopIn>
       <PopIn trigger={visible} delay={220}>
         <Rock deg={8} ms={1800}>
@@ -98,10 +99,11 @@ export function StuckCard({ visible, head, uri, shut, onUndo, onRetry }) {
           )}
         </Rock>
       </PopIn>
+      <Split />
       <Text style={styles.body}>{shut ? 'The ★ is shut until every friend is with you, and there is nowhere else to hop.' : 'There is nowhere left to hop.'}</Text>
       <SlideIn trigger={visible} delay={380} style={styles.btnRow}>
         <SdButton kind="white" onPress={onUndo} sound="sd_select" faceStyle={styles.smallFace}>
-          <BtnLabel kind="purple" size={15}>
+          <BtnLabel kind="white" size={15}>
             UNDO
           </BtnLabel>
         </SdButton>
@@ -118,7 +120,8 @@ export function StuckCard({ visible, head, uri, shut, onUndo, onRetry }) {
 export function PauseCard({ visible, onResume, onRestart, onQuit }) {
   return (
     <Overlay visible={visible}>
-      <OutlinedTitle text="PAUSED" size={30} fill="pink" />
+      <OutlinedTitle text="PAUSED" size={30} fill="gold" />
+      <Split />
       <View style={styles.col}>
         <SdButton kind="green" onPress={onResume} sound="sd_resume" faceStyle={styles.wideFace}>
           <BtnLabel kind="green" size={18}>
@@ -131,7 +134,7 @@ export function PauseCard({ visible, onResume, onRestart, onQuit }) {
           </BtnLabel>
         </SdButton>
         <SdButton kind="white" onPress={onQuit} sound="sd_boardOut" faceStyle={styles.wideFace}>
-          <BtnLabel kind="purple" size={16}>
+          <BtnLabel kind="white" size={16}>
             LEVELS
           </BtnLabel>
         </SdButton>
@@ -148,12 +151,13 @@ export function HintCard({ visible, adReady, adsFree, onWatch, onClose }) {
       <OutlinedTitle text="NEED A HINT?" size={28} fill="gold" />
       <Text style={styles.body}>{adsFree ? "We'll show you the next hop." : "Watch a short ad and we'll show you the next hop."}</Text>
       <Text style={styles.cost}>This level gives one star less</Text>
+      <Split />
       <View style={styles.col}>
         <SdButton kind="gold" onPress={onWatch} disabled={!adsFree && !adReady} sound="sd_select" faceStyle={styles.wideFace}>
           <BtnLabel kind="gold" size={17}>{adsFree ? 'SHOW ME' : adReady ? '▶ WATCH AD' : 'LOADING AD…'}</BtnLabel>
         </SdButton>
         <SdButton kind="white" onPress={onClose} sound="sd_select" faceStyle={styles.wideFace}>
-          <BtnLabel kind="purple" size={15}>
+          <BtnLabel kind="white" size={15}>
             NO THANKS
           </BtnLabel>
         </SdButton>
@@ -180,7 +184,7 @@ const LINES = {
 export function RulesCard({ visible, onClose }) {
   return (
     <Overlay visible={visible}>
-      <OutlinedTitle text="HOW TO PLAY" size={26} fill="pink" />
+      <OutlinedTitle text="HOW TO PLAY" size={26} fill="gold" />
       <View style={styles.rules}>
         {RULES.map(([n, title, line]) => (
           <View key={title} style={styles.rule}>
@@ -194,6 +198,7 @@ export function RulesCard({ visible, onClose }) {
           </View>
         ))}
       </View>
+      <Split />
       <Text style={styles.twistHead}>ROOM BY ROOM</Text>
       {ROOM_ORDER.map((k) => (
         <Text key={k} style={styles.twist}>
@@ -215,7 +220,7 @@ export function RulesCard({ visible, onClose }) {
 }
 
 const styles = StyleSheet.create({
-  sub: { fontFamily: F.display, fontSize: 12, letterSpacing: 0.6, color: '#8a5fc0', textAlign: 'center' },
+  sub: { fontFamily: F.display, fontSize: 12, letterSpacing: 0.6, color: '#9a6a3a', textAlign: 'center' },
   hint: { fontFamily: F.heavy, fontSize: 11.5, color: '#b86200', textAlign: 'center' },
   stars: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 4, marginBottom: 8 },
   rewardRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -229,15 +234,15 @@ const styles = StyleSheet.create({
   body: { fontFamily: F.heavy, fontSize: 14, color: INK, textAlign: 'center', paddingHorizontal: 6 },
   cost: { fontFamily: F.display, fontSize: 13, color: '#e01e4a', textAlign: 'center' },
   sadHead: { width: 86, height: 86, borderRadius: 43, backgroundColor: '#ffffff', padding: 5 },
-  sadInner: { flex: 1, borderRadius: 40, backgroundColor: '#efe9f5', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  sadInner: { flex: 1, borderRadius: 40, backgroundColor: '#f3e6d4', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   sadImg: { width: '92%', height: '92%', resizeMode: 'contain' },
   rules: { alignSelf: 'stretch', gap: 8, marginTop: 4 },
   rule: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  ruleNum: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#ff5cc6', borderWidth: 2.5, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
+  ruleNum: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#ff8a3d', borderWidth: 2.5, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
   ruleNumText: { fontFamily: F.display, fontSize: 15, color: '#ffffff', includeFontPadding: false },
-  ruleTitle: { fontFamily: F.display, fontSize: 15, color: '#8e1580' },
+  ruleTitle: { fontFamily: F.display, fontSize: 15, color: '#8a3a0e' },
   ruleLine: { fontFamily: F.heavy, fontSize: 12, lineHeight: 16, color: INK },
-  twistHead: { marginTop: 6, fontFamily: F.display, fontSize: 12, letterSpacing: 1, color: '#8a5fc0' },
+  twistHead: { marginTop: 6, fontFamily: F.display, fontSize: 12, letterSpacing: 1, color: '#9a6a3a' },
   twist: { alignSelf: 'stretch', fontFamily: F.heavy, fontSize: 11.5, lineHeight: 15.5, color: INK },
   twistName: { fontFamily: F.display, fontSize: 11.5, color: '#e01e4a' },
 });

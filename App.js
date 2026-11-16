@@ -49,7 +49,9 @@ import { subscribeToAuthUser, logout, needsVerification } from './src/firebase/a
 import { listenForSocial } from './src/firebase/social';
 import VerifyEmailScreen from './src/screens/VerifyEmailScreen';
 import FpsCounter from './src/components/FpsCounter';
+import { setFpsActive, setFpsWanted, useFpsWanted } from './src/components/fpsMeter';
 import { BY_ID, hiddenOf, isOut, lineup, owns, rainbowOf, setCopyCounts, setRainbowMode, setRewardsOf, wallet as walletOf } from './src/squad/data';
+import { withLooks } from './src/squad/looks';
 import {
   subscribeToUserProfile,
   subscribeToCreatures,
@@ -139,10 +141,11 @@ const NO_ACHIEVEMENTS = {};
 const LANDSCAPE_SCREENS = new Set(['splash', 'auth', 'verify', 'shop', 'settings', 'achievements', 'stats', 'road', 'wheel', 'streak', 'toy', 'loading', 'squishdoku', 'sort', 'stack', 'hop']);
 // the mini-games' frame (src/royal/GameFrame.js): each game's name, a line and its tips beside the game
 const GAME_FRAME = {
-  squishdoku: { title: 'Squishdoku', line: '600 puzzle levels', tips: ['One creature in every row, column and coloured patch.', 'No two creatures may touch, not even corner to corner.', 'Tap a cell to place one. Use the ✕ to mark cells.'] },
-  sort: { title: 'Squish Sort', line: 'Fridge & cupboard', tips: ['Remember who sits where.', 'The doors shut, it shakes and everyone tumbles out.', 'Put each squishy back in its place.'] },
-  stack: { title: 'Squish Stack', line: 'Tower puzzles', tips: ['Tap a cushion to lift its top squishy, tap another to drop it.', 'A big one can never sit on a smaller one.', 'Move them one at a time until they match the goal.'] },
-  hop: { title: 'Squish Hop', line: 'Cushion hopping', tips: ['Swipe or tap a cushion next to you to hop.', 'The cushion you leave puffs away: no going back.', 'Clear every cushion, then hop onto the ★.'] },
+  // full: laid out sideways itself, on the whole screen (REDESIGN_V8)
+  squishdoku: { full: true, title: 'Squishdoku', line: '600 puzzle levels', tips: ['One creature in every row, column and coloured patch.', 'No two creatures may touch, not even corner to corner.', 'Tap a cell to place one. Use the ✕ to mark cells.'] },
+  sort: { full: true, title: 'Squish Sort', line: 'Fridge & cupboard', tips: ['Remember who sits where.', 'The doors shut, it shakes and everyone tumbles out.', 'Put each squishy back in its place.'] },
+  stack: { full: true, title: 'Squish Stack', line: 'Tower puzzles', tips: ['Tap a cushion to lift its top squishy, tap another to drop it.', 'A big one can never sit on a smaller one.', 'Move them one at a time until they match the goal.'] },
+  hop: { full: true, title: 'Squish Hop', line: 'Cushion hopping', tips: ['Swipe or tap a cushion next to you to hop.', 'The cushion you leave puffs away: no going back.', 'Clear every cushion, then hop onto the ★.'] },
 };
 const SLIDE_IN = new Set(['shop', 'settings', 'crib', 'create', 'achievements', 'stats', 'streak', 'loading', 'squishdoku', 'sort', 'stack', 'hop', 'road']);
 // creature pictures fetched into the image cache at a time (see below)
@@ -154,33 +157,11 @@ const PREFETCH_AT_ONCE = 6;
 const SHOP_AWAY_UNDER = new Set(['crib']);
 const FREEZE_UNDER = new Set([]);
 
-// The splash is silent; Butterscotch Bounce is the game's theme from the
-// end of the splash on, one track across the menus (it doesn't restart
-// between them).
-const MUSIC_FOR_STAGE = {
-  splash: null,
-  auth: 'bounce',
-  wheel: 'bounce',
-  streak: 'bounce',
-  home: 'bounce',
-  store: 'bounce',
-  achievements: 'bounce',
-  stats: 'bounce',
-  road: 'bounce',
-  create: 'bounce',
-  loading: 'calm',
-  toy: 'calm',
-  box: 'mystery',
-  // Squishdoku: thinking music; its Blitz switches to 'party' itself
-  squishdoku: 'dream',
-  // Squish Sort: party music
-  sort: 'party',
-  // Squish Stack: calm, cosy stacking
-  stack: 'cozy',
-  // Squish Hop: cosy, a hop through the Crib's rooms
-  hop: 'cozy',
-  // the Crib plays its rooms' own music (CribScreen)
-};
+// The splash is silent. From its end on, Velvet Map Study (src/audio/sfx.js) is the one track on every screen: the
+// menus, Shop, Settings, Squish Time and the mini-games. It doesn't restart between them. (The user kept only it on
+// 2026-11-16; Squish Time, the games, the box and the Crib had tracks of their own before.) The new design's house
+// plays its own sounds; the old Crib has its own music switch (CribScreen).
+const musicFor = (stage, onGame) => (stage === 'splash' || (onGame && stage !== 'home') ? null : 'theme');
 
 // The creature cheering on the streak screen: the owned one squished the
 // longest, else the first owned, else the starter.
@@ -210,7 +191,8 @@ export default function App() {
   const [authChecked, setAuthChecked] = useState(false);
   const [authUser, setAuthUser] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [creatures, setCreatures] = useState([]);
+  // the Firestore catalog as it came; `creatures` (below) is it with the chosen looks' pictures (src/squad/looks.js)
+  const [catalog, setCreatures] = useState([]);
   const [customCreatures, setCustomCreatures] = useState([]);
   // The creature just made in CREATE: Home opens on MY CREATURES at its
   // card, then clears this (clearMineFocus).
@@ -291,7 +273,9 @@ export default function App() {
   // a tester account (the `tester` claim, tools/admin/tester.mjs): the Test
   // wallet and the FPS counter (REDESIGN_V6 ruling 5)
   const [tester, setTester] = useState(false);
-  const [fpsOverlay, setFpsOverlay] = useState(false);
+  // (the switch is kept across launches; the web pages report while it's on for a tester: fpsMeter.js)
+  const fpsOverlay = useFpsWanted();
+  useEffect(() => setFpsActive(tester && fpsOverlay), [tester, fpsOverlay]);
   useEffect(() => {
     setTester(false);
     if (!authUser) return;
@@ -300,7 +284,7 @@ export default function App() {
       .then((t) => setTester(!!(t && t.claims && t.claims.tester)))
       .catch(() => {});
   }, [authUser]);
-  const toggleFps = useCallback(() => setFpsOverlay((v) => !v), []);
+  const toggleFps = useCallback(() => setFpsWanted(!fpsOverlay), [fpsOverlay]);
   // a different account (or none) starts unconfirmed again
   useEffect(() => setVerifiedNow(false), [authUser?.uid]);
 
@@ -395,6 +379,8 @@ export default function App() {
     });
   }, [authUser]);
   const hidden = useMemo(() => hiddenOf(rosterCfg), [rosterCfg]);
+  // every still creature picture in the look config/roster picks (REDESIGN_V9: look 1-4, 0 the old pictures)
+  const creatures = useMemo(() => withLooks(catalog, rosterCfg), [catalog, rosterCfg]);
   // What the levels are (config/levels: the road, the curve, what earns XP):
   // into src/playerXp.js before the screens redraw, as the roster's counts
   const [levelsCfg, setLevelsCfg] = useState(null);
@@ -515,7 +501,8 @@ export default function App() {
       }
     };
     plushArtUrls(creatures).forEach((url) => {
-      if (prefetchedRef.current.has(url)) return;
+      // (the looks' pictures are the app's own files: nothing to fetch)
+      if (prefetchedRef.current.has(url) || !/^https?:/.test(url)) return;
       prefetchedRef.current.add(url);
       prefetchQueue.current.push(url);
     });
@@ -788,7 +775,7 @@ export default function App() {
     }
   }, []);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const gamePlayerNow = useMemo(() => gamePlayer(profile, { level: xpView(profile).level, hidden }), [profile, hidden, levelsCfg]);
+  const gamePlayerNow = useMemo(() => gamePlayer(profile, { level: xpView(profile).level, hidden, rosterCfg }), [profile, hidden, levelsCfg, rosterCfg]);
 
   const handleCreatureCreated = useCallback(
     // Photo path: upload the resized JPEG to Storage, then write a
@@ -974,6 +961,11 @@ export default function App() {
     [authUser]
   );
 
+  // web, development only: the browser tests open screens and cards straight from the page (src/web/README.md)
+  if (__DEV__ && typeof window !== 'undefined' && window.document) {
+    window.__app = { setScreen, setSpinState, setStreakIntro, setLevelUp, setDailyOpen, setSettingsOpen, setRoadAuto, flashApp, setAchToast, setAchToastKey, play: () => playSelected(selectedIdOf(profileRef.current)) };
+  }
+
   let stage = 'splash';
   if (splashDone && authChecked) {
     if (!authUser) stage = 'auth';
@@ -989,7 +981,8 @@ export default function App() {
   const onGame = gameHome && (stage === 'home' || stage === 'crib');
   // REDESIGN_V7: the screens already in the new landscape look turn the phone sideways; the rest are still portrait.
   // One place decides (the Menu's own lock and its unlock on leaving used to fight a landscape screen opened from it).
-  const landscape = onGame || (newDesign && LANDSCAPE_SCREENS.has(stage));
+  // (sign-in, sign-up and the email check are always sideways, also for a new account that the tutorial will take: REDESIGN_V8)
+  const landscape = onGame || ((newDesign || stage === 'splash' || stage === 'auth' || stage === 'verify') && LANDSCAPE_SCREENS.has(stage));
   useEffect(() => {
     ScreenOrientation.lockAsync(landscape ? ScreenOrientation.OrientationLock.LANDSCAPE : ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
   }, [landscape]);
@@ -1094,12 +1087,15 @@ export default function App() {
   // Mystery Box play their own coin sounds.
   useEffect(() => {
     if (stage === 'crib' && !onGame) return;
-    // the new design's Menu and house play their own sounds
-    sfx.music(fontsLoaded && !onGame ? MUSIC_FOR_STAGE[stage] : null);
+    // The new design's house plays its own sounds. The Menu and its Game Park keep the start's music going
+    // (REDESIGN_V8, the user: the music at the beginning of the app continues; the Menu used to go silent).
+    sfx.music(fontsLoaded ? musicFor(stage, onGame) : null);
   }, [stage, fontsLoaded, onGame]);
   const prevStageRef = useRef(stage);
   useEffect(() => {
-    if (prevStageRef.current !== stage) sfx.play('whoosh');
+    // no whoosh as the splash makes way for the first screen (REDESIGN_V8, the user: the "beep" at the start; the
+    // whoosh's sound has a steady 1050 Hz tone in it)
+    if (prevStageRef.current !== stage && prevStageRef.current !== 'splash') sfx.play('whoosh');
     prevStageRef.current = stage;
   }, [stage]);
   // the tutorial follows the screen; it hides behind popups
@@ -1178,13 +1174,14 @@ export default function App() {
             onHouseShown={gameHouseShown}
             onShop={openGameShop}
             onSettings={openSettingsPage}
+            onAchievements={openAchievements}
             onPlay={handleGamePlay}
             onSelect={handleGameSelect}
             onClaim={handleGameClaim}
             onAsk={handleGameAsk}
           />
         ) : (
-          <View style={{ flex: 1, backgroundColor: '#24123f' }} />
+          <View style={{ flex: 1, backgroundColor: '#3a2210' }} />
         ))}
       {showMain && (
         <Freeze freeze={!onHome && homeCovered && FREEZE_UNDER.has(stage)}>

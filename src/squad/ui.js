@@ -24,8 +24,9 @@ export const F = {
 
 export const GOLD = ['#fff7b0', '#ffd23a', '#ff9c0a'];
 export const GOLD_RING = '#9c4d06';
-export const PINK = ['#ffd6f4', '#ff5cc6', '#c02bd9'];
-export const PINK_RING = '#8e1580';
+// (REDESIGN_V8, the user: no pink: the "pink" buttons are a warm orange)
+export const PINK = ['#ffe2c8', '#ff9a4a', '#e0601c'];
+export const PINK_RING = '#8a3a0e';
 export const BLUE = ['#d6f3ff', '#5fb8ff', '#2f7fd6'];
 export const BLUE_RING = '#1d4f9a';
 export const GREEN = ['#b8ffd9', '#3ddc97', '#16a86a'];

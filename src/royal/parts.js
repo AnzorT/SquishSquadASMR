@@ -1,8 +1,10 @@
-import React, { memo, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import Svg, { Circle, Defs, G, LinearGradient, Path, Pattern, RadialGradient, Rect, Stop } from 'react-native-svg';
+import React, { memo, useMemo, useState } from 'react';
+import { Animated, Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import ShadowText from '../components/candy/ShadowText';
+import { LinearGradient as LGrad } from 'expo-linear-gradient';
 import { COIN, GEM } from '../squad/currencyArt';
+import { useKeyLoop } from '../components/idleLoop';
 import Plaque from './Plaque';
 import Lettering from './Lettering';
 import { FONT, ICON, INK, ORB, PAGE, RIM, TX_W } from './theme';
@@ -77,25 +79,26 @@ export function InkText({ children, size = 13.5, style, font = FONT.display, num
   );
 }
 
-// The coin / gem pill (.mm-pill): a velvet pill with tips, the currency picture hanging off its left end.
+// The coin / gem pill (.mm-pill): a wood pill, the currency picture big over its left end (REDESIGN_V8, as the menu's).
 export const Pill = memo(function Pill({ cur = 'coins', amount, onPress, style }) {
   return (
-    <Plaque variant="vel" tips onPress={onPress} style={[styles.pill, style]}>
+    <Plaque variant="vel" onPress={onPress} style={[styles.pill, style]}>
       <Image source={cur === 'gems' ? GEM[0] : COIN[0]} style={styles.pillImg} />
       <InkText size={13.5}>{fmt(amount)}</InkText>
     </Plaque>
   );
 });
 
-// A sweep of light across a button now and then (the menu's PLAY .sq-glint)
+// A sweep of light across a button now and then (the menu's PLAY .sq-glint): 1.9 s off to the left, a 1 s sweep
+// (ease in-out), 0.5 s off to the right, every 3.4 s. One native loop of keyframes (idleLoop.js), stopped while a
+// screen covers this one; a loop(sequence) with delays was restarted from JS at every step.
+const GLINT_MS = 3400, GLINT_A = 1900 / GLINT_MS, GLINT_B = 2900 / GLINT_MS;
+const GLINT_STEPS = Array.from({ length: 9 }, (_, i) => i / 8);
+const GLINT_AT = [0, ...GLINT_STEPS.map((s) => GLINT_A + (GLINT_B - GLINT_A) * s), 1];
+const GLINT_K = [0, ...GLINT_STEPS.map((s) => (s < 0.5 ? 2 * s * s : 1 - 2 * (1 - s) * (1 - s))), 1];
 function Glint({ width }) {
-  const t = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(Animated.sequence([Animated.delay(1900), Animated.timing(t, { toValue: 1, duration: 1000, easing: Easing.inOut(Easing.quad), useNativeDriver: true }), Animated.timing(t, { toValue: 0, duration: 0, useNativeDriver: true }), Animated.delay(500)]));
-    loop.start();
-    return () => loop.stop();
-  }, [t]);
-  const translateX = t.interpolate({ inputRange: [0, 1], outputRange: [-width * 0.5, width * 1.3] });
+  const values = useMemo(() => GLINT_K.map((k) => -width * 0.5 + width * 1.8 * k), [width]);
+  const translateX = useKeyLoop(GLINT_MS, { at: GLINT_AT, values });
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: 18 }]}>
       <Animated.View style={{ position: 'absolute', top: -10, bottom: -10, width: width * 0.26, transform: [{ translateX }, { skewX: '-18deg' }] }}>
@@ -125,37 +128,26 @@ export function Btn({ label, size = 20, width, height = 42, radius = 14, variant
   );
 }
 
-// The full-screen page's background (.mm-page2): deep purple, faint diamonds, soft rays from above.
+// The full-screen page's background (.mm-page2): a warm amber (REDESIGN_V8; was deep purple) and soft rays from above. A native gradient and one image (performance, 2026-11-14: it was a full-screen SVG, rendered in software each time a screen opened).
+const RAYS = require('../../assets/royal/rays.png');
 export const PageBg = memo(function PageBg({ style }) {
-  const { width, height } = useWindowDimensions();
-  const W = Math.max(width, height), H = Math.min(width, height);
-  const ox = W / 2, oy = -0.1 * H, R = W + H;
-  const rays = [];
-  for (let a = 0; a < 360; a += 18) {
-    const a0 = ((a - 90) * Math.PI) / 180, a1 = ((a + 6 - 90) * Math.PI) / 180;
-    rays.push(`M${ox} ${oy} L${ox + R * Math.cos(a0)} ${oy + R * Math.sin(a0)} L${ox + R * Math.cos(a1)} ${oy + R * Math.sin(a1)}Z`);
-  }
   return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
-      <Svg width={W} height={H}>
-        <Defs>
-          <RadialGradient id="pageBg" cx={W / 2} cy={0} rx={W * 1.2} ry={H * 1.2} fx={W / 2} fy={0} gradientUnits="userSpaceOnUse">
-            {PAGE.stops.map(([o, c], i) => <Stop key={i} offset={o} stopColor={c} />)}
-          </RadialGradient>
-          <Pattern id="pageA" patternUnits="userSpaceOnUse" width="12" height="12" patternTransform="rotate(45)">
-            <Rect x="0" y="0" width="6" height="12" fill="#ffffff" fillOpacity={0.055} />
-          </Pattern>
-          <Pattern id="pageB" patternUnits="userSpaceOnUse" width="12" height="12" patternTransform="rotate(-45)">
-            <Rect x="0" y="0" width="6" height="12" fill="#ffffff" fillOpacity={0.055} />
-          </Pattern>
-        </Defs>
-        <Rect x="0" y="0" width={W} height={H} fill="url(#pageBg)" />
-        <Rect x="0" y="0" width={W} height={H} fill="url(#pageA)" />
-        <Rect x="0" y="0" width={W} height={H} fill="url(#pageB)" />
-        <G fill="#ffe6a0" fillOpacity={0.07}>
-          {rays.map((d, i) => <Path key={i} d={d} />)}
-        </G>
-      </Svg>
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#d27c3e' }, style]}>
+      <LGrad colors={PAGE.stops.map((x) => x[1])} locations={PAGE.stops.map((x) => x[0])} style={StyleSheet.absoluteFill} />
+      <Image source={RAYS} resizeMode="stretch" style={StyleSheet.absoluteFill} fadeDuration={0} />
+    </View>
+  );
+});
+
+// REDESIGN_V9 (2026-11-16, the user): the Level Pass, Achievements, Characters and Shop stand on the wood the Game
+// Park shows its games on (the game card's planks). One picture of the menu's CSS for it (webgame/tools/wood-bg.mjs),
+// so the app's screens and the menu's pages match.
+const WOOD = require('../../assets/royal/wood-bg.jpg');
+export const WoodBg = memo(function WoodBg({ style }) {
+  return (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#cf955a' }, style]}>
+      {/* (width and height too: on web an Image without them takes the picture's own size) */}
+      <Image source={WOOD} resizeMode="cover" style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]} fadeDuration={0} />
     </View>
   );
 });
@@ -175,8 +167,8 @@ export function PageHeader({ title, note, onBack, right, style }) {
 
 const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
-  pill: { height: 30, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 4, paddingRight: 14 },
-  pillImg: { width: 28, height: 28, marginLeft: -10, marginVertical: -6, resizeMode: 'contain' },
+  pill: { height: 32, flexDirection: 'row', alignItems: 'center', paddingLeft: 32, paddingRight: 14 },
+  pillImg: { position: 'absolute', left: -15, top: -6, width: 44, height: 44, resizeMode: 'contain' },
   header: { position: 'absolute', left: 16, right: 16, top: 12, height: 46, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  note: { fontFamily: FONT.body, fontSize: 11.5, color: '#e4d4ff' },
+  note: { fontFamily: FONT.body, fontSize: 11.5, color: '#fff6e2' },
 });

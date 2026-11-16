@@ -7,6 +7,7 @@ import CandyBackground from '../components/candy/CandyBackground';
 import RoundButton, { BackGlyph } from '../components/candy/RoundButton';
 import OutlinedTitle from '../components/candy/OutlinedTitle';
 import ChestSmash from '../components/ChestSmash';
+import VaultLoader, { buddyUriOf } from '../components/VaultLoader';
 import Toast from '../components/squad/Toast';
 import { PrizeArt, prizeLabel } from '../components/LevelBits';
 import { ChestDrop, FlyLayer, centerOf, flyReward, usePurse } from '../components/RewardFx';
@@ -18,7 +19,7 @@ import { todayKey } from '../dailySpin';
 import sfx from '../audio/sfx';
 import { fmtNum } from '../format';
 import { roadView, xpView } from '../playerXp';
-import { Lettering, Orb, PageBg } from '../royal';
+import { Lettering, Orb, WoodBg } from '../royal';
 
 // The level road (PLAYER_XP.md): the player's level and XP bar, and a prize
 // at every level on the road (config/levels `road`), each claimed once
@@ -59,11 +60,11 @@ const Purse = forwardRef(function Purse({ gem, amount }, ref) {
   const { icon, scale, shown } = usePurse(ref, amount);
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
-      <Ringed ring={gem ? '#45189a' : '#8e1580'} lip={3} ringW={2} border={2.5} innerStyle={styles.purse}>
+      <Ringed ring="#6b4426" lip={3} ringW={2} border={2.5} innerStyle={styles.purse}>
         <View ref={icon} collapsable={false}>
           <Image source={gem ? GEM[0] : COIN[0]} style={gem ? styles.gemImg : styles.coinImg} fadeDuration={0} />
         </View>
-        <Text style={[styles.purseText, { color: gem ? '#5a22c8' : '#b86200' }]}>{fmtNum(shown)}</Text>
+        <Text style={[styles.purseText, { color: gem ? '#1d6fb8' : '#b86200' }]}>{fmtNum(shown)}</Text>
       </Ringed>
     </Animated.View>
   );
@@ -80,10 +81,10 @@ const Row = memo(function Row({ n, last, current, group, busy, toGo, onClaim, on
         </LinearGradient>
       ) : (
         <View style={[styles.disc, styles.discOff]}>
-          <Text style={[styles.discText, { color: '#9a87b5' }]}>{lv}</Text>
+          <Text style={[styles.discText, { color: '#a88d70' }]}>{lv}</Text>
         </View>
       )}
-      <Ringed ring={claimable ? GOLD_RING : reached ? '#b48bff' : '#d9cbef'} lip={3} ringW={2} border={2.5} radius={18} bg={got ? '#f6f0fc' : '#ffffff'} style={styles.cardRing} innerStyle={styles.card}>
+      <Ringed ring={claimable ? GOLD_RING : reached ? '#c8955e' : '#e2cfb4'} lip={3} ringW={2} border={2.5} radius={18} bg={got ? '#f6ece0' : '#ffffff'} style={styles.cardRing} innerStyle={styles.card}>
         <View ref={(v) => onIcon(lv, v)} collapsable={false}>
           <PrizeArt r={r} group={group} i={lv} size={40} dim={got} />
         </View>
@@ -94,7 +95,50 @@ const Row = memo(function Row({ n, last, current, group, busy, toGo, onClaim, on
           <Check />
         ) : claimable ? (
           <CandyBtn kind={busy ? 'grey' : 'gold'} padV={5} padH={12} onPress={() => onClaim([lv])} disabled={busy}>
-            <BtnText ring={busy ? '#7a6a8c' : GOLD_RING} size={14}>
+            <BtnText ring={busy ? '#8a7a6a' : GOLD_RING} size={14}>
+              CLAIM
+            </BtnText>
+          </CandyBtn>
+        ) : (
+          <View style={styles.lockTag}>
+            <Lock />
+            <Text style={styles.lockText}>{toGo ? `${fmtNum(toGo)} XP` : `LV ${lv}`}</Text>
+          </View>
+        )}
+      </Ringed>
+    </View>
+  );
+});
+
+// landscape (REDESIGN_V8, every list sideways): one level of the road as a column, its disc on a rail running left to
+// right and its prize card under it
+const COL = 128;
+const Col = memo(function Col({ n, last, current, group, busy, toGo, onClaim, onIcon }) {
+  const { lv, r, got, claimable, reached } = n;
+  return (
+    <View style={styles.col}>
+      <View style={[styles.hRail, reached && styles.railOn, lv === 1 && { left: COL / 2 }, last && { right: COL / 2 }]} />
+      {reached ? (
+        <LinearGradient colors={GOLD} locations={[0, 0.5, 1]} style={[styles.disc, current && styles.discNow]}>
+          <Text style={styles.discText}>{lv}</Text>
+        </LinearGradient>
+      ) : (
+        <View style={[styles.disc, styles.discOff]}>
+          <Text style={[styles.discText, { color: '#a88d70' }]}>{lv}</Text>
+        </View>
+      )}
+      <Ringed ring={claimable ? GOLD_RING : reached ? '#c8955e' : '#e2cfb4'} lip={3} ringW={2} border={2.5} radius={18} bg={got ? '#f6ece0' : '#ffffff'} style={styles.colCardRing} innerStyle={styles.colCard}>
+        <View ref={(v) => onIcon(lv, v)} collapsable={false} style={styles.colArt}>
+          <PrizeArt r={r} group={group} i={lv} size={50} dim={got} />
+        </View>
+        <Text style={[styles.colPrize, got && styles.prizeGot, !reached && styles.prizeOff]} numberOfLines={2}>
+          {prizeLabel(r)}
+        </Text>
+        {got ? (
+          <Check />
+        ) : claimable ? (
+          <CandyBtn kind={busy ? 'grey' : 'gold'} padV={5} padH={12} onPress={() => onClaim([lv])} disabled={busy}>
+            <BtnText ring={busy ? '#8a7a6a' : GOLD_RING} size={14}>
               CLAIM
             </BtnText>
           </CandyBtn>
@@ -130,18 +174,28 @@ function LevelRoadScreen({ profile, levels, creatures, hidden = HIDDEN, autoClai
     return () => clearTimeout(t);
   }, [toast]);
 
-  // the chest smash: the one showing and the ones after it; each one drops
-  // in from above first (`drop`, over the smash while its page gets ready)
-  const [smash, setSmash] = useState(null); // { chest: { key, result }, queue }
+  // the chest smash: the one showing and the ones after it. The first opens behind "To the treasure vault"
+  // (REDESIGN_V9: the user's loading screen for going to open a chest) until its page has painted (`up`); the ones
+  // after it (CLAIM ALL's), on the same page, drop in from above (`drop`)
+  const [smash, setSmash] = useState(null); // { chest: { key, result }, queue, up }
   const [drop, setDrop] = useState(null); // { key, group, size, reveal }
   const smashKey = useRef(0);
   const smashRef = useRef(smash);
   smashRef.current = smash;
   const showChest = useCallback((result, queue) => {
     smashKey.current += 1;
-    setSmash({ chest: { key: smashKey.current, result }, queue });
-    setDrop({ key: smashKey.current, group: result.group, size: result.size });
+    const next = !!smashRef.current;
+    setSmash((s) => ({ chest: { key: smashKey.current, result }, queue, up: !!(s && s.up) }));
+    if (next) setDrop({ key: smashKey.current, group: result.group, size: result.size });
   }, []);
+  const smashShown = useCallback(() => setSmash((s) => s && { ...s, up: true }), []);
+  const [vaultGone, setVaultGone] = useState(false);
+  const smashOn = !!smash;
+  useEffect(() => {
+    if (!smashOn) setVaultGone(false);
+  }, [smashOn]);
+  const vaultDone = useCallback(() => setVaultGone(true), []);
+  const buddy = useMemo(() => buddyUriOf(creatures, profile), [creatures, profile]);
   const collectSmash = useCallback(() => {
     const s = smashRef.current;
     if (!s || !s.queue.length) return setSmash(null);
@@ -272,26 +326,102 @@ function LevelRoadScreen({ profile, levels, creatures, hidden = HIDDEN, autoClai
     [nodes.length, view.level, group, busy, toNext, claim, onIcon],
   );
 
-  // landscape (REDESIGN_V7 step 3): the level card and CLAIM ALL on the left, the road on the right, on the new look's page
   const wide = winW > winH;
-  const Bg = wide ? WideBg : CandyBackground;
+  const renderCol = useCallback(
+    ({ item }) => <Col n={item} last={item.lv === nodes.length} current={item.lv === view.level} group={group} busy={busy} toGo={item.lv === view.level + 1 ? toNext : 0} onClaim={claim} onIcon={onIcon} />,
+    [nodes.length, view.level, group, busy, toNext, claim, onIcon],
+  );
+  const overlays = (
+    <>
+      {toast ? (
+        <View pointerEvents="none" style={[styles.toastAt, { bottom: insets.bottom + 8 }]}>
+          <Toast message={toast.text} messageKey={toast.key} />
+        </View>
+      ) : null}
+      <FlyLayer ref={fly} />
+      {/* the smash loads unseen under the treasure vault loading screen (the next ones under a chest dropping in) */}
+      {smash && (
+        <View style={[StyleSheet.absoluteFill, drop && !drop.reveal && styles.unseen]} pointerEvents={drop ? 'none' : 'auto'}>
+          <ChestSmash chest={smash.chest} catalog={catalog} onCollect={collectSmash} onShown={smashShown} />
+        </View>
+      )}
+      {smash && !vaultGone && <VaultLoader ready={!!smash.up} uri={buddy} onDone={vaultDone} />}
+      {drop && <ChestDrop key={drop.key} group={drop.group} size={drop.size} onReveal={() => setDrop((d) => d && { ...d, reveal: true })} onDone={() => setDrop(null)} />}
+    </>
+  );
+  // landscape (REDESIGN_V8): the title, your level and the counters across the top; the road runs left to right under
+  // them (drag it sideways), CLAIM ALL below it
+  if (wide) {
+    return (
+      <View style={styles.wRoot}>
+        <WoodBg />
+        <View style={styles.wTop}>
+          <Orb icon="back" onPress={onBack} />
+          <Lettering text="Level Road" variant="gold" size={26} />
+          <Ringed ring="#6b4426" lip={4} colors={WOOD} radius={18} style={styles.wLevelRing} innerStyle={styles.wLevel}>
+            <View ref={disc} collapsable={false}>
+              <LinearGradient colors={GOLD} locations={[0, 0.5, 1]} style={styles.midDisc}>
+                <Text style={styles.midNum} numberOfLines={1} adjustsFontSizeToFit>
+                  {view.level}
+                </Text>
+              </LinearGradient>
+            </View>
+            <View style={styles.topCol}>
+              <View style={styles.bar}>
+                <LinearGradient colors={BAR} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.barFill, { width: `${pct}%` }]} />
+                <Text style={styles.barText}>{`${fmtNum(view.into)} / ${fmtNum(view.need)} XP`}</Text>
+              </View>
+              <Text style={styles.hint} numberOfLines={1}>Mini-games, challenges and squishing give XP</Text>
+            </View>
+          </Ringed>
+          <View style={styles.purses}>
+            <Purse ref={coinPurse} amount={w.coins} />
+            <Purse ref={gemPurse} gem amount={w.gems} />
+          </View>
+        </View>
+        <View style={styles.wMid}>
+        <FlatList
+          horizontal
+          style={styles.wRoad}
+          data={nodes}
+          keyExtractor={(n) => String(n.lv)}
+          renderItem={renderCol}
+          extraData={busy}
+          getItemLayout={(_, i) => ({ length: COL, offset: COL * i, index: i })}
+          initialScrollIndex={startAt}
+          initialNumToRender={8}
+          maxToRenderPerBatch={4}
+          windowSize={7}
+          contentContainerStyle={styles.wRoadIn}
+          showsHorizontalScrollIndicator={false}
+          ListFooterComponent={<Text style={[styles.foot, styles.footWide]}>{`The road ends at level ${nodes.length}. Every level after it still counts toward your trophies.`}</Text>}
+        />
+        {claimable.length > 1 ? (
+          <CandyBtn kind={busy ? 'grey' : 'gold'} padV={8} padH={26} lip={5} onPress={() => claim(claimable)} disabled={busy} style={styles.wAll}>
+            <BtnText ring={busy ? '#8a7a6a' : GOLD_RING} size={17}>
+              {`CLAIM ALL (${claimable.length})`}
+            </BtnText>
+          </CandyBtn>
+        ) : null}
+        </View>
+        {overlays}
+      </View>
+    );
+  }
   return (
-    <Bg style={wide ? null : { paddingTop: insets.top }}>
-      <View style={wide ? styles.wSide : null}>
+    <CandyBackground style={{ paddingTop: insets.top }}>
       <View style={styles.header}>
-        {wide ? <Orb icon="back" onPress={onBack} /> : (
-          <RoundButton size={36} onPress={onBack}>
-            <BackGlyph />
-          </RoundButton>
-        )}
-        {wide ? <Lettering text="Level Road" variant="gold" size={26} /> : <OutlinedTitle text="LEVEL ROAD" fill="pink" size={winW < 380 ? 16 : 20} outline={3} ring={2} drop={5} />}
+        <RoundButton size={36} onPress={onBack}>
+          <BackGlyph />
+        </RoundButton>
+        <OutlinedTitle text="LEVEL ROAD" fill="pink" size={winW < 380 ? 16 : 20} outline={3} ring={2} drop={5} />
         <View style={styles.purses}>
           <Purse ref={coinPurse} amount={w.coins} />
           <Purse ref={gemPurse} gem amount={w.gems} />
         </View>
       </View>
       <View style={styles.topWrap}>
-        <Ringed ring="#45189a" lip={5} colors={['#c58bff', '#8f3cf2', '#5a1fb0']} radius={22} innerStyle={styles.top}>
+        <Ringed ring="#6b4426" lip={5} colors={WOOD} radius={22} innerStyle={styles.top}>
           <View ref={disc} collapsable={false}>
             <LinearGradient colors={GOLD} locations={[0, 0.5, 1]} style={styles.bigDisc}>
               <Text style={styles.bigNum} numberOfLines={1} adjustsFontSizeToFit>
@@ -302,7 +432,7 @@ function LevelRoadScreen({ profile, levels, creatures, hidden = HIDDEN, autoClai
           <View style={styles.topCol}>
             <Text style={styles.kicker}>YOUR LEVEL</Text>
             <View style={styles.bar}>
-              <LinearGradient colors={['#ffd84a', '#ff8a3d', '#ff5cc6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.barFill, { width: `${pct}%` }]} />
+              <LinearGradient colors={BAR} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.barFill, { width: `${pct}%` }]} />
               <Text style={styles.barText}>{`${fmtNum(view.into)} / ${fmtNum(view.need)} XP`}</Text>
             </View>
             <Text style={styles.hint}>Mini-games, daily challenges and squishing all give XP.</Text>
@@ -310,15 +440,13 @@ function LevelRoadScreen({ profile, levels, creatures, hidden = HIDDEN, autoClai
         </Ringed>
         {claimable.length > 1 ? (
           <CandyBtn kind={busy ? 'grey' : 'gold'} padV={8} lip={5} onPress={() => claim(claimable)} disabled={busy} stretch style={styles.allBtn}>
-            <BtnText ring={busy ? '#7a6a8c' : GOLD_RING} size={17}>
+            <BtnText ring={busy ? '#8a7a6a' : GOLD_RING} size={17}>
               {`CLAIM ALL (${claimable.length})`}
             </BtnText>
           </CandyBtn>
         ) : null}
       </View>
-      </View>
       <FlatList
-        style={wide ? styles.wList : null}
         data={nodes}
         keyExtractor={(n) => String(n.lv)}
         renderItem={renderItem}
@@ -335,40 +463,37 @@ function LevelRoadScreen({ profile, levels, creatures, hidden = HIDDEN, autoClai
         showsVerticalScrollIndicator={false}
         ListFooterComponent={<Text style={styles.foot}>{`The road ends at level ${nodes.length}. Every level after it still counts toward your trophies.`}</Text>}
       />
-      {toast ? (
-        <View pointerEvents="none" style={[styles.toastAt, { bottom: insets.bottom + 8 }]}>
-          <Toast message={toast.text} messageKey={toast.key} />
-        </View>
-      ) : null}
-      <FlyLayer ref={fly} />
-      {/* the smash loads unseen under a chest dropping in, and shows as it lands */}
-      {smash && (
-        <View style={[StyleSheet.absoluteFill, drop && !drop.reveal && styles.unseen]} pointerEvents={drop ? 'none' : 'auto'}>
-          <ChestSmash chest={smash.chest} catalog={catalog} onCollect={collectSmash} />
-        </View>
-      )}
-      {drop && <ChestDrop key={drop.key} group={drop.group} size={drop.size} onReveal={() => setDrop((d) => d && { ...d, reveal: true })} onDone={() => setDrop(null)} />}
-    </Bg>
+      {overlays}
+    </CandyBackground>
   );
 }
 
-// the new look's page behind the road in landscape
-function WideBg({ children }) {
-  return (
-    <View style={styles.wRoot}>
-      <PageBg />
-      {children}
-    </View>
-  );
-}
+// the wood look (src/royal/theme.js WOOD) and the XP bar's warm fill
+const WOOD = ['#e6b47c', '#cf955a', '#b47a42'];
+const BAR = ['#ffe08a', '#ffb347', '#f07a1c'];
 
 const styles = StyleSheet.create({
-  wRoot: { flex: 1, flexDirection: 'row', backgroundColor: '#24123f' },
-  wSide: { width: '42%', paddingTop: 6 },
-  wList: { flex: 1, paddingTop: 10 },
+  // landscape (REDESIGN_V8)
+  wRoot: { flex: 1, backgroundColor: '#24123f' },
+  wTop: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
+  wLevelRing: { flex: 1, maxWidth: 300 },
+  wLevel: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, paddingHorizontal: 10 },
+  midDisc: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: '#ffffff' },
+  midNum: { fontFamily: F.display, fontSize: 21, color: '#7a3d00', includeFontPadding: false, paddingHorizontal: 3 },
+  wMid: { flex: 1, justifyContent: 'center', gap: 12, paddingBottom: 8 },
+  wRoad: { flexGrow: 0 },
+  wAll: { alignSelf: 'center' },
+  wRoadIn: { paddingHorizontal: 16, alignItems: 'flex-start' },
+  col: { width: COL, alignItems: 'center', paddingTop: 4, gap: 8 },
+  hRail: { position: 'absolute', top: 4 + 19 - 3, left: 0, right: 0, height: 6, backgroundColor: '#e2cfb4' },
+  colCardRing: { width: COL - 12 },
+  colCard: { alignItems: 'center', gap: 6, paddingTop: 10, paddingBottom: 10, paddingHorizontal: 6, height: 168 },
+  colArt: { height: 56, alignItems: 'center', justifyContent: 'center' },
+  colPrize: { fontFamily: F.display, fontSize: 15, lineHeight: 18, color: '#5b3418', textAlign: 'center', minHeight: 36, textAlignVertical: 'center' },
+  footWide: { width: 220, alignSelf: 'center', paddingTop: 0, paddingHorizontal: 16, textAlign: 'left' },
   lock: { width: 12, height: 13, alignItems: 'center' },
-  lockShackle: { width: 6.6, height: 5.2, marginTop: 0.6, borderWidth: 1.7, borderBottomWidth: 0, borderColor: '#9a87b5', borderTopLeftRadius: 3.3, borderTopRightRadius: 3.3 },
-  lockBody: { width: 9.2, height: 6.5, borderRadius: 1.8, backgroundColor: '#9a87b5' },
+  lockShackle: { width: 6.6, height: 5.2, marginTop: 0.6, borderWidth: 1.7, borderBottomWidth: 0, borderColor: '#a88d70', borderTopLeftRadius: 3.3, borderTopRightRadius: 3.3 },
+  lockBody: { width: 9.2, height: 6.5, borderRadius: 1.8, backgroundColor: '#a88d70' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
   purses: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6 },
   purse: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingLeft: 7, paddingRight: 9, paddingVertical: 4 },
@@ -380,27 +505,27 @@ const styles = StyleSheet.create({
   bigDisc: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#ffffff' },
   bigNum: { fontFamily: F.display, fontSize: 30, color: '#7a3d00', includeFontPadding: false, paddingHorizontal: 4 },
   topCol: { flex: 1, gap: 5 },
-  kicker: { fontFamily: F.black, fontSize: 11, color: '#f0dcff', letterSpacing: 1 },
-  bar: { height: 22, borderRadius: 11, backgroundColor: 'rgba(42,10,74,0.45)', borderWidth: 2, borderColor: '#ffffff', overflow: 'hidden', justifyContent: 'center' },
+  kicker: { fontFamily: F.black, fontSize: 11, color: '#fff6e2', letterSpacing: 1 },
+  bar: { height: 22, borderRadius: 11, backgroundColor: 'rgba(63,36,18,0.45)', borderWidth: 2, borderColor: '#ffffff', overflow: 'hidden', justifyContent: 'center' },
   barFill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 9 },
-  barText: { fontFamily: F.display, fontSize: 12, color: '#ffffff', textAlign: 'center', textShadowColor: '#45107a', textShadowRadius: 3, textShadowOffset: { width: 0, height: 1 } },
-  hint: { fontFamily: F.heavy, fontSize: 11, color: '#f0dcff' },
+  barText: { fontFamily: F.display, fontSize: 12, color: '#ffffff', textAlign: 'center', textShadowColor: '#3f2412', textShadowRadius: 3, textShadowOffset: { width: 0, height: 1 } },
+  hint: { fontFamily: F.heavy, fontSize: 11, color: '#fff6e2' },
   allBtn: { marginHorizontal: 0 },
   row: { height: ROW, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 10 },
-  rail: { position: 'absolute', left: 16 + 19, width: 6, marginLeft: -3, top: 0, bottom: 0, backgroundColor: '#d9cbef' },
+  rail: { position: 'absolute', left: 16 + 19, width: 6, marginLeft: -3, top: 0, bottom: 0, backgroundColor: '#e2cfb4' },
   railOn: { backgroundColor: '#ffc23a' },
   disc: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: '#ffffff' },
-  discNow: { width: 42, height: 42, borderRadius: 21, marginHorizontal: -2, borderColor: '#ff5cc6', borderWidth: 3 },
-  discOff: { backgroundColor: '#efe7fa' },
+  discNow: { width: 42, height: 42, borderRadius: 21, marginHorizontal: -2, borderColor: '#ff8a3d', borderWidth: 3 },
+  discOff: { backgroundColor: '#f3e6d4' },
   discText: { fontFamily: F.display, fontSize: 15, color: '#7a3d00', includeFontPadding: false },
   cardRing: { flex: 1 },
   card: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 10, paddingRight: 8, height: 56 },
-  prize: { flex: 1, fontFamily: F.display, fontSize: 16, color: '#45107a' },
-  prizeGot: { color: '#9a87b5' },
-  prizeOff: { color: '#7a6a8c' },
-  lockTag: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f3ecfb', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
-  lockText: { fontFamily: F.black, fontSize: 11, color: '#7a6a8c', includeFontPadding: false },
-  foot: { fontFamily: F.heavy, fontSize: 12, color: '#6a4a9a', textAlign: 'center', paddingHorizontal: 30, paddingTop: 14 },
+  prize: { flex: 1, fontFamily: F.display, fontSize: 16, color: '#5b3418' },
+  prizeGot: { color: '#a88d70' },
+  prizeOff: { color: '#8a7560' },
+  lockTag: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f6ead8', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
+  lockText: { fontFamily: F.black, fontSize: 11, color: '#8a7560', includeFontPadding: false },
+  foot: { fontFamily: F.heavy, fontSize: 12, color: '#5b3418', textAlign: 'center', paddingHorizontal: 30, paddingTop: 14 },
   unseen: { opacity: 0 },
   toastAt: { position: 'absolute', left: 0, right: 0, height: 80 },
 });

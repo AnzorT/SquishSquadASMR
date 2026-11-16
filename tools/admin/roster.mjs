@@ -21,6 +21,10 @@
 //   GOOGLE_APPLICATION_CREDENTIALS=<key.json> node tools/admin/roster.mjs --hide heroes     (switches it off)
 //   GOOGLE_APPLICATION_CREDENTIALS=<key.json> node tools/admin/roster.mjs --set-rewards on  (or off)
 //   GOOGLE_APPLICATION_CREDENTIALS=<key.json> node tools/admin/roster.mjs --rainbow chest   (or shop)
+//   GOOGLE_APPLICATION_CREDENTIALS=<key.json> node tools/admin/roster.mjs --look 2          (the creatures' still
+//        pictures in look 2; 1 shading only, 2 thin ink line, 3 bold ink line, 4 bold colour line (the default),
+//        0 the old pictures; src/squad/looks.js. One creature in another look: --look 3 mittens  (or its id; --look
+//        default mittens puts it back on the rest's look)
 // --show / --hide take group keys (heroes, elemental, spooky…) or creature ids (79), several at once.
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -37,8 +41,8 @@ if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
   process.exit(1);
 }
 const [flag, ...names] = process.argv.slice(2);
-if (flag && !['--show', '--hide', '--set-rewards', '--rainbow', '--groups'].includes(flag)) {
-  console.error('Use --show or --hide, then group keys or creature ids; or --groups; or --set-rewards on|off; or --rainbow chest|shop.');
+if (flag && !['--show', '--hide', '--set-rewards', '--rainbow', '--groups', '--look'].includes(flag)) {
+  console.error('Use --show or --hide, then group keys or creature ids; or --groups; or --set-rewards on|off; or --rainbow chest|shop; or --look 0-4 [creatures].');
   process.exit(1);
 }
 if (flag === '--rainbow' && !['chest', 'shop'].includes(names[0])) {
@@ -49,7 +53,11 @@ if (flag === '--set-rewards' && !['on', 'off'].includes(names[0])) {
   console.error('--set-rewards takes on or off.');
   process.exit(1);
 }
-const unknown = flag === '--set-rewards' || flag === '--rainbow' || flag === '--groups' ? [] : names.filter((n) => !GROUPS.some((g) => g.key === n) && !BY_ID[n]);
+if (flag === '--look' && !['0', '1', '2', '3', '4', 'default'].includes(names[0])) {
+  console.error('--look takes 0 to 4 (or default, with creatures).');
+  process.exit(1);
+}
+const unknown = flag === '--set-rewards' || flag === '--rainbow' || flag === '--groups' ? [] : (flag === '--look' ? names.slice(1) : names).filter((n) => !GROUPS.some((g) => g.key === n) && !BY_ID[n] && !(flag === '--look' && Object.values(BY_ID).some((c) => c.key === n)));
 if (unknown.length) {
   console.error(`Not a group key or creature id: ${unknown.join(', ')} (groups: ${GROUPS.map((g) => g.key).join(', ')})`);
   process.exit(1);
@@ -74,6 +82,19 @@ if (flag === '--set-rewards') {
   await ref.set({ rainbow }, { merge: true });
   setRewards = setRewardsOf({ ...cfg, rainbow });
   console.log('config/roster written');
+} else if (flag === '--look') {
+  const [n, ...who] = names;
+  if (!who.length) await ref.set({ look: Number(n) }, { merge: true });
+  else {
+    const looks = { ...((cfg && cfg.looks) || {}) };
+    for (const w of who) {
+      const id = BY_ID[w] ? w : (Object.values(BY_ID).find((c) => c.key === w) || {}).id;
+      if (n === 'default') delete looks[id];
+      else looks[id] = Number(n);
+    }
+    await ref.set({ looks }, { merge: true });
+  }
+  console.log('config/roster written');
 } else if (flag === '--groups' || (flag && names.length)) {
   const groups = groupsOf(cfg);
   let ids = idsOf(cfg);
@@ -96,4 +117,11 @@ console.log(
 );
 if (rainbow === 'chest') console.log('Set rewards: OFF while Rainbow chests are earned');
 else console.log(setRewards ? 'Set rewards: ON (a set reward comes from finishing its set)' : 'Set rewards: OFF (set rewards drop from chests; finishing a set gives nothing extra)');
+{
+  const after = (await ref.get()).data() || {};
+  const LOOK = ['the old pictures', 'shading only', 'thin ink line', 'bold ink line', 'bold colour line'];
+  const n = Number.isInteger(after.look) && after.look >= 0 && after.look <= 4 ? after.look : 4;
+  const per = Object.entries(after.looks || {}).map(([id, m]) => `${label(id)} ${m}`);
+  console.log(`Creature look: ${n} (${LOOK[n]})${per.length ? '; ' + per.join(', ') : ''}`);
+}
 if (!snap.exists && !flag) console.log('(config/roster does not exist yet: these are the functions/squad.js defaults)');

@@ -1,7 +1,8 @@
-import React, { memo, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, G, LinearGradient, Pattern, RadialGradient, Rect, Stop } from 'react-native-svg';
+import React, { memo } from 'react';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { LinearGradient as LG } from 'expo-linear-gradient';
+import { usePingPong } from '../components/idleLoop';
 import { INK, PLAQUES, TIP } from './theme';
 
 // The menu's plaque (main-menu.js .mm-p + .v-*): a fill inside a gold rim, a dark ink outline, a 3D lip under it, a
@@ -10,85 +11,53 @@ import { INK, PLAQUES, TIP } from './theme';
 //
 // variant: vel | gold | bronze | wood | amy | pearl | rainbow (theme.js PLAQUES)
 // radius: the corner radius (999 = a pill); style: the box (width / height / padding / layout of the children)
-// tips: the diamond tips; onPress: a button (it sinks 2 on press, as :active does)
+// tips: ignored (REDESIGN_V8, the user: no diamond tips anywhere); onPress: a button (it sinks 2 on press, as :active does)
 
-let UID = 0;
-const stopsOf = (stops) => stops.map(([o, c, a], i) => <Stop key={i} offset={o} stopColor={c} stopOpacity={a == null ? 1 : a} />);
 // a CSS angle (0 = up, 90 = right) as the x1 / y1 / x2 / y2 of an SVG gradient over the box
 function line(angle) {
   const r = (angle * Math.PI) / 180, dx = Math.sin(r), dy = -Math.cos(r);
   return { x1: 0.5 - dx / 2, y1: 0.5 - dy / 2, x2: 0.5 + dx / 2, y2: 0.5 + dy / 2 };
 }
 
-// The fill: one SVG (gradient, patterns, gloss, sparkles, the inner shine and shade). Exported for other shapes.
+// The fill, all native views (performance, 2026-11-14): react-native-svg renders in software on the UI thread, and a
+// big panel was a big software render each time a screen opened. Native gradients and a repeating image tile draw on
+// the GPU. Radial fills (vel, amy, pearl) become the vertical gradient they read as on a panel; the faint diamond / wood
+// textures are left out (5.5% white; Android's repeating image mode didn't tile them). Exported for other shapes.
+// a radial fill as the vertical gradient it shows across a panel (what the box covers of the ellipse)
+const LINEAR_OF = {
+  amy: [[0, '#e6c8ff'], [0.56, '#a565ff'], [1, '#6f2fd3']],
+  pearl: [[0, '#ffffff'], [0.45, '#fff6e6'], [1, '#f6e2c0']],
+};
+const SPARK = [[0.14, 0.28, 1.2, 0.95], [0.63, 0.72, 1.1, 0.85], [0.86, 0.22, 1.3, 0.9], [0.36, 0.8, 1, 0.7]];
 export const Fill = memo(function Fill({ variant = 'vel', top = true, shade = true }) {
   const P = PLAQUES[variant] || PLAQUES.vel;
-  const [id] = useState(() => 'pq' + ++UID);
   const F = P.fill;
+  const stops = F.radial ? LINEAR_OF[variant] || F.stops : F.stops;
+  const ln = F.radial ? { x1: 0.5, y1: 0, x2: 0.5, y2: 1 } : line(F.angle);
   return (
-    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
-      <Defs>
-        {F.radial ? (
-          <RadialGradient id={id + 'f'} cx={F.radial.cx} cy={F.radial.cy} rx={F.radial.rx} ry={F.radial.ry} fx={F.radial.cx} fy={F.radial.cy} gradientUnits="objectBoundingBox">
-            {stopsOf(F.stops)}
-          </RadialGradient>
-        ) : (
-          <LinearGradient id={id + 'f'} {...line(F.angle)}>
-            {stopsOf(F.stops)}
-          </LinearGradient>
-        )}
-        {P.gloss ? (
-          <LinearGradient id={id + 'g'} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#ffffff" stopOpacity={P.gloss} />
-            <Stop offset="0.46" stopColor="#ffffff" stopOpacity={0} />
-          </LinearGradient>
-        ) : null}
-        {P.diamonds ? (
-          <>
-            <Pattern id={id + 'a'} patternUnits="userSpaceOnUse" width="12" height="12" patternTransform="rotate(45)">
-              <Rect x="0" y="0" width="6" height="12" fill="#ffffff" fillOpacity={0.055} />
-            </Pattern>
-            <Pattern id={id + 'b'} patternUnits="userSpaceOnUse" width="12" height="12" patternTransform="rotate(-45)">
-              <Rect x="0" y="0" width="6" height="12" fill="#ffffff" fillOpacity={0.055} />
-            </Pattern>
-          </>
-        ) : null}
-        {P.stripes ? (
-          <Pattern id={id + 's'} patternUnits="userSpaceOnUse" width="11" height="4">
-            <Rect x="0" y="0" width="2" height="4" fill="#50280a" fillOpacity={0.1} />
-          </Pattern>
-        ) : null}
-        {shade ? (
-          <LinearGradient id={id + 'd'} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#14003c" stopOpacity={0} />
-            <Stop offset="1" stopColor="#14003c" stopOpacity={0.35} />
-          </LinearGradient>
-        ) : null}
-      </Defs>
-      <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id}f)`} />
-      {P.stripes ? <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id}s)`} /> : null}
-      {P.diamonds ? (
-        <G>
-          <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id}a)`} />
-          <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id}b)`} />
-        </G>
-      ) : null}
-      {P.gloss ? <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id}g)`} /> : null}
-      {P.sparkles ? (
-        <G>
-          <Circle cx="14%" cy="28%" r="1.2" fill="#ffffff" fillOpacity={0.95} />
-          <Circle cx="63%" cy="72%" r="1.1" fill="#ffffff" fillOpacity={0.85} />
-          <Circle cx="86%" cy="22%" r="1.3" fill="#fff6c8" fillOpacity={0.9} />
-          <Circle cx="36%" cy="80%" r="1" fill="#ffffff" fillOpacity={0.7} />
-        </G>
-      ) : null}
-      {shade ? <Rect x="0" y="85%" width="100%" height="15%" fill={`url(#${id}d)`} /> : null}
-      {top ? <Rect x="0" y="0" width="100%" height="1.5" fill="#ffffff" fillOpacity={0.55} /> : null}
-    </Svg>
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <LG colors={stops.map((x) => x[1])} locations={stops.map((x) => x[0])} start={{ x: ln.x1, y: ln.y1 }} end={{ x: ln.x2, y: ln.y2 }} style={StyleSheet.absoluteFill} />
+      {P.gloss ? <LG colors={[`rgba(255,255,255,${P.gloss})`, 'rgba(255,255,255,0)']} locations={[0, 0.46]} style={StyleSheet.absoluteFill} /> : null}
+      {P.sparkles
+        ? SPARK.map(([x, y, r, a], i) => (
+            <View key={i} style={{ position: 'absolute', left: `${x * 100}%`, top: `${y * 100}%`, width: r * 2, height: r * 2, marginLeft: -r, marginTop: -r, borderRadius: r, backgroundColor: i === 2 ? '#fff6c8' : '#ffffff', opacity: a }} />
+          ))
+        : null}
+      {P.stripes ? <Grain /> : null}
+      {shade ? <LG colors={['rgba(60,30,10,0)', 'rgba(60,30,10,0.3)']} style={styles.shade} /> : null}
+      {top ? <View style={styles.topLine} /> : null}
+    </View>
   );
 });
 
-// a diamond tip (.mm-p.tip::before / ::after)
+// the wood's grain (the house buttons' repeating 2 px brown line every ~22 px), as a few native lines
+const GRAIN = [0.08, 0.2, 0.33, 0.47, 0.6, 0.74, 0.87];
+const Grain = memo(function Grain() {
+  return GRAIN.map((x) => <View key={x} style={[styles.grain, { left: `${x * 100}%` }]} />);
+});
+
+// a diamond tip (.mm-p.tip::before / ::after): no longer drawn (REDESIGN_V8)
+// eslint-disable-next-line no-unused-vars
 function Tip({ side }) {
   return (
     <View pointerEvents="none" style={[styles.tip, side === 'l' ? styles.tipL : styles.tipR]}>
@@ -99,22 +68,13 @@ function Tip({ side }) {
   );
 }
 
-// A gentle gold glow behind a button, pulsing (@keyframes mmGlow)
-export function Glow({ radius = 16, spread = 10 }) {
-  const t = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(t, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(t, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [t]);
-  const opacity = t.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] });
+// A gentle gold glow behind a button, pulsing (@keyframes mmGlow). One native loop (idleLoop.js), which also stops
+// while a screen covers this one (LoopsOn); a loop(sequence) was restarted from JS every 1.2 s.
+export const Glow = memo(function Glow({ radius = 16, spread = 10 }) {
+  const opacity = usePingPong(2400, { from: 0.35, to: 1 });
   return (
-    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { top: -spread, bottom: -spread, left: -spread, right: -spread, opacity }]}>
+    // (a texture of its own: the pulse only fades it, the SVG isn't drawn again)
+    <Animated.View pointerEvents="none" renderToHardwareTextureAndroid style={[StyleSheet.absoluteFill, { top: -spread, bottom: -spread, left: -spread, right: -spread, opacity }]}>
       <Svg width="100%" height="100%">
         <Defs>
           <RadialGradient id="royalGlow" cx="50%" cy="50%" rx="50%" ry="50%">
@@ -126,7 +86,7 @@ export function Glow({ radius = 16, spread = 10 }) {
       </Svg>
     </Animated.View>
   );
-}
+});
 
 function Plaque({ variant = 'vel', radius = 999, rim = 2.5, ring = 1.6, lip = 3, tips = false, glow = false, style, children, onPress, disabled, hitSlop }) {
   const P = PLAQUES[variant] || PLAQUES.vel;
@@ -141,8 +101,6 @@ function Plaque({ variant = 'vel', radius = 999, rim = 2.5, ring = 1.6, lip = 3,
       <View pointerEvents="none" style={[styles.abs, { top: rim, bottom: rim, left: rim, right: rim, borderRadius: inner, overflow: 'hidden' }]}>
         <Fill variant={variant} />
       </View>
-      {tips ? <Tip side="l" /> : null}
-      {tips ? <Tip side="r" /> : null}
       {typeof children === 'function' ? children(pressed) : children}
     </>
   );
@@ -165,5 +123,8 @@ const styles = StyleSheet.create({
   tipL: { left: -6 },   // (the CSS: 7 left of the padding edge, inside a 2.5 rim)
   tipR: { right: -6 },
   tipIn: { flex: 1 },
+  shade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '15%' },
+  topLine: { position: 'absolute', left: 0, right: 0, top: 0, height: 1.5, backgroundColor: 'rgba(255,255,255,0.55)' },
   tipShine: { position: 'absolute', left: 0, top: 0, width: 3, height: 3, backgroundColor: 'rgba(255,255,255,0.8)' },
+  grain: { position: 'absolute', top: 0, bottom: 0, width: 2, backgroundColor: 'rgba(107,68,38,0.09)' },
 });

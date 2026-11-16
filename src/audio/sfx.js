@@ -6,12 +6,13 @@ import SQUISHDOKU_FILES from './squishdokuFiles';
 import SORT_FILES from './sortFiles';
 import STACK_FILES from './stackFiles';
 
-// The v3 design's sound: ~40 effects, five music moods and the Crib's tracks, rendered from the
-// design's own sfx.js (tools/audio) to files in assets/audio.
+// The v3 design's sound: ~40 effects, rendered from the design's own sfx.js (tools/audio) to files in
+// assets/audio, and one music track, the user's own Velvet Map Study. (The design's five music moods, the Crib's
+// room tracks and its club songs were removed on 2026-11-16: the user kept only Velvet Map Study.)
 //
 //   sfx.play('tap')                 one-shot effect
 //   const h = sfx.loop('reelLoop')  looping effect → h.setRate(r), h.stop()
-//   sfx.music('cozy')               crossfades to that mood (null = silence)
+//   sfx.music('theme')              fades the track in (null = silence)
 //
 // Effects are kept loaded and restarted on each play (a fresh player per
 // play is too slow for button taps) — but only a few at a time: every
@@ -35,36 +36,19 @@ const TAP_GAP_MS = 100;
 let lastTap = 0;
 
 const MUSIC = {
-  dream: require('../../assets/audio/music/dream.ogg'),
-  party: require('../../assets/audio/music/party.ogg'),
-  cozy: require('../../assets/audio/music/cozy.ogg'),
-  calm: require('../../assets/audio/music/calm.ogg'),
-  mystery: require('../../assets/audio/music/mystery.ogg'),
-  // the game's main theme after the splash (the user's own track; Velvet Map
-  // Study replaced Butterscotch Bounce on 2026-10-17)
-  bounce: require('../../assets/audio/music/velvet_map_study.mp3'),
-  // the Crib's rooms and the dance room's club songs (tools/audio/render.mjs --crib)
-  crib_living: require('../../assets/audio/music/crib_living.ogg'),
-  crib_kitchen: require('../../assets/audio/music/crib_kitchen.ogg'),
-  crib_bath: require('../../assets/audio/music/crib_bath.ogg'),
-  crib_bed: require('../../assets/audio/music/crib_bed.ogg'),
-  crib_dance: require('../../assets/audio/music/crib_dance.ogg'),
-  crib_yard: require('../../assets/audio/music/crib_yard.ogg'),
-  club_disco: require('../../assets/audio/music/club_disco.ogg'),
-  club_house: require('../../assets/audio/music/club_house.ogg'),
-  club_synth: require('../../assets/audio/music/club_synth.ogg'),
-  club_bounce: require('../../assets/audio/music/club_bounce.ogg'),
-  club_turbo: require('../../assets/audio/music/club_turbo.ogg'),
+  // the game's only music, from the end of the splash on (the user's own track; it replaced Butterscotch Bounce on
+  // 2026-10-17, and the rest of the music was removed on 2026-11-16)
+  theme: require('../../assets/audio/music/velvet_map_study.mp3'),
 };
 
-// The files are levelled per group (tools/audio/encode.py); this puts the
-// music back under the effects. 0.2 is the design's exact balance — a
-// little more, so it's heard on a phone speaker.
+// The music under the effects. 0.2 was the design's exact balance for its
+// own (levelled, tools/audio/encode.py) tracks — a little more, so it's
+// heard on a phone speaker.
 const MUSIC_VOLUME = 0.3;
-// Tracks that didn't go through encode.py's levelling: Velvet Map Study
-// is a mastered song, ~6 dB louder (RMS -14.3 dB vs ~-20 dB for the rest),
-// so it's played at half volume to sit with the others.
-const TRACK_GAIN = { bounce: 0.5 };
+// Velvet Map Study is a mastered song, ~6 dB louder than those tracks were
+// (RMS -14.3 dB vs ~-20 dB), so it plays at half volume: the level it has
+// always had under the effects.
+const TRACK_GAIN = { theme: 0.5 };
 const volumeOf = (name) => MUSIC_VOLUME * (TRACK_GAIN[name] ?? 1);
 const FADE_IN_MS = 1200;
 const FADE_OUT_MS = 900;

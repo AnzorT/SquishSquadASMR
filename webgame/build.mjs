@@ -32,13 +32,13 @@ const ASSETS = [
   'export/thumbs/**',
   'export/cards4/**',
   'export/creatures-v2/**',
-  'music/**',
   'assets/**',
   'uploads/*.csv',
 ];
 // Left out on purpose (nothing the shipped pages run loads them; webgame/test/smoke.mjs would catch it if that changed):
 // export/creature-sounds (28 MB of WAVs: the pages synthesize their sounds with WebAudio), export/creatures (the old
-// 20-creature art), export/tripo/*/*.jpg (reference photos for rig work), the card-making tools and letter sheets.
+// 20-creature art), export/tripo/*/*.jpg (reference photos for rig work), the card-making tools and letter sheets,
+// music/ (the Dance Room's song: the user kept only Velvet Map Study, 2026-11-16; patches.mjs turns the song off).
 const EXCLUDE = [/^export\/cards4\/(abc|tools)\//];
 
 const REACT_SWAP = [
@@ -50,7 +50,7 @@ const REACT_SWAP = [
 ];
 
 // loaded by every page, in this order, before support.js (roster.js is written by the build from webgame/data)
-const APP_SCRIPTS = ['boot.js', 'roster.js', 'bridge.js', 'config.js', 'games.js', 'menu.js'];
+const APP_SCRIPTS = ['perf.js', 'boot.js', 'roster.js', 'bridge.js', 'config.js', 'games.js', 'menu.js'];
 
 const clean = s => s.split('?')[0].split('#')[0].replace(/^\.\//, '');
 
@@ -149,6 +149,14 @@ export async function build(out = OUT) {
       fs.copyFileSync(path.join(dir, rel), to);
       bytes += fs.statSync(to).size;
     }
+  }
+  // the groups' chest pictures (the app's own, assets/squad/gchests) for the Level Pass's chest prizes, which show the
+  // chest you'll get (REDESIGN_V9): app/gchests/<group>-<size>-grow.webp
+  const GCH = path.join(REPO, 'assets/squad/gchests');
+  fs.mkdirSync(path.join(out, 'app/gchests'), { recursive: true });
+  for (const f of fs.readdirSync(GCH).filter(f => f.endsWith('-grow.webp'))) {
+    fs.copyFileSync(path.join(GCH, f), path.join(out, 'app/gchests', f));
+    bytes += fs.statSync(path.join(GCH, f)).size;
   }
   // roster id -> creature key, for app/bridge.js (the app knows creatures by key, the engines by roster id)
   const data = JSON.parse(fs.readFileSync(path.join(WEBGAME, 'data/game-config.json'), 'utf8'));

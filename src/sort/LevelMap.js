@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useMemo, useRef } from 'react';
+import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useGameDims } from '../royal/GameFrame';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -62,8 +62,8 @@ const Node = memo(function Node({ lv, tier, x, y, state, stars, delay, onPress, 
     fx.current?.burst('spark', NODE / 2, NODE / 2, 0.8);
     onPress(lv);
   };
-  const colors = state === 'done' ? ['#fff7b0', '#ffd23a', '#ff9c0a'] : state === 'current' ? ['#ffd6f4', '#ff5cc6', '#c02bd9'] : ['#ece6f3', '#cfc3dd', '#b3a5c4'];
-  const ring = state === 'done' ? '#9c4d06' : state === 'current' ? '#8e1580' : '#7a6a8c';
+  const colors = state === 'done' ? ['#fff7b0', '#ffd23a', '#ff9c0a'] : state === 'current' ? ['#ffe2c8', '#ff9a4a', '#e0601c'] : ['#f1ebe4', '#dacdbf', '#c2b2a1'];
+  const ring = state === 'done' ? '#9c4d06' : state === 'current' ? '#8a3a0e' : '#7a6a8c';
   return (
     <Animated.View
       style={[
@@ -109,13 +109,43 @@ const Node = memo(function Node({ lv, tier, x, y, state, stars, delay, onPress, 
 
 // list: [{ band, tier, … }] a level each; bannerOf(level) names its band,
 // iconOf(level) draws its picture (or null)
+// landscape (REDESIGN_V8, the user: the level maps sideways): the levels run left to right, the page scrolling
+// sideways, in one row along the middle of the screen (2026-11-16, the user: the list in the middle). Each band opens
+// with its sign, its picture over its banner, standing in the row before its first level (it was over the row, which
+// pushed the row down to the bottom edge).
+const GAP_X = 92;
+const SIGN_W = 210; // a sign with a picture (Squish Sort's fridges, Squish Hop's rooms)
+const SIGN_W_TEXT = 150; // a banner only
+const SIGN_GAP = 50; // from a node's centre to the sign's edge
+
 function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelves, iconOf }) {
-  const { width } = useGameDims(); // (the game panel in landscape: REDESIGN_V7)
+  const { width, height: winH } = useGameDims(); // (the game panel in landscape: REDESIGN_V7)
+  const wide = width > winH;
+  const [boxH, setBoxH] = useState(0);
+  const H = boxH || winH - 60;
   const scroll = useRef(null);
   const cur = rec.lv;
   const LEVELS = list.length;
   const bandOf = (i) => list[i].band;
   const points = useMemo(() => {
+    if (wide) {
+      // a gentle wave about the middle line (a little above it: the stars hang under a beaten level)
+      const amp = Math.min(22, H * 0.07);
+      const mid = H * 0.5 - 10;
+      const out = [];
+      let x = 0;
+      for (let i = 0; i < LEVELS; i++) {
+        let sign = null;
+        if (i === 0 || list[i].band !== list[i - 1].band) {
+          sign = i === 0 ? 20 : out[i - 1].x + SIGN_GAP;
+          const w = iconOf && iconOf(list[i]) ? SIGN_W : SIGN_W_TEXT;
+          x = sign + w + SIGN_GAP;
+        }
+        out.push({ x, y: mid + Math.sin(i * 1.05) * amp, sign });
+        x += GAP_X;
+      }
+      return out;
+    }
     const amp = Math.min(110, width * 0.27);
     let y = TOP;
     return Array.from({ length: LEVELS }, (_, i) => {
@@ -125,8 +155,9 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
       y += GAP;
       return p;
     });
-  }, [width, list, LEVELS, iconOf]);
+  }, [width, list, LEVELS, iconOf, wide, H]);
   const height = points[LEVELS - 1].y + 120;
+  const contentW = points[LEVELS - 1].x + 120;
   const mascot = uris.length ? uris[(cur * 11) % uris.length] : null;
 
   const order = useMemo(() => Array.from({ length: LEVELS }, (_, i) => i).sort((a, b) => Math.abs(a + 1 - cur) - Math.abs(b + 1 - cur)), [cur, LEVELS]);
@@ -134,8 +165,8 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
   const built = useMemo(() => new Set(order.slice(0, n)), [order, n]);
 
   useEffect(() => {
-    const y = Math.max(0, points[cur - 1].y - 260);
-    const tm = setTimeout(() => scroll.current?.scrollTo({ y, animated: false }), 0);
+    const p = points[cur - 1];
+    const tm = setTimeout(() => (wide ? scroll.current?.scrollTo({ x: Math.max(0, p.x - width / 2), animated: false }) : scroll.current?.scrollTo({ y: Math.max(0, p.y - 260), animated: false })), 0);
     const pops = [];
     for (let k = 0; k < 6; k++) pops.push(setTimeout(() => sfx.play('sd_nodePop', { rate: 0.9 + k * 0.07 }), 120 + k * 70));
     return () => {
@@ -148,6 +179,8 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
   const dots = [];
   for (let i = 0; i < LEVELS - 1; i++) {
     if (!built.has(i) || !built.has(i + 1)) continue;
+    // (in landscape a band's sign stands between its levels and the last band's: no dots through it)
+    if (wide && points[i + 1].sign != null) continue;
     const a = points[i];
     const b = points[i + 1];
     for (let k = 1; k <= 3; k++) {
@@ -162,16 +195,31 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
       // (the picture comes with its level's node, a few a frame)
       const icon = iconOf ? iconOf(L) : null;
       banners.push(
-        <View key={`b${L.band}`} style={[styles.banner, { top: points[i].y - 104 - (icon ? ICON_H : 0) }]}>
-          {icon ? <View style={styles.icon}>{built.has(i) ? icon : null}</View> : null}
-          <Text style={styles.bannerText}>{bannerOf(L)}</Text>
-        </View>,
+        wide ? (
+          <View key={`b${L.band}`} style={[styles.signWide, { left: points[i].sign, width: icon ? SIGN_W : SIGN_W_TEXT, top: -10, height: H }]}>
+            {icon ? <View style={styles.iconWide}>{built.has(i) ? icon : null}</View> : null}
+            <Text style={styles.bannerText}>{bannerOf(L)}</Text>
+          </View>
+        ) : (
+          <View key={`b${L.band}`} style={[styles.banner, { top: points[i].y - 104 - (icon ? ICON_H : 0) }]}>
+            {icon ? <View style={styles.icon}>{built.has(i) ? icon : null}</View> : null}
+            <Text style={styles.bannerText}>{bannerOf(L)}</Text>
+          </View>
+        ),
       );
     }
   }
 
   return (
-    <ScrollView ref={scroll} style={styles.fill} contentContainerStyle={{ height }} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      ref={scroll}
+      horizontal={wide}
+      style={styles.fill}
+      contentContainerStyle={wide ? { width: contentW, height: H } : { height }}
+      showsVerticalScrollIndicator={false}
+      showsHorizontalScrollIndicator={false}
+      onLayout={(e) => wide && setBoxH(Math.round(e.nativeEvent.layout.height))}
+    >
       {dots}
       {banners}
       {points.map((p, i) => {
@@ -190,7 +238,7 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
             delay={Math.min(700, Math.abs(lv - cur) * 45)}
             onPress={onPlay}
             mascot={lv === cur ? mascot : null}
-            mascotLeft={p.x > width / 2}
+            mascotLeft={wide ? p.sign == null : p.x > width / 2}
           />
         );
       })}
@@ -214,7 +262,10 @@ const styles = StyleSheet.create({
   mascot: { position: 'absolute', top: 8, zIndex: 3 },
   dot: { position: 'absolute', width: 8, height: 8, borderRadius: 4 },
   banner: { position: 'absolute', alignSelf: 'center', left: 0, right: 0, alignItems: 'center' },
-  bannerText: { fontFamily: F.display, fontSize: 14, letterSpacing: 1.5, color: '#ffffff', textAlign: 'center', backgroundColor: '#7a2fd6', borderRadius: 16, borderWidth: 2.5, borderColor: '#ffffff', paddingHorizontal: 14, paddingVertical: 3, overflow: 'hidden' },
+  // a sign in the row: centred on the row's middle line (H / 2 - 10)
+  signWide: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  iconWide: { marginBottom: 8, alignItems: 'center' },
+  bannerText: { fontFamily: F.display, fontSize: 14, letterSpacing: 1.5, color: '#ffffff', textAlign: 'center', backgroundColor: '#b8641c', borderRadius: 16, borderWidth: 2.5, borderColor: '#ffffff', paddingHorizontal: 14, paddingVertical: 3, overflow: 'hidden' },
   icon: { height: ICON_H - 8, justifyContent: 'flex-end', marginBottom: 6 },
 });
 

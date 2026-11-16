@@ -17,7 +17,7 @@ Everything below lives in Firestore **`config/levels`**, which the app and the s
 | `xp.squishEvery` / `xp.squishDay` | 1 XP every this many squishes, up to this much a day | 5 / 200 |
 | `xp.replay` | The share of a level's XP a replay pays (0–1) | 0.5 |
 | `xp.games` | Multiplies every mini-game level's XP (2 = double) | 1 |
-| `xp.blitz.squishdoku` / `.sort` / `.stack` | XP for a won Blitz run | 400 / 200 / 200 |
+| `xp.blitz.squishdoku` / `.sort` / `.stack` | XP for a won Blitz run. Squishdoku's Blitz is endless since 2026-11-16: its number is the XP for 10 boards cleared, a tenth of it per board | 400 / 200 / 200 |
 
 Things to know:
 - Changing `xpPerLevel` changes everyone's level at once, because a level is worked out from the player's XP total. Prizes already claimed stay claimed.
