@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { DEMO_KEYS } from '../../src/web/demo/cast.js';
 
@@ -21,7 +21,9 @@ const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const OUT = path.resolve(process.argv[2] || path.join(REPO, 'dist-demo'));
 const BUILD = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-build-'));
 
-execFileSync('npx', ['expo', 'export', '-p', 'web', '--clear', '--output-dir', BUILD], {
+// (through the shell, quoted, so npx runs on Windows too and paths with spaces survive)
+const q = (a) => (/[\s"]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a);
+execSync(['npx', 'expo', 'export', '-p', 'web', '--clear', '--output-dir', BUILD].map(q).join(' '), {
   cwd: REPO,
   stdio: ['ignore', 'ignore', 'inherit'],
   env: { ...process.env, EXPO_PUBLIC_DEMO: '1' },

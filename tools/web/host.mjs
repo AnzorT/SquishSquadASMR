@@ -5,7 +5,7 @@
 // app's web WebView (src/web/frameHook.js), as the dev server does.
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
@@ -14,7 +14,9 @@ const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const OUT = path.join(REPO, 'dist');
 const ASSETS = path.join(REPO, 'android/app/src/main/assets');
 const FRAME_HOOK = require('../../src/web/frameHook.js');
-const run = (cmd, args) => execFileSync(cmd, args, { cwd: REPO, stdio: ['ignore', 'ignore', 'inherit'] });
+// (through the shell, quoted, so npx runs on Windows too and paths with spaces survive)
+const q = (a) => (/[\s"]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a);
+const run = (cmd, args, env) => execSync([cmd, ...args].map(q).join(' '), { cwd: REPO, stdio: ['ignore', 'ignore', 'inherit'], env: { ...process.env, ...env } });
 
 run('node', ['webgame/build.mjs']);
 run('npx', ['expo', 'export', '-p', 'web', '--clear', '--output-dir', OUT]);
