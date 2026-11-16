@@ -30,7 +30,7 @@ export function ResultCard({ visible, res, spec, last, onNext, onReplay, onHub }
   if (!res) return <Overlay visible={false} />;
   const coinsAt = 380 + 3 * STEP + 200;
   return (
-    <Overlay visible={visible} flip>
+    <Overlay visible={visible} column>
       <PopIn trigger={key} delay={80}>
         <OutlinedTitle text={TITLES[res.stars]} size={res.stars === 3 ? 27 : 30} fill={res.stars === 3 ? 'gold' : 'pink'} />
       </PopIn>

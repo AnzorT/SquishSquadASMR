@@ -33,7 +33,7 @@ export function ResultCard({ visible, res, spec, nextRoom, onNext, onReplay, onH
   const last = spec.lv >= LEVELS;
   const tb = res.takebacks || 0;
   return (
-    <Overlay visible={visible} flip>
+    <Overlay visible={visible} column>
       <PopIn trigger={key} delay={80}>
         <OutlinedTitle text={TITLES[res.stars]} size={res.stars === 3 ? 30 : 28} fill={res.stars === 3 ? 'gold' : 'pink'} />
       </PopIn>
@@ -83,7 +83,7 @@ export function ResultCard({ visible, res, spec, nextRoom, onNext, onReplay, onH
 // are left that can't be reached any more).
 export function StuckCard({ visible, head, uri, shut, onUndo, onRetry }) {
   return (
-    <Overlay visible={visible} tint="rgba(80,0,30,0.5)" flip>
+    <Overlay visible={visible} tint="rgba(80,0,30,0.5)" column>
       <PopIn trigger={visible} delay={60}>
         <OutlinedTitle text="STUCK!" size={32} fill="gold" />
       </PopIn>

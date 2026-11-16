@@ -6,7 +6,7 @@ import { RaysSpin } from '../components/candy/Decor';
 import { CoinIcon } from '../squad/ui';
 import sfx from '../audio/sfx';
 import { CountUp, FxLayer, PopIn, Rock, SlideIn } from '../squishdoku/fx';
-import { Overlay, Split, XpGain, XpPlus } from '../squishdoku/Overlays';
+import { Overlay, Split, XpGain, XpPlus, useCompact } from '../squishdoku/Overlays';
 import { BtnLabel, Head, SdButton } from '../squishdoku/ui';
 import { F, INK } from '../squishdoku/theme';
 import { BLITZ_ROUNDS, HEARTS, TIER_NAMES, clock } from './levels';
@@ -21,7 +21,8 @@ const STAR_D = 'M12 2.2 L14.9 8.6 L21.8 9.3 L16.6 14 L18.1 20.9 L12 17.4 L5.9 20
 export function Star({ earned, delay, big }) {
   const t = useRef(new Animated.Value(0)).current;
   const fx = useRef(null);
-  const size = big ? 74 : 60;
+  const compact = useCompact(); // (a one-column card in landscape: smaller, to fit the height)
+  const size = Math.round((big ? 74 : 60) * (compact ? 0.72 : 1));
   useEffect(() => {
     const timer = setTimeout(() => earned && fx.current?.burst('gold', size / 2 + 10, size / 2 + 10, 1), delay + 60);
     Animated.spring(t, { toValue: 1, friction: earned ? 3.6 : 7, tension: earned ? 170 : 120, delay, useNativeDriver: true }).start();
@@ -30,7 +31,7 @@ export function Star({ earned, delay, big }) {
   const scale = t.interpolate({ inputRange: [0, 1], outputRange: [earned ? 0 : 1.5, 1] });
   const rotate = t.interpolate({ inputRange: [0, 1], outputRange: [earned ? '-40deg' : '0deg', '0deg'] });
   return (
-    <View style={{ width: size + 20, height: size + 20, alignItems: 'center', justifyContent: 'center', marginTop: big ? -12 : 6 }}>
+    <View style={{ width: size + 20, height: size + 20, alignItems: 'center', justifyContent: 'center', marginTop: compact ? 0 : big ? -12 : 6 }}>
       {earned ? (
         <Animated.View pointerEvents="none" style={{ position: 'absolute', opacity: t }}>
           <RaysSpin size={size * 1.8} color="#ffe45c" opacity={0.6} />
@@ -65,7 +66,7 @@ export function ResultCard({ visible, res, spec, theme, last, onNext, onReplay, 
   if (!res) return <Overlay visible={false} />;
   const coinsAt = 380 + 3 * STEP + 200;
   return (
-    <Overlay visible={visible} flip>
+    <Overlay visible={visible} column>
       <PopIn trigger={key} delay={80}>
         <OutlinedTitle text={TITLES[res.stars]} size={res.stars === 3 ? 27 : 30} fill={res.stars === 3 ? 'gold' : 'pink'} />
       </PopIn>

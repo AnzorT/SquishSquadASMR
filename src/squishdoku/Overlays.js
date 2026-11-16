@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import OutlinedTitle from '../components/candy/OutlinedTitle';
@@ -21,13 +21,18 @@ import { useWide } from '../royal/GameFrame';
 // In landscape (REDESIGN_V8, every popup made for the sideways screen) a card is two columns side by side: what comes
 // before <Split /> on the left (the title and the picture), the rest on the right (the numbers and the buttons). A card
 // without one stays a single column. Upright, Split is nothing.
-// `flip` swaps the two sides: the numbers and buttons on the left, the title and picture on the right (the user,
-// 2026-11-16, for the STUCK card and every mini-game's result card).
+// `column` keeps the card one column in landscape too, everything stacked: the title and picture on top, the text,
+// numbers and buttons under them (the user, 2026-11-16, for the STUCK card and every mini-game's result card). It is
+// set tighter to fit the sideways screen's height.
 export const Split = () => null;
+
+// true inside a `column` card in landscape: its stars, score creatures and XP bar are drawn smaller to fit the height
+const Compact = createContext(false);
+export const useCompact = () => useContext(Compact);
 
 // The dim scrim and a card springing up into the middle.
 // broad: as wide as a two-column card, in one column (Blitz's save card: its buttons in a row)
-export function Overlay({ visible, children, tint = 'rgba(50,24,6,0.55)', broad = false, flip = false }) {
+export function Overlay({ visible, children, tint = 'rgba(50,24,6,0.55)', broad = false, column = false }) {
   const wide = useWide();
   const t = useRef(new Animated.Value(0)).current;
   const [shown, setShown] = useState(visible);
@@ -43,12 +48,15 @@ export function Overlay({ visible, children, tint = 'rgba(50,24,6,0.55)', broad 
   }, [visible]);
   if (!shown) return null;
   let body = children;
-  const list = wide ? React.Children.toArray(children) : null;
+  const list = wide && !column ? React.Children.toArray(children) : null;
   const at = list ? list.findIndex((c) => c && c.type === Split) : -1;
   if (at >= 0) {
-    const first = <View key="a" style={styles.wSide}>{list.slice(0, at)}</View>;
-    const rest = <View key="b" style={styles.wSide}>{list.slice(at + 1)}</View>;
-    body = flip ? [rest, first] : [first, rest];
+    body = (
+      <>
+        <View style={styles.wSide}>{list.slice(0, at)}</View>
+        <View style={styles.wSide}>{list.slice(at + 1)}</View>
+      </>
+    );
   }
   const two = at >= 0;
   return (
@@ -58,6 +66,7 @@ export function Overlay({ visible, children, tint = 'rgba(50,24,6,0.55)', broad 
         style={[
           styles.card,
           (two || (wide && broad)) && styles.cardWide,
+          wide && column && styles.cardColumn,
           {
             opacity: t.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 1, 1], extrapolate: 'clamp' }),
             transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [120, 0] }) }, { scale: t.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) }],
@@ -65,8 +74,8 @@ export function Overlay({ visible, children, tint = 'rgba(50,24,6,0.55)', broad 
         ]}
       >
         <View style={styles.cardRim}>
-          <LinearGradient colors={['#fffaf0', '#fff1dc', '#f6e2c4']} locations={[0, 0.55, 1]} style={[styles.cardFill, wide && styles.cardFillShort, two && styles.cardFillWide]}>
-            {body}
+          <LinearGradient colors={['#fffaf0', '#fff1dc', '#f6e2c4']} locations={[0, 0.55, 1]} style={[styles.cardFill, wide && styles.cardFillShort, two && styles.cardFillWide, wide && column && styles.cardFillColumn]}>
+            <Compact.Provider value={wide && column}>{body}</Compact.Provider>
           </LinearGradient>
         </View>
       </Animated.View>
@@ -79,7 +88,8 @@ export function Overlay({ visible, children, tint = 'rgba(50,24,6,0.55)', broad 
 function Slot({ uri, earned, delay, big }) {
   const t = useRef(new Animated.Value(0)).current;
   const fx = useRef(null);
-  const size = big ? 78 : 64;
+  const compact = useCompact();
+  const size = Math.round((big ? 78 : 64) * (compact ? 0.72 : 1));
   useEffect(() => {
     const timer = setTimeout(() => {
       if (earned) {
@@ -92,7 +102,7 @@ function Slot({ uri, earned, delay, big }) {
   const scale = t.interpolate({ inputRange: [0, 1], outputRange: [earned ? 0 : 1.6, 1] });
   const rotate = t.interpolate({ inputRange: [0, 1], outputRange: [earned ? '-30deg' : '0deg', '0deg'] });
   return (
-    <View style={{ width: size + 16, height: size + 16, alignItems: 'center', justifyContent: 'center', marginTop: big ? -10 : 6 }}>
+    <View style={{ width: size + 16, height: size + 16, alignItems: 'center', justifyContent: 'center', marginTop: compact ? 0 : big ? -10 : 6 }}>
       <Head uri={uri} size={size} dim ring="rgba(255,255,255,0.7)" bg="rgba(230,200,160,0.35)" style={{ position: 'absolute' }} />
       {earned ? (
         <Animated.View pointerEvents="none" style={{ position: 'absolute', opacity: t }}>
@@ -132,7 +142,7 @@ function Stamp({ delay, text = 'PERFECT!' }) {
 
 // The player's XP bar filling from before → after (src/playerXp.js
 // playerLevel()s), rolling over on a level up.
-export function XpBar({ before, after, delay }) {
+export function XpBar({ before, after, delay, width }) {
   const t = useRef(new Animated.Value(0)).current;
   const [lv, setLv] = useState(before.level);
   useEffect(() => {
@@ -164,7 +174,7 @@ export function XpBar({ before, after, delay }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <View style={styles.xpRow}>
+    <View style={[styles.xpRow, width ? { width } : null]}>
       <View style={styles.lvBadge}>
         <Text style={styles.lvText}>{lv}</Text>
       </View>
@@ -189,7 +199,23 @@ export function XpGain({ trigger, res, delay }) {
     const timer = setTimeout(() => sfx.play('sd_levelUp'), delay + 600);
     return () => clearTimeout(timer);
   }, [trigger, res, delay]);
+  const compact = useCompact();
   if (!res?.xp || !res.before) return null;
+  // (in a compact card: the bar and LEVEL n! side by side, on one line)
+  if (compact)
+    return (
+      <View style={styles.xpCompact}>
+        <SlideIn trigger={trigger} delay={delay - 200} dy={16}>
+          <XpBar key={trigger} before={res.before} after={res.after} delay={delay} width={res.levelUps?.length ? 200 : 260} />
+        </SlideIn>
+        {res.levelUps?.length ? (
+          <PopIn trigger={trigger} delay={delay + 600} style={styles.levelUpCompact}>
+            <Text style={styles.levelUpTextCompact}>{`LEVEL ${res.after.level}!`}</Text>
+            <Text style={styles.levelUpSubCompact}>New prize on your road</Text>
+          </PopIn>
+        ) : null}
+      </View>
+    );
   return (
     <>
       <SlideIn trigger={trigger} delay={delay - 200} dy={16}>
@@ -212,6 +238,7 @@ export function XpGain({ trigger, res, delay }) {
 // score creatures.
 export function ResultCard({ visible, res, spec, uris, onNext, onReplay, onMap, last }) {
   const [key, setKey] = useState(0);
+  const wide = useWide();
   useEffect(() => {
     if (!visible || !res) return undefined;
     setKey((k) => k + 1);
@@ -227,12 +254,12 @@ export function ResultCard({ visible, res, spec, uris, onNext, onReplay, onMap, 
   const cAt = coinsAt(res);
   const titles = res.perfect ? 'PERFECT SQUISH!' : res.stars === 3 ? 'SQUISHTASTIC!' : res.stars === 2 ? 'NICE ONE!' : 'SOLVED!';
   return (
-    <Overlay visible={visible} flip>
+    <Overlay visible={visible} column>
       <PopIn trigger={key} delay={80}>
         <OutlinedTitle text={titles} size={res.perfect ? 26 : 30} fill={res.perfect ? 'gold' : 'pink'} />
       </PopIn>
       <Text style={styles.sub}>{`LEVEL ${spec.lv} · ${spec.n}×${spec.n} · ${clock(res.ms)}${res.mistakes ? ` · ${res.mistakes} MISTAKE${res.mistakes > 1 ? 'S' : ''}` : ''}${spec.head ? ' · HEAD START' : ''}`}</Text>
-      <View key={key} style={styles.slots}>
+      <View key={key} style={[styles.slots, wide && styles.slotsCompact]}>
         {[0, 1, 2].map((i) => (
           <Slot key={i} uri={uris[i]} earned={i < res.stars} delay={420 + i * STEP} big={i === 1} />
         ))}
@@ -441,6 +468,7 @@ export function BlitzOverCard({ visible, res, unit = 'board', onAgain, onQuit })
 // (Squish Sort's and Squish Stack's too)
 export function BlitzWinCard({ visible, res, uris, unit = 'board', onAgain, onQuit }) {
   const fx = useRef(null);
+  const wide = useWide();
   useEffect(() => {
     if (!visible) return undefined;
     const timers = [0, 450, 900].map((ms, i) => setTimeout(() => fx.current?.burst('confetti', 60 + i * 80, 40, 1), ms));
@@ -448,12 +476,12 @@ export function BlitzWinCard({ visible, res, uris, unit = 'board', onAgain, onQu
   }, [visible]);
   if (!res) return <Overlay visible={false} />;
   return (
-    <Overlay visible={visible} flip>
+    <Overlay visible={visible} column>
       <PopIn trigger={visible} delay={60}>
         <OutlinedTitle text="BLITZ CHAMPION!" size={26} fill="gold" />
       </PopIn>
       <Text style={styles.sub}>{`10 ${unit.toUpperCase()}S · ${clock(res.ms)}${res.newBest ? ' · NEW BEST!' : ''}`}</Text>
-      <View style={styles.slots}>
+      <View style={[styles.slots, wide && styles.slotsCompact]}>
         {[0, 1, 2].map((i) => (
           <Slot key={i} uri={uris[i]} earned delay={300 + i * 300} big={i === 1} />
         ))}
@@ -487,6 +515,9 @@ const styles = StyleSheet.create({
   cardWide: { maxWidth: 660 },
   cardFillShort: { paddingTop: 12, paddingBottom: 12, gap: 6 },
   cardFillWide: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 22 },
+  // landscape, one column (`column`)
+  cardColumn: { maxWidth: 520 },
+  cardFillColumn: { paddingTop: 8, paddingBottom: 8, gap: 3 },
   wSide: { flex: 1, alignItems: 'center', gap: 6 },
   cardRim: { borderRadius: 27, backgroundColor: '#ffffff', padding: 3 },
   cardFill: { borderRadius: 24, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 16, alignItems: 'center', gap: 8 },
@@ -509,6 +540,12 @@ const styles = StyleSheet.create({
   levelUp: { alignItems: 'center', backgroundColor: '#b8641c', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 5, borderWidth: 3, borderColor: '#ffffff' },
   levelUpText: { fontFamily: F.display, fontSize: 17, color: '#ffffff', textAlign: 'center' },
   levelUpSub: { fontFamily: F.heavy, fontSize: 11, color: '#ffe9cc', textAlign: 'center' },
+  // a compact card's XP line: the bar and LEVEL n! side by side
+  xpCompact: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  levelUpCompact: { alignItems: 'center', backgroundColor: '#b8641c', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 2, borderWidth: 2.5, borderColor: '#ffffff' },
+  levelUpTextCompact: { fontFamily: F.display, fontSize: 13, color: '#ffffff', includeFontPadding: false },
+  levelUpSubCompact: { fontFamily: F.heavy, fontSize: 9, color: '#ffe9cc', marginTop: -1 },
+  slotsCompact: { marginTop: 0, marginBottom: 2 },
   unlocked: { fontFamily: F.display, fontSize: 13, color: '#16a86a', letterSpacing: 0.8 },
   btnRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 8, marginTop: 6 },
   col: { alignSelf: 'stretch', gap: 4, marginTop: 6 },

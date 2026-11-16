@@ -146,6 +146,7 @@ Checked in the web version only: not on a phone, nothing committed.
 - The gem save needs `blitzSave` deployed (Round 3's functions deploy). The `xp.blitz.hop` default is read by the app
   itself, so it needs no deploy.
 - The STUCK card and every mini-game's result card (the stars, or Squishdoku's score creatures, and Blitz's champion
-  card) are flipped in landscape: the text, numbers and buttons on the left, the title and picture on the right (the
-  user's marked-up screenshot, 2026-11-16). `Overlay`'s `flip` (`src/squishdoku/Overlays.js`); the other popups keep
-  the title on the left.
+  card) are one column in landscape too, as upright: the title and picture on top, the text, coins, XP and buttons
+  under them (the user's marked-up screenshot and pick, 2026-11-16). `Overlay`'s `column`
+  (`src/squishdoku/Overlays.js`): set tighter, with the stars and score creatures at 72% and the XP bar and LEVEL n!
+  side by side (`useCompact`), so a result with a level-up fits the 384 dp height. The other popups keep two columns.
