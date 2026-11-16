@@ -142,6 +142,7 @@ export function FailCard({ visible, reason, uri, onRetry, onHub }) {
   );
 }
 
+// (the buttons: RESUME in the app's gold, the others white, as the fail cards: the user, 2026-11-16)
 export function PauseCard({ visible, onResume, onRestart, onQuit }) {
   return (
     <Overlay visible={visible} column>
@@ -149,13 +150,13 @@ export function PauseCard({ visible, onResume, onRestart, onQuit }) {
       <Text style={styles.body}>The clock is stopped.</Text>
       <Split />
       <View style={styles.col}>
-        <SdButton kind="green" onPress={onResume} sound="sd_resume" faceStyle={styles.wideFace}>
-          <BtnLabel kind="green" size={18}>
+        <SdButton kind="gold" onPress={onResume} sound="sd_resume" faceStyle={styles.wideFace}>
+          <BtnLabel kind="gold" size={18}>
             RESUME
           </BtnLabel>
         </SdButton>
-        <SdButton kind="purple" onPress={onRestart} sound="sd_select" faceStyle={styles.wideFace}>
-          <BtnLabel kind="purple" size={16}>
+        <SdButton kind="white" onPress={onRestart} sound="sd_select" faceStyle={styles.wideFace}>
+          <BtnLabel kind="white" size={16}>
             RESTART LEVEL
           </BtnLabel>
         </SdButton>

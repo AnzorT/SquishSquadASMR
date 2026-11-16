@@ -77,20 +77,20 @@ export function ResultCard({ visible, res, spec, last, onNext, onReplay, onHub }
   );
 }
 
-export function PauseCard({ visible, clock, onResume, onRestart, onQuit }) {
+// (the buttons: RESUME in the app's gold, the others white, as the fail cards: the user, 2026-11-16)
+export function PauseCard({ visible, onResume, onRestart, onQuit }) {
   return (
     <Overlay visible={visible} column>
       <OutlinedTitle text="PAUSED" size={30} fill="gold" />
-      {clock ? <Text style={styles.body}>The clock is stopped.</Text> : null}
       <Split />
       <View style={styles.col}>
-        <SdButton kind="green" onPress={onResume} sound="sd_resume" faceStyle={styles.wideFace}>
-          <BtnLabel kind="green" size={18}>
+        <SdButton kind="gold" onPress={onResume} sound="sd_resume" faceStyle={styles.wideFace}>
+          <BtnLabel kind="gold" size={18}>
             RESUME
           </BtnLabel>
         </SdButton>
-        <SdButton kind="purple" onPress={onRestart} sound="sd_select" faceStyle={styles.wideFace}>
-          <BtnLabel kind="purple" size={16}>
+        <SdButton kind="white" onPress={onRestart} sound="sd_select" faceStyle={styles.wideFace}>
+          <BtnLabel kind="white" size={16}>
             NEW PUZZLE
           </BtnLabel>
         </SdButton>

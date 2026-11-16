@@ -162,3 +162,5 @@ Checked in the web version only: not on a phone, nothing committed.
 - The fail cards are one column in landscape too, their two buttons the same size and RETRY in the app's gold:
   Squishdoku's TIME'S UP / OUT OF HEARTS, Squish Sort's TIME'S UP / OH NO, Squish Hop's STUCK. Squish Stack's TIME'S UP
   is gone with its clock.
+- Every pause card's buttons: RESUME in the app's gold, RESTART / NEW PUZZLE and QUIT / LEVELS white, as the fail
+  cards (the user: "buttons need color changed"). Squish Stack's no longer mentions a clock.

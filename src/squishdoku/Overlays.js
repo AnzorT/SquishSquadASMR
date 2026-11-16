@@ -323,6 +323,7 @@ export function TimeUpCard({ visible, onRetry, onMap, uri, hearts = 0 }) {
   );
 }
 
+// (the buttons: RESUME in the app's gold, the others white, as the fail cards: the user, 2026-11-16)
 export function PauseCard({ visible, onResume, onRestart, onQuit, blitz }) {
   return (
     <Overlay visible={visible} column>
@@ -332,11 +333,11 @@ export function PauseCard({ visible, onResume, onRestart, onQuit, blitz }) {
       <Text style={styles.body}>{blitz ? 'The Blitz clock is frozen. Take a breath!' : 'The clock is frozen. The board is hidden so no peeking!'}</Text>
       <Split />
       <View style={styles.col}>
-        <SdButton kind="green" onPress={onResume} sound="sd_resume" faceStyle={styles.wideFace}>
-          <BtnLabel kind="green" size={18}>RESUME</BtnLabel>
+        <SdButton kind="gold" onPress={onResume} sound="sd_resume" faceStyle={styles.wideFace}>
+          <BtnLabel kind="gold" size={18}>RESUME</BtnLabel>
         </SdButton>
-        <SdButton kind="purple" onPress={onRestart} sound="sd_select" faceStyle={styles.wideFace}>
-          <BtnLabel kind="purple" size={16}>{blitz ? 'START OVER' : 'RESTART'}</BtnLabel>
+        <SdButton kind="white" onPress={onRestart} sound="sd_select" faceStyle={styles.wideFace}>
+          <BtnLabel kind="white" size={16}>{blitz ? 'START OVER' : 'RESTART'}</BtnLabel>
         </SdButton>
         <SdButton kind="white" onPress={onQuit} sound="sd_boardOut" faceStyle={styles.wideFace}>
           <BtnLabel kind="white" size={16}>QUIT</BtnLabel>
