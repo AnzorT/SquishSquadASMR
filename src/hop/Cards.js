@@ -170,17 +170,17 @@ export function HintCard({ visible, adReady, adsFree, onWatch, onClose }) {
 const RULES = [
   ['1', 'Hop', 'Swipe, or tap a cushion next to you. A long swipe can turn corners.'],
   ['2', 'Puff!', 'The cushion you hop off puffs away. No going back!'],
-  ['3', 'The ★', 'It opens once every other cushion is cleared. Then hop onto it to finish.'],
-  ['4', 'Stars', '3 with no UNDO or RESTART, 2 with up to 3. A hint costs one.'],
+  ['3', 'The ★', 'Opens once every other cushion is gone. Hop on to finish.'],
+  ['4', 'Stars', '3 with no UNDO or RESTART, 2 with up to 3.'],
 ];
 const ROOM_ORDER = ['friends', 'arrows', 'bubbles', 'piles', 'ordered', 'beats'];
 const LINES = {
-  friends: 'hop onto each friend to pick them up on your way.',
+  friends: 'hop onto each one to pick it up.',
   arrows: 'you can only hop off an arrow cushion the way it points.',
   bubbles: 'land on a bubble and it bounces you one cushion further.',
   piles: 'two cushions on top of each other take two hops.',
   ordered: 'numbered friends are picked up 1, 2, 3…',
-  beats: 'in the Dance Room, coloured tiles light up every third hop. Land on them lit.',
+  beats: 'coloured tiles light up every third hop. Land on them lit.',
 };
 
 export function RulesCard({ visible, onClose }) {
@@ -214,7 +214,7 @@ export function RulesCard({ visible, onClose }) {
       </Text>
       <Text style={styles.twist}>
         <Text style={[styles.twistName, { color: '#0c5a9c' }]}>{'BLITZ MODE  '}</Text>
-        Fresh boards one after another, each on its own short clock. A hop that strands a cushion, or the clock running out, is GAME OVER, unless you save the run.
+        Fresh boards on short clocks. A wrong hop is GAME OVER, unless you save the run.
       </Text>
       <SdButton kind="green" onPress={onClose} sound="sd_select" faceStyle={styles.bigFace} style={{ marginTop: 8 }}>
         <BtnLabel kind="green" size={18}>
