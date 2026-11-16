@@ -120,7 +120,7 @@ export function StuckCard({ visible, head, uri, shut, onUndo, onRetry }) {
 
 export function PauseCard({ visible, onResume, onRestart, onQuit }) {
   return (
-    <Overlay visible={visible}>
+    <Overlay visible={visible} column>
       <OutlinedTitle text="PAUSED" size={30} fill="gold" />
       <Split />
       <View style={styles.col}>

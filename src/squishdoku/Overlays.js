@@ -23,7 +23,7 @@ import { useWide } from '../royal/GameFrame';
 // without one stays a single column. Upright, Split is nothing.
 // `column` keeps the card one column in landscape too, everything stacked: the title and picture on top, the text,
 // numbers and buttons under them (the user, 2026-11-16, for the STUCK card and every mini-game's result card). It is
-// set tighter to fit the sideways screen's height.
+// set tighter to fit the sideways screen's height. (And every pause card: PAUSED above its buttons.)
 export const Split = () => null;
 
 // true inside a `column` card in landscape: its stars, score creatures and XP bar are drawn smaller to fit the height
@@ -325,7 +325,7 @@ export function TimeUpCard({ visible, onRetry, onMap, uri, hearts = 0 }) {
 
 export function PauseCard({ visible, onResume, onRestart, onQuit, blitz }) {
   return (
-    <Overlay visible={visible}>
+    <Overlay visible={visible} column>
       <PopIn trigger={visible} delay={40}>
         <OutlinedTitle text="PAUSED" size={32} fill="pink" />
       </PopIn>
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
   cardFillShort: { paddingTop: 12, paddingBottom: 12, gap: 6 },
   cardFillWide: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 22 },
   // landscape, one column (`column`)
-  cardColumn: { maxWidth: 520 },
+  cardColumn: { maxWidth: 440 },
   cardFillColumn: { paddingTop: 8, paddingBottom: 8, gap: 3 },
   wSide: { flex: 1, alignItems: 'center', gap: 6 },
   cardRim: { borderRadius: 27, backgroundColor: '#ffffff', padding: 3 },

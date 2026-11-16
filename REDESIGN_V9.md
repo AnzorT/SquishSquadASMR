@@ -150,3 +150,11 @@ Checked in the web version only: not on a phone, nothing committed.
   under them (the user's marked-up screenshot and pick, 2026-11-16). `Overlay`'s `column`
   (`src/squishdoku/Overlays.js`): set tighter, with the stars and score creatures at 72% and the XP bar and LEVEL n!
   side by side (`useCompact`), so a result with a level-up fits the 384 dp height. The other popups keep two columns.
+- Every mini-game's pause card is one column in landscape too: PAUSED above its three buttons (the user's screenshot).
+- **Squish Stack's level and Blitz, sideways** (the user: "level needs to be in the middle with the difficulty"; the
+  moves, goal, stars and par "too much text, needs to be simple and in the middle"): one row along the top, the level
+  (or PUZZLE n) and its tier in the middle of the screen, a small pill each side of it: the goal (a smaller card),
+  MOVES and PAR (Blitz: CLEARED and BEST) on the left; the stars still possible and the clock (Blitz: the clock and
+  1 MISTAKE = GAME OVER) on the right. The tip lines are gone. The cushions sit in the middle under it, between a
+  spacer and the buttons' column. One row rather than two keeps the cushions most of the height: on the 8-squishy
+  levels the squishies are about 80% of their old size; the small levels are as big as before. Upright is unchanged.

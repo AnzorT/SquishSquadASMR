@@ -2,6 +2,7 @@ import { GameBack, useGameDims, useWide } from '../royal/GameFrame';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, AppState, BackHandler, Easing, PanResponder, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import OutlinedTitle from '../components/candy/OutlinedTitle';
 import RoundButton, { BackGlyph } from '../components/candy/RoundButton';
 import useRewardedAd from '../components/useRewardedAd';
 import sfx from '../audio/sfx';
@@ -176,7 +177,17 @@ const Meter = memo(function Meter({ stars }) {
   );
 });
 
-// the line under the meter on levels with no clock
+// a number in the landscape level's middle bar: a small label over it
+const Stat = memo(function Stat({ label, value, gold }) {
+  return (
+    <View style={styles.stat}>
+      <Text style={[styles.statLabel, gold && styles.gold]}>{label}</Text>
+      <Text style={[styles.statNum, gold && styles.gold]}>{value}</Text>
+    </View>
+  );
+});
+
+// the line under the meter on levels with no clock (upright only)
 function tipFor(spec, holding, moves) {
   if (spec.lv === 1 && moves === 0) return holding ? 'Now tap the ★ cushion to put it there!' : 'Tap a cushion to lift the squishy on top.';
   if (spec.lv <= 3) return 'A big squishy can never sit on a smaller one!';
@@ -1120,6 +1131,57 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
       </View>
     </>
   );
+  // landscape (the user, 2026-11-16: the level in the middle with its tier, and the rest simple, in the middle): one row
+  // at the top, the level and its tier in the middle of the screen, a small pill on each side of them: the goal, the
+  // moves and the par on the left (Blitz: cleared and best), the stars still possible and the clock on the right. No
+  // tip lines. (One row, so the cushions keep most of the height: the towers are as big as before.)
+  const wideHeadEl = (
+    <View style={styles.wHead}>
+      <View style={styles.wBack}>
+        <GameBack onPress={() => (phaseRef.current === 'play' ? acts.current.pause() : acts.current.leave())} />
+      </View>
+      <View style={[styles.wGroup, styles.wGroupL]}>
+        <View style={styles.wPill}>
+          <GoalCard who={who} goal={puzzle.goal} k={spec.k} star={puzzle.star} width={84} small />
+          {blitz ? (
+            <>
+              <Stat label="CLEARED" value={cleared} />
+              <Stat label={beat ? 'NEW BEST' : 'BEST'} value={Math.max(bestRun, cleared)} gold={beat} />
+            </>
+          ) : (
+            <>
+              <Stat label="MOVES" value={moves} />
+              <Stat label="PAR" value={puzzle.par} />
+            </>
+          )}
+        </View>
+      </View>
+      <View style={styles.wTitle}>
+        <OutlinedTitle text={blitz ? `PUZZLE ${spec.round}` : `LEVEL ${spec.lv}`} size={22} fill="gold" />
+        <View style={[styles.challenge, { backgroundColor: TIER_COLORS[spec.tier] }]}>
+          <Text style={styles.challengeText}>{TIER_NAMES[spec.tier]}</Text>
+        </View>
+      </View>
+      <View style={[styles.wGroup, styles.wGroupR]}>
+        <View style={styles.wPill}>
+          {blitz ? null : <Meter stars={can} />}
+          {blitz || spec.clock ? (
+            <View style={styles.wClock}>
+              <Text style={[styles.wClockText, phase === 'play' && secs <= (blitz ? 5 : 10) && { color: '#ff8fa3' }]}>{clock(secs * 1000)}</Text>
+              <View style={styles.wClockBar}>
+                <Bar frac={clk.frac} colors={blitz ? ['#b0fbff', '#3fd7f6'] : ['#b8ffd9', '#3ddc97']} />
+              </View>
+            </View>
+          ) : null}
+          {blitz ? (
+            <Chip bg="#e01e4a" color="#ffffff">
+              1 MISTAKE = GAME OVER
+            </Chip>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
   const areaEl = (
     <>
       {/* the cushions: everything is placed by geometry() */}
@@ -1169,11 +1231,15 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   return (
     <View style={styles.fill}>
       {wide ? (
-        <View style={styles.wRow}>
-          <View style={styles.wLeft}>{topEl}</View>
-          {areaEl}
-          <View style={styles.wRight}>{ctrlEl}</View>
-        </View>
+        <>
+          {wideHeadEl}
+          <View style={styles.wRow}>
+            {/* (as wide as the buttons' column, so the cushions sit in the middle under the level) */}
+            <View style={styles.wSide} />
+            {areaEl}
+            <View style={styles.wRight}>{ctrlEl}</View>
+          </View>
+        </>
       ) : (
         <>
           {topEl}
@@ -1263,8 +1329,22 @@ const styles = StyleSheet.create({
   area: { flex: 1 },
   // landscape (REDESIGN_V8)
   wRow: { flex: 1, flexDirection: 'row' },
-  wLeft: { width: 250, paddingTop: 6, gap: 4 },
+  wSide: { width: 150 },
   wRight: { width: 150, justifyContent: 'center' },
+  // landscape's top row: the back button at the left; the level in the middle, a pill each side of it
+  wHead: { height: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 64, marginTop: 4, gap: 12 },
+  wBack: { position: 'absolute', left: 12, top: 4 },
+  wGroup: { flex: 1, flexDirection: 'row' },
+  wGroupL: { justifyContent: 'flex-end' },
+  wGroupR: { justifyContent: 'flex-start' },
+  wTitle: { alignItems: 'center', gap: 1 },
+  wPill: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, backgroundColor: 'rgba(91,58,41,0.75)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)' },
+  stat: { alignItems: 'center', minWidth: 44 },
+  statLabel: { fontFamily: F.display, fontSize: 9.5, letterSpacing: 1, color: '#ffe6c2', includeFontPadding: false },
+  statNum: { fontFamily: F.display, fontSize: 21, color: '#ffe045', includeFontPadding: false, fontVariant: ['tabular-nums'] },
+  wClock: { width: 96, gap: 2 },
+  wClockText: { fontFamily: F.display, fontSize: 15, color: '#ffffff', textAlign: 'center', includeFontPadding: false, fontVariant: ['tabular-nums'] },
+  wClockBar: { flexDirection: 'row' },
   wHud: { flexWrap: 'wrap', rowGap: 6, paddingHorizontal: 12 },
   wTitleBox: { flexBasis: 150 },
   wInfo: { flexDirection: 'column', paddingHorizontal: 12 },

@@ -109,7 +109,7 @@ export function FailCard({ visible, uri, onRetry, onHub }) {
 
 export function PauseCard({ visible, clock, onResume, onRestart, onQuit }) {
   return (
-    <Overlay visible={visible}>
+    <Overlay visible={visible} column>
       <OutlinedTitle text="PAUSED" size={30} fill="gold" />
       {clock ? <Text style={styles.body}>The clock is stopped.</Text> : null}
       <Split />

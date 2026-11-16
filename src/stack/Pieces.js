@@ -74,16 +74,18 @@ export const StarBadge = memo(function StarBadge({ size = 28 }) {
 // The tallest stack fits ROOM points above its cushion (smaller squishies
 // when one cushion gets most of them).
 const ROOM = 56;
-export const GoalCard = memo(function GoalCard({ who, goal, k, star, width = 118 }) {
+// `small` (the landscape level's middle bar): no GOAL label, and the towers in a lower box
+export const GoalCard = memo(function GoalCard({ who, goal, k, star, width = 118, small = false }) {
+  const room = small ? 26 : ROOM;
   const n = who.length;
   const cols = Array.from({ length: k }, (_, p) => p);
   const sized = (m) => (r) => m * (n === 1 ? 1 : 0.5 + (0.5 * r) / (n - 1));
   const tallest = (m) => Math.max(...cols.map((p) => who.reduce((a, c, r) => a + (goal[r] === p ? bodyH(c, sized(m)(r)) * (1 - OVER) : 0), 0)));
   const fit = Math.min(26, (width - 14) / k - 4);
-  const maxW = fit * Math.min(1, ROOM / Math.max(1, tallest(fit)));
+  const maxW = fit * Math.min(1, room / Math.max(1, tallest(fit)));
   return (
-    <View style={[styles.goal, { width }]}>
-      <Text style={styles.goalLabel}>GOAL</Text>
+    <View style={[styles.goal, small && styles.goalSmall, { width }]}>
+      {small ? null : <Text style={styles.goalLabel}>GOAL</Text>}
       <View style={styles.goalRow}>
         {cols.map((p) => (
           <View key={p} style={styles.goalCol}>
@@ -110,6 +112,7 @@ export const GoalCard = memo(function GoalCard({ who, goal, k, star, width = 118
 
 const styles = StyleSheet.create({
   goal: { alignSelf: 'stretch', backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 16, borderWidth: 3, borderColor: '#ffffff', paddingHorizontal: 5, paddingTop: 2, paddingBottom: 6, alignItems: 'center' },
+  goalSmall: { borderRadius: 12, borderWidth: 2, paddingTop: 0, paddingBottom: 5 },
   goalLabel: { fontFamily: F.display, fontSize: 10.5, letterSpacing: 1.2, color: '#6b3fa0', includeFontPadding: false },
   goalRow: { flexGrow: 1, alignSelf: 'stretch', flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around', paddingTop: 4 },
   // bottom to top: the cushion, then its squishies, biggest first
