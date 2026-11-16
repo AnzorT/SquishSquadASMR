@@ -71,6 +71,21 @@ The game pages come from `android/app/src/main/assets`. Run `node webgame/build.
     2 down, 3 left), `hop(d)` hops that way, `state()` gives the phase, hops, take-backs and whether a full clear is
     still possible.
 
+## The demo build (a link with no account)
+
+`node tools/web/demo.mjs [folder]` builds Squish Stack and Squish Hop on their own (`src/web/Demo.js`), to try from a
+static page with no login: e.g. a private claude.ai artifact (`page.html` is the page, everything else its files).
+
+- A start page with the two games, then each game's hub, map, levels and Blitz, as in the app.
+- The profile lives in the page (`src/web/demo/store.js` stands in for `src/firebase/firestore.js`, and
+  `src/web/demo/api.js` for `src/squad/api.js`: Blitz's gem save spends the page's own gems). It starts with every
+  level open and 200 gems; a reload starts over. Nothing reaches Firebase.
+- The squishies are two dozen bundled cut-outs (`src/web/demo/cast.js`); ads are the web version's pretend ones.
+- `metro.config.js` makes these swaps only when the build runs with `EXPO_PUBLIC_DEMO=1`, which the script sets.
+- The script makes every address relative (the page can live in any folder), keeps only the demo's creatures' pictures
+  (under the artifact's 511-file limit) and moves the script out of `_expo/` (artifacts reserve names starting with _).
+- Serve the folder to try it locally: `python3 -m http.server -d dist-demo`, then open `/index.html`.
+
 ## Not done yet
 
 - **Google, Facebook and TikTok sign-in.** The `oauth` function sends the player back to

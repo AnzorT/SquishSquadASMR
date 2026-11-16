@@ -65,3 +65,4 @@ tools/design-v6/
 
 # rig thumbnails (regenerate with node tools/rig/thumbs.mjs)
 tools/rig/out/
+dist-demo/

@@ -40,9 +40,19 @@ const WEB_SWAPS = {
   'expo-screen-orientation': 'src/web/orientation.js',
   'react-native-svg': 'src/web/svg.js', // (adds SvgXml, which its web build lacks)
 };
+// The web demo (src/web/Demo.js, tools/web/demo.mjs): a build with EXPO_PUBLIC_DEMO=1 opens Squish Stack and Squish
+// Hop on their own with no account. The app's root, its saves and its server moves are swapped for the demo's, which
+// keep the profile in the page. Other builds never see these files.
+const DEMO = process.env.EXPO_PUBLIC_DEMO === '1';
+const DEMO_SWAPS = { 'App.js': 'src/web/Demo.js', 'src/firebase/firestore.js': 'src/web/demo/store.js', 'src/squad/api.js': 'src/web/demo/api.js' };
 config.resolver.resolveRequest = (context, name, platform) => {
   if (platform === 'web' && WEB_SWAPS[name]) return { type: 'sourceFile', filePath: path.join(__dirname, WEB_SWAPS[name]) };
-  return context.resolveRequest(context, name, platform);
+  const found = context.resolveRequest(context, name, platform);
+  if (DEMO && platform === 'web' && found && found.type === 'sourceFile') {
+    const rel = path.relative(__dirname, found.filePath).split(path.sep).join('/');
+    if (DEMO_SWAPS[rel]) return { type: 'sourceFile', filePath: path.join(__dirname, DEMO_SWAPS[rel]) };
+  }
+  return found;
 };
 // The game pages the Android app opens from its APK (file:///android_asset/...) are served from the same folder at
 // /android_asset/ (the web WebView, src/web/WebView.js, opens them in a frame). Every page gets one line first in its
