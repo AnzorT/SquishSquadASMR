@@ -21,11 +21,13 @@ import { useWide } from '../royal/GameFrame';
 // In landscape (REDESIGN_V8, every popup made for the sideways screen) a card is two columns side by side: what comes
 // before <Split /> on the left (the title and the picture), the rest on the right (the numbers and the buttons). A card
 // without one stays a single column. Upright, Split is nothing.
+// `flip` swaps the two sides: the numbers and buttons on the left, the title and picture on the right (the user,
+// 2026-11-16, for the STUCK card and every mini-game's result card).
 export const Split = () => null;
 
 // The dim scrim and a card springing up into the middle.
 // broad: as wide as a two-column card, in one column (Blitz's save card: its buttons in a row)
-export function Overlay({ visible, children, tint = 'rgba(50,24,6,0.55)', broad = false }) {
+export function Overlay({ visible, children, tint = 'rgba(50,24,6,0.55)', broad = false, flip = false }) {
   const wide = useWide();
   const t = useRef(new Animated.Value(0)).current;
   const [shown, setShown] = useState(visible);
@@ -44,12 +46,9 @@ export function Overlay({ visible, children, tint = 'rgba(50,24,6,0.55)', broad 
   const list = wide ? React.Children.toArray(children) : null;
   const at = list ? list.findIndex((c) => c && c.type === Split) : -1;
   if (at >= 0) {
-    body = (
-      <>
-        <View style={styles.wSide}>{list.slice(0, at)}</View>
-        <View style={styles.wSide}>{list.slice(at + 1)}</View>
-      </>
-    );
+    const first = <View key="a" style={styles.wSide}>{list.slice(0, at)}</View>;
+    const rest = <View key="b" style={styles.wSide}>{list.slice(at + 1)}</View>;
+    body = flip ? [rest, first] : [first, rest];
   }
   const two = at >= 0;
   return (
@@ -228,7 +227,7 @@ export function ResultCard({ visible, res, spec, uris, onNext, onReplay, onMap, 
   const cAt = coinsAt(res);
   const titles = res.perfect ? 'PERFECT SQUISH!' : res.stars === 3 ? 'SQUISHTASTIC!' : res.stars === 2 ? 'NICE ONE!' : 'SOLVED!';
   return (
-    <Overlay visible={visible}>
+    <Overlay visible={visible} flip>
       <PopIn trigger={key} delay={80}>
         <OutlinedTitle text={titles} size={res.perfect ? 26 : 30} fill={res.perfect ? 'gold' : 'pink'} />
       </PopIn>
@@ -449,7 +448,7 @@ export function BlitzWinCard({ visible, res, uris, unit = 'board', onAgain, onQu
   }, [visible]);
   if (!res) return <Overlay visible={false} />;
   return (
-    <Overlay visible={visible}>
+    <Overlay visible={visible} flip>
       <PopIn trigger={visible} delay={60}>
         <OutlinedTitle text="BLITZ CHAMPION!" size={26} fill="gold" />
       </PopIn>

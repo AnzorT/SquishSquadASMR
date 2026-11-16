@@ -145,3 +145,7 @@ Checked in the web version only: not on a phone, nothing committed.
 - Details in SQUISH_STACK.md and SQUISH_HOP.md, "Hub and BLITZ MODE (2026-11-16)" / "Hub, BLITZ MODE and the ★ rule".
 - The gem save needs `blitzSave` deployed (Round 3's functions deploy). The `xp.blitz.hop` default is read by the app
   itself, so it needs no deploy.
+- The STUCK card and every mini-game's result card (the stars, or Squishdoku's score creatures, and Blitz's champion
+  card) are flipped in landscape: the text, numbers and buttons on the left, the title and picture on the right (the
+  user's marked-up screenshot, 2026-11-16). `Overlay`'s `flip` (`src/squishdoku/Overlays.js`); the other popups keep
+  the title on the left.
