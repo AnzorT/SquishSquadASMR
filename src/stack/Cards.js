@@ -8,7 +8,7 @@ import { Overlay, Split, XpGain, XpPlus } from '../squishdoku/Overlays';
 import { BtnLabel, Head, SdButton } from '../squishdoku/ui';
 import { F, INK } from '../squishdoku/theme';
 import { Star } from '../sort/Cards';
-import { BLITZ_ROUNDS, CLOCK_FROM, PICTURE_FROM, TIER_NAMES } from './levels';
+import { CLOCK_FROM, PICTURE_FROM, TIER_NAMES } from './levels';
 
 // Squish Stack's cards over the game: the win (stars popping in one by one,
 // coins counting up), time's up, pause, the hint offer, and how to play.
@@ -199,8 +199,8 @@ export function RulesCard({ visible, onClose }) {
         Shows the next best move, for an ad and one star.
       </Text>
       <Text style={styles.twist}>
-        <Text style={[styles.twistName, { color: '#0c5a9c' }]}>{'BLITZ ⚡  '}</Text>
-        {`${BLITZ_ROUNDS} puzzles on one clock. Drop a big one on a smaller one and it's back to puzzle 1 (one revive per run).`}
+        <Text style={[styles.twistName, { color: '#0c5a9c' }]}>{'BLITZ MODE  '}</Text>
+        Puzzle after puzzle, each on its own short clock. A big one on a smaller one, or a clock running out, is GAME OVER, unless you save the run.
       </Text>
       <SdButton kind="green" onPress={onClose} sound="sd_select" faceStyle={styles.bigFace} style={{ marginTop: 8 }}>
         <BtnLabel kind="green" size={18}>

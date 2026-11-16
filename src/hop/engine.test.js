@@ -15,7 +15,10 @@ import {
   stageOf,
   starsFor,
   xpFor,
+  afterBlitz,
+  blitzPrize,
 } from "./levels.js";
+import { BLITZ_COINS, blitzShape, blitzSpec } from "./blitz.js";
 
 let n = 0;
 const ok = (name, fn) => {
@@ -35,6 +38,40 @@ ok("every level parses and its stored answer is a full clear", () => {
     }
     assert.ok(st.done, `level ${i + 1} doesn't end on the ★`);
     assert.equal(leftOf(lv, st.life), 0, `level ${i + 1} leaves cushions`);
+  });
+});
+
+ok("the ★ stays shut until every other cushion is cleared", () => {
+  // S next to the ★, with one more cushion below S
+  const lv = parse(["SG", ".#"]);
+  const m = tryMove(lv, newState(lv), 1);
+  assert.equal(m.ok, false);
+  assert.equal(m.why, "locked");
+  // the last cushion: hopping off it onto the ★ is fine
+  const lv2 = parse(["S.G"]);
+  let st = tryMove(lv2, newState(lv2), 1).st;
+  const end = tryMove(lv2, st, 1);
+  assert.ok(end.ok && end.st.done);
+  // a pile's second layer still counts: hopping off it once leaves one
+  const lv3 = parse(["SDG"]);
+  const onPile = tryMove(lv3, newState(lv3), 1).st;
+  assert.equal(tryMove(lv3, onPile, 1).why, "locked");
+});
+
+ok("random play on every level never ends with cushions left", () => {
+  let seed = 7;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  LEVEL_DATA.forEach((d, i) => {
+    const lv = parse(d.map);
+    for (let k = 0; k < 30; k++) {
+      let st = newState(lv);
+      for (let step = 0; step < 400 && !st.done; step++) {
+        const ms = [0, 1, 2, 3].map((dir) => tryMove(lv, st, dir)).filter((m) => m.ok);
+        if (!ms.length) break;
+        st = ms[Math.floor(rand() * ms.length)].st;
+      }
+      if (st.done) assert.equal(leftOf(lv, st.life), 0, `level ${i + 1}`);
+    }
   });
 });
 
@@ -137,8 +174,46 @@ ok("levels.js: stars, coins and XP", () => {
     plays: 0,
     wins: 0,
     seen: false,
+    blitz: { top: 0, runs: 0 },
   });
   assert.equal(record({ hop: { lv: 500 } }).lv, 100);
+});
+
+ok("blitz: every board is a full clear, the climb never shrinks, clocks under a second a hop past 5 s", () => {
+  for (const seed of [1, 99, 123456, 987654321]) {
+    for (let i = 0; i < 30; i++) {
+      const s = blitzSpec(i, seed);
+      let st = newState(s.board);
+      for (const d of s.sol) {
+        const m = tryMove(s.board, st, d);
+        assert.ok(m.ok, `board ${i} seed ${seed}: hop ${d} blocked (${m.why})`);
+        st = m.st;
+      }
+      assert.ok(st.done && leftOf(s.board, st.life) === 0, `board ${i} seed ${seed}`);
+      assert.ok(s.ms <= (5 + s.sol.length) * 1000 && s.ms >= 0.75 * (5 + s.sol.length) * 1000 - 1000);
+      if (i) {
+        const a = blitzShape(i - 1);
+        const b = blitzShape(i);
+        assert.ok(b.w * b.h >= a.w * a.h, `board ${i} shrinks`);
+      }
+    }
+  }
+  // the same seed and board give the same board (a run is replayable)
+  assert.deepEqual(blitzSpec(7, 42).map, blitzSpec(7, 42).map);
+});
+
+ok("blitz: the run's record and its pay", () => {
+  const none = afterBlitz({}, { cleared: 0 });
+  assert.equal(none.coins, 0);
+  assert.equal(none.update["hop.blitz.runs"], 1);
+  const run = afterBlitz({ pxp: 0, hop: { blitz: { top: 2, runs: 3 } } }, { cleared: 4 });
+  assert.equal(run.newTop, true);
+  assert.equal(run.update["hop.blitz.top"], 4);
+  assert.equal(run.update["hop.blitz.runs"], 4);
+  assert.equal(run.coins, BLITZ_COINS[9] + 2 * BLITZ_COINS[12] + BLITZ_COINS[16]);
+  assert.equal(run.xp, 80);
+  assert.equal(afterBlitz({ hop: { blitz: { top: 9 } } }, { cleared: 4 }).update["hop.blitz.top"], undefined);
+  assert.equal(blitzPrize(10).xp, 200);
 });
 
 console.log(`\n${n} passed`);

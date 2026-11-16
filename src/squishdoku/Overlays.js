@@ -370,7 +370,9 @@ export function BlitzFailCard({ visible, reason, reached, best, unit = 'board', 
 
 // Squishdoku's BLITZ MODE (2026-11-16, the user): a mistake or the clock ended the run. Save it — once with an ad (free
 // with Remove Ads), or with gems (`price`, twice the last each time) — and go on from board `board`; or END RUN.
-export function BlitzSaveCard({ visible, reason, board, cleared, adUsed, adReady, adsFree, gems, price, saving, error, onAd, onGems, onEnd }) {
+// (Squish Stack's and Squish Hop's BLITZ MODE too: `unit` is what a step of the run is called, `why` a line on what
+// went wrong.)
+export function BlitzSaveCard({ visible, reason, board, cleared, unit = 'board', why, adUsed, adReady, adsFree, gems, price, saving, error, onAd, onGems, onEnd }) {
   const short = gems < price;
   // (the user, 2026-11-16: the words in the middle of the card, the buttons below them in one row and 8% shorter;
   // the ad's button only until it's been used once in the run)
@@ -379,8 +381,9 @@ export function BlitzSaveCard({ visible, reason, board, cleared, adUsed, adReady
       <PopIn trigger={visible} delay={40}>
         <OutlinedTitle text={reason === 'time' ? "TIME'S UP!" : 'OOPS!'} size={34} fill="pink" />
       </PopIn>
-      <Text style={styles.body}>{`Save your run and keep going on board ${board}?`}</Text>
-      <Text style={styles.small}>{`${cleared} board${cleared === 1 ? '' : 's'} cleared so far`}</Text>
+      {why ? <Text style={styles.small}>{why}</Text> : null}
+      <Text style={styles.body}>{`Save your run and keep going on ${unit} ${board}?`}</Text>
+      <Text style={styles.small}>{`${cleared} ${unit}${cleared === 1 ? '' : 's'} cleared so far`}</Text>
       <View style={styles.saveRow}>
         {adUsed ? null : (
           <SdButton kind="gold" onPress={onAd} disabled={saving || (!adsFree && !adReady)} sound="sd_select" style={styles.saveBtn} faceStyle={styles.rowFace}>
@@ -406,14 +409,14 @@ export function BlitzSaveCard({ visible, reason, board, cleared, adUsed, adReady
 // Squishdoku's BLITZ MODE: GAME OVER — the boards the run cleared, the best, and what they paid. (The user,
 // 2026-11-16: no score creatures, Blitz has no stars; the title on top of everything; QUIT and PLAY AGAIN the same size,
 // PLAY AGAIN in the gold of the app's other buttons.)
-export function BlitzOverCard({ visible, res, onAgain, onQuit }) {
+export function BlitzOverCard({ visible, res, unit = 'board', onAgain, onQuit }) {
   if (!res) return <Overlay visible={false} />;
   return (
     <Overlay visible={visible} tint="rgba(80,0,30,0.55)" broad>
       <PopIn trigger={visible} delay={40} from={2.4} twist={-12} friction={6} tension={160}>
         <OutlinedTitle text="GAME OVER" size={32} fill={res.newTop ? 'gold' : 'pink'} />
       </PopIn>
-      <Text style={styles.sub}>BOARDS CLEARED</Text>
+      <Text style={styles.sub}>{`${unit.toUpperCase()}S CLEARED`}</Text>
       <CountUp value={res.cleared} delay={300} ms={700} style={styles.bigNum} />
       <Text style={[styles.unlocked, !res.newTop && styles.bestPlain]}>{res.newTop ? 'NEW BEST!' : `BEST ${res.best}`}</Text>
       {res.coins ? (

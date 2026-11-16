@@ -132,3 +132,16 @@ Checked in the web version only: not on a phone, nothing committed.
   - Each board cleared pays.
   - This needs a functions deploy for the gem save (`blitzSave`).
 - Details in SQUISHDOKU.md, "Hub and Blitz redesign (2026-11-16)".
+
+## Round 4 (2026-11-16): the same for Squish Stack and Squish Hop
+
+- The user: "I want the same thing to be done with squish stack, squish hop". Both got the hub in the new design and
+  an endless BLITZ MODE with saves, as Squishdoku's Round 3.
+  - The hubs share Squishdoku's pieces (`GameHub` in `src/squishdoku/Hub.js`). Each card's picture is its game's Game
+    Park clip (`tools/games/mode-art.mjs`).
+  - Squish Hop had no hub or Blitz before; its Blitz deals fresh small boards (`src/hop/blitz.js`).
+  - The save and GAME OVER cards take a `unit` (puzzle / board) and a line on what went wrong.
+- Squish Hop's ★ now opens only once every other cushion is cleared, and its stars count UNDOs and RESTARTs.
+- Details in SQUISH_STACK.md and SQUISH_HOP.md, "Hub and BLITZ MODE (2026-11-16)" / "Hub, BLITZ MODE and the ★ rule".
+- The gem save needs `blitzSave` deployed (Round 3's functions deploy). The `xp.blitz.hop` default is read by the app
+  itself, so it needs no deploy.

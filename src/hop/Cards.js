@@ -8,16 +8,16 @@ import { Overlay, Split, XpGain, XpPlus } from '../squishdoku/Overlays';
 import { BtnLabel, Head, SdButton } from '../squishdoku/ui';
 import { F, INK } from '../squishdoku/theme';
 import { Star } from '../sort/Cards';
-import { LEVELS, ROOMS, TIER_NAMES, TWISTS } from './levels';
+import { LEVELS, TIER_NAMES, TWISTS } from './levels';
 
 // Squish Hop's cards over the game (SQUISH_HOP.md): the win (stars popping in
 // one by one, coins counting up), STUCK, pause, the hint offer, and how to
 // play. Squish Stack's cards, with this game's words.
 
-const TITLES = ['', 'HOPPED!', 'NICE HOPPING!', 'ALL CLEAR!'];
+const TITLES = ['', 'CLEARED!', 'NICE HOPPING!', 'PERFECT HOPS!'];
 const STEP = 480;
 
-// res: { stars, coins, xp, before, after, levelUps, hops, left, hinted,
+// res: { stars, coins, xp, before, after, levelUps, hops, takebacks, hinted,
 // unlocked }; `next`: the next level's room (null on the last level)
 export function ResultCard({ visible, res, spec, nextRoom, onNext, onReplay, onHub }) {
   const [key, setKey] = useState(0);
@@ -30,15 +30,15 @@ export function ResultCard({ visible, res, spec, nextRoom, onNext, onReplay, onH
   }, [visible, res]);
   if (!res) return <Overlay visible={false} />;
   const coinsAt = 380 + 3 * STEP + 200;
-  const what = ROOMS[spec.room].dance ? 'tile' : 'cushion';
   const last = spec.lv >= LEVELS;
+  const tb = res.takebacks || 0;
   return (
     <Overlay visible={visible}>
       <PopIn trigger={key} delay={80}>
         <OutlinedTitle text={TITLES[res.stars]} size={res.stars === 3 ? 30 : 28} fill={res.stars === 3 ? 'gold' : 'pink'} />
       </PopIn>
-      <Text style={styles.sub}>{`LEVEL ${spec.lv} · ${TIER_NAMES[spec.tier]} · ${res.hops} HOPS · ${res.left} LEFT${res.hinted ? ' · HINT' : ''}`}</Text>
-      {res.left > 0 && !res.hinted ? <Text style={styles.hint}>{`Clear every ${what} before the ★ for 3 stars!`}</Text> : null}
+      <Text style={styles.sub}>{`LEVEL ${spec.lv} · ${TIER_NAMES[spec.tier]} · ${res.hops} HOPS${tb ? ` · ${tb} TAKE-BACK${tb === 1 ? '' : 'S'}` : ''}${res.hinted ? ' · HINT' : ''}`}</Text>
+      {tb > 0 && !res.hinted ? <Text style={styles.hint}>No UNDO or RESTART for 3 stars!</Text> : null}
       {res.hinted ? <Text style={styles.hint}>A hint costs one star</Text> : null}
       <View key={key} style={styles.stars}>
         {[0, 1, 2].map((i) => (
@@ -79,7 +79,8 @@ export function ResultCard({ visible, res, spec, nextRoom, onNext, onReplay, onH
 }
 
 // Nowhere left to hop. `head`: the hopper's sad head (squishdoku/heads.js),
-// or `uri` its still; `shut`: the ★ is next to it but still shut.
+// or `uri` its still; `shut`: the ★ is next to it but still shut (cushions
+// are left that can't be reached any more).
 export function StuckCard({ visible, head, uri, shut, onUndo, onRetry }) {
   return (
     <Overlay visible={visible} tint="rgba(80,0,30,0.5)">
@@ -100,7 +101,7 @@ export function StuckCard({ visible, head, uri, shut, onUndo, onRetry }) {
         </Rock>
       </PopIn>
       <Split />
-      <Text style={styles.body}>{shut ? 'The ★ is shut until every friend is with you, and there is nowhere else to hop.' : 'There is nowhere left to hop.'}</Text>
+      <Text style={styles.body}>{shut ? 'The ★ stays shut until every other cushion is cleared, and there is nowhere else to hop.' : 'There is nowhere left to hop.'}</Text>
       <SlideIn trigger={visible} delay={380} style={styles.btnRow}>
         <SdButton kind="white" onPress={onUndo} sound="sd_select" faceStyle={styles.smallFace}>
           <BtnLabel kind="white" size={15}>
@@ -169,11 +170,12 @@ export function HintCard({ visible, adReady, adsFree, onWatch, onClose }) {
 const RULES = [
   ['1', 'Hop', 'Swipe, or tap a cushion next to you. A long swipe can turn corners.'],
   ['2', 'Puff!', 'The cushion you hop off puffs away. No going back!'],
-  ['3', 'The ★', 'Hop onto it to finish. Clear every other cushion first for 3 stars.'],
+  ['3', 'The ★', 'It opens once every other cushion is cleared. Then hop onto it to finish.'],
+  ['4', 'Stars', '3 with no UNDO or RESTART, 2 with up to 3. A hint costs one.'],
 ];
 const ROOM_ORDER = ['friends', 'arrows', 'bubbles', 'piles', 'ordered', 'beats'];
 const LINES = {
-  friends: 'pick them all up. The ★ opens when everyone is with you.',
+  friends: 'hop onto each friend to pick them up on your way.',
   arrows: 'you can only hop off an arrow cushion the way it points.',
   bubbles: 'land on a bubble and it bounces you one cushion further.',
   piles: 'two cushions on top of each other take two hops.',
@@ -209,6 +211,10 @@ export function RulesCard({ visible, onClose }) {
       <Text style={styles.twist}>
         <Text style={styles.twistName}>{'HINT  '}</Text>
         Shows the next hop, for an ad and one star.
+      </Text>
+      <Text style={styles.twist}>
+        <Text style={[styles.twistName, { color: '#0c5a9c' }]}>{'BLITZ MODE  '}</Text>
+        Fresh boards one after another, each on its own short clock. A hop that strands a cushion, or the clock running out, is GAME OVER, unless you save the run.
       </Text>
       <SdButton kind="green" onPress={onClose} sound="sd_select" faceStyle={styles.bigFace} style={{ marginTop: 8 }}>
         <BtnLabel kind="green" size={18}>

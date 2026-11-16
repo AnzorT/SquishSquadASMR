@@ -60,7 +60,16 @@ The game pages come from `android/app/src/main/assets`. Run `node webgame/build.
   - `__app.flashApp('text')` shows a toast.
 - **`/?phone=1&preview=1`** (`Preview.js`) shows the games' popups on their own, with made-up numbers, plus the
   email check screen a signed-in test account can't reach. `window.__preview('sd-result')` switches between them;
-  `window.__previewNames` lists them.
+  `window.__previewNames` lists them. `&card=…` opens one at load.
+  - Squish Stack and Squish Hop are there whole, played by the bundled cut-outs with no account (nothing is saved and
+    ads are free; don't tap a gem save, it calls the server): `stack-hub`, `hop-hub`, `stack-blitz`, `hop-blitz`
+    (`&top=0`: no best run yet, so the first one is a NEW BEST), `stack-level&lv=5`, `hop-level&lv=8`.
+  - **`window.__stack`** (in a Squish Stack level or Blitz): `best()` is the next best move `[r, from, to]`,
+    `move(from, to)` lifts the top squishy off cushion `from` and puts it on `to`, `state()` gives the phase and where
+    everyone is.
+  - **`window.__hop`** (in a Squish Hop level or Blitz): `sol` is the board's full clear (directions 0 up, 1 right,
+    2 down, 3 left), `hop(d)` hops that way, `state()` gives the phase, hops, take-backs and whether a full clear is
+    still possible.
 
 ## Not done yet
 

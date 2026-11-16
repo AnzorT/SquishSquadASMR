@@ -6,8 +6,13 @@ import Svg, { Path } from 'react-native-svg';
 import useRewardedAd from '../components/useRewardedAd';
 import sfx from '../audio/sfx';
 import { FxLayer } from '../squishdoku/fx';
-import { makeHaptics } from '../squishdoku/game';
-import { BtnLabel, Head, SdButton } from '../squishdoku/ui';
+import { makeHaptics, useClock } from '../squishdoku/game';
+import { Countdown } from '../squishdoku/BlitzGame';
+import { TimerBar } from '../squishdoku/Hud';
+import { BlitzOverCard, BlitzSaveCard, PauseCard as BlitzPauseCard } from '../squishdoku/Overlays';
+import { blitzSaveGems, clock } from '../squishdoku/levels';
+import * as squad from '../squad/api';
+import { BtnLabel, Chip, Head, SdButton } from '../squishdoku/ui';
 import { F } from '../squishdoku/theme';
 import { Banner } from '../sort/Game';
 import { CribButton, PhasePill, RoomFlash, RoomTitle } from '../crib/Hud';
@@ -15,7 +20,8 @@ import { PH } from '../crib/data';
 import { saveHop } from '../firebase/firestore';
 import { bodyH } from '../stack/Pieces';
 import { DIRS, leftOf, moves as movesOf, newState, search, tryMove } from './engine';
-import { LEVELS, ROOMS, TIER_COLORS, TIER_NAMES, TWISTS, afterLevel, afterStuck, levelSpec, record, stageOf } from './levels';
+import { LEVELS, ROOMS, TIER_COLORS, TIER_NAMES, TWISTS, afterBlitz, afterLevel, afterStuck, levelSpec, record, stageOf, starsFor } from './levels';
+import { blitzSpec } from './blitz';
 import { DEPTH, cellAt, layout, standOn } from './board';
 import { BEAT_COL, BEAT_NAMES, Bubble, FlatCushion, GoalStar, HintGlow, OrderChip, PILE_TOP, Piece, Star, Tile, Under, freshPose, poseAt } from './Pieces';
 import Room, { roomGeometry } from './Room';
@@ -25,12 +31,27 @@ import { HintCard, PauseCard, ResultCard, StuckCard } from './Cards';
 // One level of Squish Hop (SQUISH_HOP.md), and the next ones after it. The
 // squishy hops across cushions on the floor of one of the Crib's rooms; the
 // cushion it hops off puffs away, so it can never go back. It has to reach
-// the ★ cushion, and clearing every other cushion first gives 3 stars.
+// the ★ cushion, which opens only once every other cushion is cleared (the
+// user, 2026-11-16). The stars are for doing it without taking hops back.
 // Swipe (a long drag can turn corners) or tap a cushion next to it. The
 // rules are engine.js, the board's perspective board.js; this draws and
 // animates them.
+//
+// BLITZ MODE (`blitz`; 2026-11-16, the user: "the same thing" as
+// Squishdoku's): after a 3, 2, 1, GO! fresh small boards (blitz.js) one after
+// another in the Dance Room, each on its own short clock. A hop that leaves
+// no full clear (the solver checks after every hop), getting stuck, or the
+// clock running out stops the run. It can be saved, once with a rewarded ad
+// (free with Remove Ads) or with gems, each save twice the last
+// (functions/squad.js blitzSave): the hops since the last spot a full clear
+// was possible from are taken back, or after the clock, the board's clock
+// starts again. Or it's GAME OVER, and the boards cleared pay out
+// (levels.js afterBlitz). No UNDO, RESTART or hints in Blitz.
 
 const LOAD_SOUNDS = ['st_lift', 'st_land', 'st_undo', 'st_hint', 'st_news', 'fs_pop', 'tap', 'bonk', 'sd_squeak', 'sd_unlock', 'sd_wrong', 'sd_solve', 'sd_confetti', 'sd_boardIn', 'swoosh'];
+const BLITZ_SOUNDS = ['sd_count', 'sd_go', 'sd_pip', 'sd_blitzNext', 'sd_blitzFail', 'sd_blitzWin', 'sd_drain', 'sd_revive', 'sd_timeUp', 'sd_tick', 'sd_pause'];
+// Blitz: the last seconds of a board's clock tick
+const HURRY_MS = 5000;
 
 // why a hop bumped, said in the tip line
 const WHY = {
@@ -38,29 +59,24 @@ const WHY = {
   bounce: 'That bubble has nowhere to bounce you.',
   order: 'Pick up the friends in order: 1, 2, 3…',
   beat: "That tile isn't lit on this hop. Wait for its beat!",
-  locked: 'Pick up every friend first. Then the ★ opens!',
 };
+// the ★ bumped while it's still shut
+const lockedTip = (room) => `Clear every other ${room.dance ? 'tile' : 'cushion'} first. Then the ★ opens!`;
 
 const RUG = require('../../assets/crib/fixtures/living-rug.webp');
 const PLAYER_W = 0.86; // the hopper's body, in tiles
 const FRIEND_W = 0.72;
-const popcount = (n) => {
-  let c = 0;
-  while (n) {
-    c += n & 1;
-    n >>= 1;
-  }
-  return c;
-};
 
-// The line under the stars: what to do, or why 3 stars are gone.
+// The line under the stars: what to do, or that the board can't be cleared
+// from here any more.
 function tipFor(spec, s, room) {
   const what = room.dance ? 'tile' : 'cushion';
   const all = spec.board.all;
-  if (!s.feasible) return `Some ${what}s can't be cleared now. UNDO to go for 3 stars!`;
+  if (spec.blitz) return `Clear every ${what}, then the ★. A hop that strands a ${what} ends the run!`;
+  if (!s.feasible) return `You can't clear every ${what} from here. UNDO and try another way!`;
   if (spec.lv === 1 && s.hops === 0) return 'Swipe, or tap a cushion next to you, to hop.';
   if (spec.lv === 1) return 'Cushions puff away behind you. Clear them all, then hop onto the ★!';
-  if (spec.news === 'friends' && s.got !== all) return 'Pick up the friend. The ★ opens when everyone is with you.';
+  if (spec.news === 'friends' && s.got !== all) return 'Pick up the friend on your way. The ★ opens once every cushion is cleared.';
   if (spec.news === 'arrows') return 'Arrow cushions: you can only hop off them the way they point.';
   if (spec.news === 'bubbles') return 'Hop onto a bubble and it bounces you one cushion further.';
   if (spec.news === 'piles') return 'A pile of two cushions takes two hops to clear.';
@@ -132,7 +148,7 @@ const Rug = memo(function Rug({ B }) {
   );
 });
 
-export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, haptics: hapticsOn = true, onExit }) {
+export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid, adsFree, haptics: hapticsOn = true, onExit }) {
   const wide = useWide(); // landscape (REDESIGN_V8)
   const insets = useSafeAreaInsets();
   const haptics = useRef(makeHaptics(hapticsOn)).current;
@@ -142,12 +158,36 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
 
   const [lv, setLv] = useState(startLv);
   const [round, setRound] = useState(0); // a new go at the level
-  const fresh = useRef(true); // a new go that also forgets the hint (not RESTART / RETRY)
-  const spec = useMemo(() => levelSpec(lv), [lv]);
+  const fresh = useRef(true); // a new go that also forgets the hint and the take-backs (not RESTART / RETRY)
+  // Blitz: the run (each with its own seed for its boards), its board, the
+  // boards cleared, its saves, which of its cards is up, the countdown and the
+  // board's clock
+  const [run, setRun] = useState(0);
+  const [idx, setIdx] = useState(0);
+  const idxRef = useRef(0);
+  idxRef.current = idx;
+  const seed = useMemo(() => (Date.now() ^ Math.imul(run + 1, 2654435761)) | 0, [run]);
+  const [cleared, setCleared] = useState(0);
+  const [blitzCard, setBlitzCard] = useState(null); // save | over
+  const [failReason, setFailReason] = useState('mistake'); // mistake | stuck | time
+  const [adUsed, setAdUsed] = useState(false);
+  const [gemSaves, setGemSaves] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState(null);
+  const [over, setOver] = useState(null);
+  const [count, setCount] = useState(null); // 3, 2, 1, 'GO!'
+  const [label, setLabel] = useState('');
+  const [warn, setWarn] = useState(false);
+  const clk = useClock();
+  // the run so far: started (its first board's clock ran), paid out (payOut), the boards it cleared
+  const runRec = useRef({ started: false, ended: false, cleared: 0 });
+  const spec = useMemo(() => (blitz ? blitzSpec(idx, seed) : levelSpec(lv)), [blitz, lv, idx, seed]);
+  // a key for this board's pieces (Blitz boards follow each other at level 1)
+  const tag = blitz ? `b${run}-${idx}` : String(lv);
   const board = spec.board;
   const room = ROOMS[spec.room];
   const hopper = useMemo(() => hopperOf(cast, profileRef.current), [cast]);
-  const friends = useMemo(() => friendsOf(cast, hopper, board.friends.length, lv), [cast, hopper, board, lv]);
+  const friends = useMemo(() => friendsOf(cast, hopper, board.friends.length, blitz ? 101 + idx * 31 + (seed & 1023) : lv), [cast, hopper, board, lv]); // eslint-disable-line react-hooks/exhaustive-deps
   // the goal card's friends: in pick-up order on in-order levels
   const slotOrder = useMemo(() => board.friends.map((_, k) => k).sort((a, b) => (board.order[board.friends[a]] || 0) - (board.order[board.friends[b]] || 0)), [board]);
 
@@ -180,6 +220,7 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
   const shake = useRef(new Animated.Value(0)).current;
   const flash = useRef(new Animated.Value(0)).current;
   const fx = useRef(null);
+  const fxTop = useRef(null); // over the cards: a new best's confetti
   const slotRefs = useRef([]);
   const slotAt = useRef([]); // each slot's middle, in the board area's coordinates
   const pw = B ? B.T * PLAYER_W : 0;
@@ -198,11 +239,13 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
   );
 
   // --- the game's state (refs: the touch handlers and timers read it) ---------------------
-  const G = useRef({ st: newState(board), hist: [], moves: [], hinted: false, busy: false, queue: [], over: false, won: false, feasible: true, shown: 0, life: [] }).current;
-  const [view, setView] = useState({ hops: 0, moves: 0, left: 0, got: 0, cur: board.start, feasible: true, hinted: false });
+  // takebacks: the UNDOs and RESTARTs on this level (the stars); okAt[k]: whether a full clear was still possible after k
+  // hops (Blitz's save goes back to the last one that was)
+  const G = useRef({ st: newState(board), hist: [], moves: [], hinted: false, takebacks: 0, okAt: [true], busy: false, queue: [], over: false, won: false, feasible: true, shown: 0, life: [], lastSecond: -1 }).current;
+  const [view, setView] = useState({ hops: 0, moves: 0, left: 0, got: 0, cur: board.start, feasible: true, hinted: false, takebacks: 0 });
   const [shown, setShown] = useState(0); // the friends that have landed in the goal card
   const [playerZ, setPlayerZ] = useState(10);
-  const [phase, setPhase] = useState('load'); // load | play | won | stuck
+  const [phase, setPhase] = useState('load'); // load | intro (Blitz: before a board's clock) | play | won | stuck | held (Blitz: stopped)
   const [tip, setTip] = useState(null); // a passing tip (why a hop bumped)
   const [glow, setGlow] = useState(-1); // the hint's cell
   const [banner, setBanner] = useState(null);
@@ -211,11 +254,11 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
   const [paused, setPaused] = useState(false);
   const [hintAsk, setHintAsk] = useState(false);
   const blocked = useRef(false);
-  blocked.current = paused || hintAsk || !!result || stuck;
+  blocked.current = paused || hintAsk || !!result || stuck || !!blitzCard;
   const say = useCallback((text, more = {}) => setBanner({ text, key: Date.now(), ...more }), []);
 
   // hops: cells entered (a bubble bounce enters two: the beat counts them); moves: hops made
-  const sync = () => setView({ hops: G.st.hops, moves: G.moves.length, left: leftOf(board, G.st.life), got: G.st.got, cur: G.st.cur, feasible: G.feasible, hinted: G.hinted });
+  const sync = () => setView({ hops: G.st.hops, moves: G.moves.length, left: leftOf(board, G.st.life), got: G.st.got, cur: G.st.cur, feasible: G.feasible, hinted: G.hinted, takebacks: G.takebacks });
 
   // timers, cleared on a new go and on leaving
   const timers = useRef([]);
@@ -231,7 +274,7 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
   }, []);
   useEffect(() => {
     alive.current = true;
-    sfx.preload(LOAD_SOUNDS);
+    sfx.preload(blitz ? [...LOAD_SOUNDS, ...BLITZ_SOUNDS] : LOAD_SOUNDS);
     return () => {
       alive.current = false;
       clearTimers();
@@ -338,7 +381,8 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
       shake.setValue(0);
       timing(shake, 1, 320, Easing.linear).start();
     }
-    if (WHY[m.why]) flashTip(WHY[m.why]);
+    if (m.why === 'locked') flashTip(lockedTip(room));
+    else if (WHY[m.why]) flashTip(WHY[m.why]);
   }
   function flashTip(text) {
     setTip(text);
@@ -374,14 +418,32 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
       win();
       return;
     }
+    // the ★ opens: every other cushion is cleared (the one underfoot clears as it's hopped off)
+    if (leftOf(board, nxt.life) <= 1 && leftOf(board, prev.life) > 1) openStar();
     check();
+    G.okAt[G.moves.length] = G.feasible;
     sync();
-    if (!movesOf(board, G.st).length) {
+    const stuckNow = !movesOf(board, G.st).length;
+    // Blitz: a hop that leaves no full clear is the mistake that stops the run (or getting stuck, if the solver gave up)
+    if (blitz && (!G.feasible || stuckNow)) {
+      blitzMistake(G.feasible ? 'stuck' : 'mistake');
+      return;
+    }
+    if (stuckNow) {
       goStuck();
       return;
     }
     G.busy = false;
     drain();
+  }
+
+  // the ★ opening: a pop, a sparkle and the unlock chime
+  function openStar() {
+    starPop.setValue(0);
+    timing(starPop, 1, 520, Easing.out(Easing.quad)).start();
+    const q = standOn(B, board.goal);
+    fx.current?.burst('spark', q.x, q.y - B.T * 0.4, q.s / 60);
+    sfx.play('sd_unlock');
   }
 
   // the queued hops (taps and swipes during a hop), one at a time
@@ -423,13 +485,6 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
       setShown(G.shown);
       slotPop[k].setValue(0.4);
       Animated.spring(slotPop[k], { toValue: 1, friction: 4, tension: 160, useNativeDriver: true }).start();
-      if (G.shown === board.all) {
-        starPop.setValue(0);
-        timing(starPop, 1, 520, Easing.out(Easing.quad)).start();
-        const q = standOn(B, board.goal);
-        fx.current?.burst('spark', q.x, q.y - B.T * 0.4, q.s / 60);
-        sfx.play('sd_unlock');
-      }
     });
   }
 
@@ -467,8 +522,10 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
       return;
     }
     setGlow(-1);
+    G.takebacks += 1;
     const prev = G.hist.pop();
     G.moves.pop();
+    G.okAt.length = G.moves.length + 1;
     if (G.over) {
       G.over = false;
       setStuck(false);
@@ -486,9 +543,10 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
     sync();
   }
 
-  // the same board again from the start (the hint stays taken)
+  // the same board again from the start (the hint and the take-backs stay)
   function restart() {
     if (G.st.hops === 0 && !G.over) return;
+    G.takebacks += 1;
     fresh.current = false;
     setRound((r) => r + 1);
   }
@@ -534,6 +592,7 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
     const target = G.hist[k];
     G.hist.length = k;
     G.moves.length = k;
+    G.okAt.length = k + 1;
     restoreTo(target, 280);
     return back;
   }
@@ -584,7 +643,9 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
     G.over = true;
     G.won = true;
     G.busy = true;
+    if (blitz) clk.pause();
     setPhase('won');
+    setWarn(false);
     sync();
     const q = standOn(B, board.goal);
     sfx.play('st_land');
@@ -592,19 +653,32 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
     fx.current?.burst('spark', q.x, q.y - B.T * 0.5, q.s / 60);
     later(160, () => {
       sfx.play('sd_solve');
-      sfx.play('sd_confetti');
+      if (!blitz) sfx.play('sd_confetti');
       haptics.win();
-      fx.current?.burst('confetti', q.x, q.y - B.T * 0.6, 1);
+      if (!blitz) fx.current?.burst('confetti', q.x, q.y - B.T * 0.6, 1);
       // two happy hops on the ★
       player.hp.setValue(0);
       player.liftH.setValue(B.T * 0.55);
       Animated.sequence([timing(player.hp, 1, 340, Easing.linear), Animated.timing(player.hp, { toValue: 0, duration: 0, useNativeDriver: true }), timing(player.hp, 1, 340, Easing.linear)]).start();
     });
-    const left = leftOf(board, G.st.life);
-    const out = afterLevel(profileRef.current, spec, { left, hinted: G.hinted });
+    if (blitz) {
+      // one more cleared; on to the next board
+      const i = idxRef.current;
+      runRec.current.cleared = i + 1;
+      later(300, () => {
+        setCleared(i + 1);
+        sfx.play('sd_pip', { rate: 0.9 + Math.min(12, i) * 0.05 });
+      });
+      later(1100, () => {
+        sfx.play('sd_blitzNext');
+        setIdx(i + 1);
+      });
+      return;
+    }
+    const out = afterLevel(profileRef.current, spec, { takebacks: G.takebacks, hinted: G.hinted });
     if (uid) saveHop(uid, out.update, out.coins, out.xp, profileRef.current);
     const { stars, coins, xp, before, after, levelUps, unlocked } = out;
-    later(1300, () => setResult({ stars, coins, xp, before, after, levelUps, unlocked, hops: G.moves.length, left, hinted: G.hinted }));
+    later(1300, () => setResult({ stars, coins, xp, before, after, levelUps, unlocked, hops: G.moves.length, takebacks: G.takebacks, hinted: G.hinted }));
   }
 
   function goStuck() {
@@ -619,12 +693,149 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
     });
   }
 
+  // --- Blitz: a mistake or the clock, the save, GAME OVER ---------------------------------------------
+
+  function blitzMistake(why) {
+    clk.pause();
+    G.over = true;
+    G.busy = false;
+    setPhase('held');
+    setWarn(false);
+    sfx.play('sd_wrong');
+    haptics.wrong();
+    wobble([-0.8, 0.8, -0.5, 0], 800);
+    later(1000, () => offerSave(why));
+  }
+  // the board's clock ran out (not mid-hop: a hop under way still counts)
+  function timeUp() {
+    if (G.busy || G.over || phaseRef.current !== 'play') return;
+    clk.pause();
+    G.over = true;
+    setPhase('held');
+    setWarn(false);
+    sfx.play('sd_timeUp');
+    haptics.wrong();
+    wobble([-0.6, 0.6, 0], 500);
+    later(900, () => offerSave('time'));
+  }
+  function offerSave(reason) {
+    setFailReason(reason);
+    setSaveErr(null);
+    setBlitzCard('save');
+  }
+  // The run goes on from the same board: after a mistake, back to the last spot a full clear was still possible from,
+  // with the clock running on; after the clock ran out, from where it stood, with the board's clock started again.
+  function goOn() {
+    setSaving(false);
+    setBlitzCard(null);
+    sfx.play('sd_revive');
+    G.lastSecond = -1;
+    setWarn(false);
+    player.rot.stopAnimation();
+    player.rot.setValue(0);
+    G.over = false;
+    G.queue = [];
+    if (failReason !== 'time') {
+      // (stuck: at least one hop back, even if the solver had given up on the spot it stopped at)
+      let k = Math.min(G.okAt.length - 1, failReason === 'stuck' ? G.moves.length - 1 : G.moves.length);
+      while (k > 0 && !G.okAt[k]) k--;
+      k = Math.max(0, k);
+      if (k < G.moves.length) {
+        const target = G.hist[k];
+        G.hist.length = k;
+        G.moves.length = k;
+        G.busy = true;
+        restoreTo(target, 280).then(() => {
+          G.busy = false;
+          drain();
+        });
+      }
+      G.okAt.length = k + 1;
+      G.feasible = true;
+      sync();
+    }
+    setPhase('play');
+    if (failReason === 'time') clk.start(spec.ms);
+    else clk.resume();
+  }
+  function saveByAd() {
+    const back = () => {
+      setAdUsed(true);
+      acts.current.goOn();
+    };
+    if (adsFree) back();
+    else ad.show(back);
+  }
+  function saveByGems() {
+    if (saving) return;
+    setSaving(true);
+    setSaveErr(null);
+    squad
+      .blitzSave(gemSaves)
+      .then(() => {
+        setGemSaves((n) => n + 1);
+        acts.current.goOn();
+      })
+      .catch((e) => {
+        setSaving(false);
+        setSaveErr(String((e && e.message) || e) === 'not_enough_gems' ? 'Not enough gems' : "Couldn't reach the server. Try again?");
+      });
+  }
+  // Pays the run out once (the boards it cleared) and saves the record. Also when the player quits or starts over in
+  // the middle of a run, so cleared boards always count.
+  function payOut() {
+    const R = runRec.current;
+    if (!blitz || !R.started || R.ended) return null;
+    R.ended = true;
+    const out = afterBlitz(profileRef.current, { cleared: R.cleared });
+    if (uid) saveHop(uid, out.update, out.coins, out.xp, profileRef.current);
+    return out;
+  }
+  function endRun() {
+    clk.pause();
+    G.over = true;
+    setPhase('held');
+    const top = record(profileRef.current).blitz.top;
+    const n = runRec.current.cleared;
+    const out = payOut() || { coins: 0, xp: 0, levelUps: [], newTop: false };
+    const res = { ...out, cleared: n, best: Math.max(top, n) };
+    setOver(res);
+    setBlitzCard('over');
+    if (res.newTop) {
+      sfx.play('sd_blitzWin');
+      haptics.win();
+      if (root) [0, 300, 600].forEach((d, i) => later(d, () => fxTop.current?.burst('confetti', root.w * (0.25 + 0.25 * i), root.h * 0.3, 1)));
+    } else {
+      sfx.play('sd_blitzFail');
+      later(600, () => sfx.play('sd_drain'));
+    }
+  }
+  // a fresh run from board 1 (the one before is paid out first)
+  function again() {
+    payOut();
+    clearTimers();
+    clk.reset();
+    runRec.current = { started: false, ended: false, cleared: 0 };
+    setBlitzCard(null);
+    setOver(null);
+    setAdUsed(false);
+    setGemSaves(0);
+    setSaving(false);
+    setSaveErr(null);
+    setCleared(0);
+    setCount(null);
+    setPaused(false);
+    setWarn(false);
+    setIdx(0);
+    setRun((r) => r + 1);
+  }
+
   // --- a new go at the level ------------------------------------------------------------------------
 
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
-  // a new go: a new level or round, once the board has a place on screen
-  const goKey = B && hopper ? `${lv}:${round}` : '';
+  // a new go: a new level or round (Blitz: a new board), once the board has a place on screen
+  const goKey = B && hopper ? (blitz ? `b${run}:${idx}` : `${lv}:${round}`) : '';
   useEffect(() => {
     if (!goKey) return undefined;
     clearTimers();
@@ -635,12 +846,17 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
     G.st = newState(board);
     G.hist = [];
     G.moves = [];
-    if (forget) G.hinted = false;
+    G.okAt = [true];
+    if (forget) {
+      G.hinted = false;
+      G.takebacks = 0;
+    }
     G.over = false;
     G.won = false;
     G.busy = false;
     G.queue = [];
     G.shown = 0;
+    G.lastSecond = -1;
     G.life = board.life.slice();
     check();
     sync();
@@ -651,50 +867,84 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
     setHintAsk(false);
     setGlow(-1);
     setTip(null);
-    // the board fluffs in, back to front
+    // everything hidden, ready to come in
     cells.forEach((i) => {
-      const A = cellA[i];
-      const d = ((i % board.w) + Math.floor(i / board.w)) * 24;
-      A.a0.setValue(0);
-      A.a1.setValue(0);
-      timing(A.a0, 1, 300, Easing.out(Easing.back(1.4)), d).start();
-      if (board.life[i] === 2) timing(A.a1, 1, 300, Easing.out(Easing.back(1.4)), d + 70).start();
-      const bub = bubbleA[i];
-      if (bub) {
-        bub.setValue(0);
-        timing(bub, 1, 260, Easing.out(Easing.quad), 360).start();
-      }
+      cellA[i].a0.setValue(0);
+      cellA[i].a1.setValue(0);
+      if (bubbleA[i]) bubbleA[i].setValue(0);
     });
     starPop.setValue(0);
     starGone.setValue(0);
-    // the hopper drops in, the friends pop up
-    const p = poseOn(board.start, pw, ph, board.life[board.start]);
-    setPlayerZ(zOf(board.start, 2));
-    [player.rot, player.bump, player.hp].forEach((v) => {
-      v.stopAnimation();
-      v.setValue(0);
-    });
-    player.land.setValue(1);
-    player.shadow.setValue(1);
-    place(player, { ...p, y: p.y - B.T * 1.2 });
     player.o.setValue(0);
-    Animated.parallel([timing(player.y, p.y, 420, Easing.out(Easing.back(1.5)), 260), timing(player.o, 1, 160, Easing.linear, 260)]).start();
-    board.friends.forEach((cell, k) => {
-      const a = friendA[k];
-      const c = friends[k];
-      if (!c) return;
-      const q = poseOn(cell, fw, bodyH(c, fw), board.life[cell]);
-      place(a, { ...q, k: q.k * 0.3 });
-      a.o.setValue(0);
-      a.shadow.setValue(1);
-      a.hp.setValue(0);
-      a.land.setValue(1);
-      Animated.parallel([timing(a.k, q.k, 320, Easing.out(Easing.back(1.6)), 320 + k * 90), timing(a.y, q.y, 320, Easing.out(Easing.back(1.6)), 320 + k * 90), timing(a.o, 1, 160, Easing.linear, 320 + k * 90)]).start();
-      slotPop[k].setValue(1);
-    });
-    sfx.play('sd_boardIn');
-    setPhase('play');
-    if (forget) {
+    friendA.forEach((a) => a.o.setValue(0));
+    // the board fluffs in, back to front; the hopper drops in, the friends pop up
+    const enter = () => {
+      cells.forEach((i) => {
+        const A = cellA[i];
+        const d = ((i % board.w) + Math.floor(i / board.w)) * 24;
+        timing(A.a0, 1, 300, Easing.out(Easing.back(1.4)), d).start();
+        if (board.life[i] === 2) timing(A.a1, 1, 300, Easing.out(Easing.back(1.4)), d + 70).start();
+        const bub = bubbleA[i];
+        if (bub) timing(bub, 1, 260, Easing.out(Easing.quad), 360).start();
+      });
+      const p = poseOn(board.start, pw, ph, board.life[board.start]);
+      setPlayerZ(zOf(board.start, 2));
+      [player.rot, player.bump, player.hp].forEach((v) => {
+        v.stopAnimation();
+        v.setValue(0);
+      });
+      player.land.setValue(1);
+      player.shadow.setValue(1);
+      place(player, { ...p, y: p.y - B.T * 1.2 });
+      player.o.setValue(0);
+      Animated.parallel([timing(player.y, p.y, 420, Easing.out(Easing.back(1.5)), 260), timing(player.o, 1, 160, Easing.linear, 260)]).start();
+      board.friends.forEach((cell, k) => {
+        const a = friendA[k];
+        const c = friends[k];
+        if (!c) return;
+        const q = poseOn(cell, fw, bodyH(c, fw), board.life[cell]);
+        place(a, { ...q, k: q.k * 0.3 });
+        a.o.setValue(0);
+        a.shadow.setValue(1);
+        a.hp.setValue(0);
+        a.land.setValue(1);
+        Animated.parallel([timing(a.k, q.k, 320, Easing.out(Easing.back(1.6)), 320 + k * 90), timing(a.y, q.y, 320, Easing.out(Easing.back(1.6)), 320 + k * 90), timing(a.o, 1, 160, Easing.linear, 320 + k * 90)]).start();
+        slotPop[k].setValue(1);
+      });
+      sfx.play('sd_boardIn');
+    };
+    if (blitz) {
+      // Blitz: no hops until the board's clock starts; the run's first board drops in on GO
+      setPhase('intro');
+      setWarn(false);
+      setLabel(clock(spec.ms));
+      clk.reset();
+      const startClock = () => {
+        runRec.current.started = true;
+        setPhase('play');
+        clk.start(spec.ms);
+      };
+      if (!runRec.current.started) {
+        [3, 2, 1, 'GO!'].forEach((n, i) =>
+          later(200 + i * 700, () => {
+            setCount(n);
+            sfx.play(n === 'GO!' ? 'sd_go' : 'sd_count');
+            haptics.tick();
+            if (n === 'GO!') enter();
+          }),
+        );
+        later(200 + 4 * 700, () => setCount(null));
+        later(200 + 3 * 700 + 760, startClock);
+      } else {
+        enter();
+        say(`BOARD ${spec.lv}`, { chips: [spec.size, `⏱ ${clock(spec.ms)}`], hold: 700 });
+        later(760, startClock);
+      }
+    } else {
+      enter();
+      setPhase('play');
+    }
+    if (!blitz && forget) {
       say(`LEVEL ${spec.lv}`, { chips: [TIER_NAMES[spec.tier], room.name.toUpperCase()], hold: 800 });
       const news = spec.news && !record(profileRef.current).best[spec.lv] ? TWISTS[spec.news] : null;
       if (news)
@@ -708,6 +958,24 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
     return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goKey]);
+
+  // Blitz: the board's clock (its last seconds tick; at 0, TIME'S UP)
+  useEffect(() => {
+    if (!blitz || phase !== 'play' || paused) return undefined;
+    const id = setInterval(() => {
+      const rest = clk.limit() - clk.elapsed();
+      setLabel(clock(rest));
+      const sec = Math.ceil(rest / 1000);
+      if (rest <= HURRY_MS && rest > 0 && sec !== G.lastSecond) {
+        G.lastSecond = sec;
+        sfx.play('sd_tick', { rate: sec <= 3 ? 1.3 : 1 });
+        setWarn(true);
+      }
+      if (rest <= 0) acts.current.timeUp();
+    }, 150);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, paused]);
 
   // The board moved mid-go (the screen's layout changed): everyone back in
   // place, nothing restarted.
@@ -762,9 +1030,19 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
   );
   function pause() {
     if (blocked.current || phaseRef.current !== 'play') return;
+    if (blitz) {
+      clk.pause();
+      sfx.play('sd_pause');
+    }
     setPaused(true);
   }
+  function resume() {
+    setPaused(false);
+    if (blitz && phaseRef.current === 'play') clk.resume();
+  }
   function leave() {
+    payOut();
+    clk.pause();
     clearTimers();
     onExit();
   }
@@ -772,23 +1050,30 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
     const p = profileRef.current;
     if (uid) saveHop(uid, afterStuck(p), 0);
     setStuck(false);
+    G.takebacks += 1;
     fresh.current = false;
     setRound((r) => r + 1);
   }
 
   const acts = useRef({});
-  acts.current = { tryDir, input, undo, restart, askHint, watchHint, giveHint, pause, leave, retry, wiggle: () => wobble([-0.6, 0.6, 0], 360) };
+  acts.current = { tryDir, input, undo, restart, askHint, watchHint, giveHint, pause, resume, leave, retry, timeUp, goOn, saveByAd, saveByGems, endRun, again, wiggle: () => wobble([-0.6, 0.6, 0], 360) };
+  // web, development only: the browser tests hop without finding the cushions on screen (src/web/README.md)
+  if (__DEV__ && typeof window !== 'undefined' && window.document) {
+    window.__hop = { sol: spec.sol, hop: (d) => acts.current.input(() => acts.current.tryDir(d)), state: () => ({ phase: phaseRef.current, moves: G.moves.length, feasible: G.feasible, takebacks: G.takebacks }) };
+  }
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (hintAsk) setHintAsk(false);
-      else if (paused) setPaused(false);
-      else if (result || stuck) acts.current.leave();
+      else if (paused) acts.current.resume();
+      else if (blitzCard === 'save') acts.current.endRun();
+      else if (result || stuck || blitzCard === 'over') acts.current.leave();
+      else if (blitz && phaseRef.current !== 'play') return true;
       else acts.current.pause();
       return true;
     });
     return () => sub.remove();
-  }, [hintAsk, paused, result, stuck]);
+  }, [hintAsk, paused, result, stuck, blitzCard, blitz]);
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => s !== 'active' && acts.current.pause());
     return () => sub.remove();
@@ -864,9 +1149,14 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
   // --- drawing ---------------------------------------------------------------------------------------
 
   const n = board.friends.length;
-  const leftToOpen = n - popcount(shown);
-  let can = view.feasible ? 3 : 2;
-  if (view.hinted) can = Math.max(1, can - 1);
+  // the cushions still to clear before the ★ opens (the one underfoot clears as it's hopped off)
+  const toOpen = Math.max(0, view.left - 1);
+  // the stars still possible: off a full clear, it takes at least one more UNDO
+  const can = starsFor(view.takebacks + (view.feasible ? 0 : 1), view.hinted);
+  // Blitz: the best run so far, and whether this one has beaten it
+  const bestRun = record(profile).blitz.top;
+  const beat = blitz && cleared > bestRun && bestRun > 0;
+  const barW = root ? (wide ? 124 : Math.min(root.w - 48, 360)) : 200;
   const nextBeat = (view.hops + 1) % 3;
   const slotSize = n > 4 ? 19 : n > 2 ? 21 : n > 1 ? 24 : 27;
   const playing = phase === 'play' && !paused;
@@ -880,14 +1170,21 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
     <>
       {/* the Crib's top bar: back, the room's title, the time of day */}
       <View style={[styles.hud, wide ? styles.wHud : { paddingTop: insets.top + 6 }]}>
-        <CribButton face="orange" icon="back" size={44} onPress={() => (phaseRef.current === 'play' ? acts.current.pause() : acts.current.leave())} />
+        <CribButton
+          face="orange"
+          icon={blitz && phase === 'play' ? 'pause' : 'back'}
+          size={44}
+          onPress={() => (phaseRef.current === 'play' ? acts.current.pause() : blitz && phaseRef.current !== 'won' && !blitzCard ? null : acts.current.leave())}
+        />
         <View style={styles.titleBox}>
-          <RoomTitle title={room.name} />
+          <RoomTitle title={blitz ? 'Blitz Mode' : room.name} />
           <View style={styles.subRow}>
-            <Text style={styles.sub} numberOfLines={1}>{`SQUISH HOP · LEVEL ${lv}`}</Text>
-            <View style={[styles.tier, { backgroundColor: TIER_COLORS[spec.tier] }]}>
-              <Text style={styles.tierText}>{TIER_NAMES[spec.tier]}</Text>
-            </View>
+            <Text style={styles.sub} numberOfLines={1}>{blitz ? `SQUISH HOP · BOARD ${spec.lv}` : `SQUISH HOP · LEVEL ${lv}`}</Text>
+            {blitz ? null : (
+              <View style={[styles.tier, { backgroundColor: TIER_COLORS[spec.tier] }]}>
+                <Text style={styles.tierText}>{TIER_NAMES[spec.tier]}</Text>
+              </View>
+            )}
           </View>
         </View>
         {room.dance || wide ? null : <PhasePill sun={ph0.sun} label={ph0.label} />}
@@ -899,24 +1196,25 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
       {/* the board on the floor */}
       <View ref={areaRef} collapsable={false} style={styles.area} onLayout={onArea} {...responder.panHandlers}>
         {B && hopper ? (
-          <>
+          // (Blitz: hidden while paused, and during the countdown until GO drops the board in)
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: blitz && (paused || (count != null && count !== 'GO!')) ? 0 : 1 }]}>
             {room.rug ? <Rug B={B} /> : null}
             <Under B={B} cells={cells} dance={!!room.dance} dent={room.dent} width={area.w} height={area.h} />
             {cells.map((i) => (
-              <Tile key={`${lv}:${i}`} B={B} i={i} look={board.beat[i] >= 0 && board.beat[i] === nextBeat ? looks[i].on : looks[i].off} a0={cellA[i].a0} a1={cellA[i].a1} />
+              <Tile key={`${tag}:${i}`} B={B} i={i} look={board.beat[i] >= 0 && board.beat[i] === nextBeat ? looks[i].on : looks[i].off} a0={cellA[i].a0} a1={cellA[i].a1} />
             ))}
             {glow >= 0 ? <HintGlow key={`g${glow}`} B={B} i={glow} z={G.life[glow] === 2 ? PILE_TOP : 0} /> : null}
             <View pointerEvents="none" style={StyleSheet.absoluteFill}>
               {cells
                 .filter((i) => board.bubble[i])
                 .map((i) => (
-                  <View key={`b${lv}:${i}`} style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: zOf(i, 0) }} pointerEvents="none">
+                  <View key={`b${tag}:${i}`} style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: zOf(i, 0) }} pointerEvents="none">
                     <Bubble B={B} i={i} a={bubbleA[i]} />
                   </View>
                 ))}
-              <GoalStar key={`s${lv}`} B={B} i={board.goal} left={leftToOpen} pop={starPop} gone={starGone} z={zOf(board.goal, 0)} />
+              <GoalStar key={`s${tag}`} B={B} i={board.goal} left={toOpen} pop={starPop} gone={starGone} z={zOf(board.goal, 0)} />
               {board.friends.map((cell, k) =>
-                friends[k] ? <Piece key={`f${lv}:${k}`} c={friends[k]} w={fw} h={bodyH(friends[k], fw)} a={friendA[k]} z={zOf(cell, 1)} shade={room.dance ? 'rgba(255,255,255,0.3)' : 'rgba(69,16,122,0.28)'} friend delay={k * 900} /> : null,
+                friends[k] ? <Piece key={`f${tag}:${k}`} c={friends[k]} w={fw} h={bodyH(friends[k], fw)} a={friendA[k]} z={zOf(cell, 1)} shade={room.dance ? 'rgba(255,255,255,0.3)' : 'rgba(69,16,122,0.28)'} friend delay={k * 900} /> : null,
               )}
               <Piece c={hopper} w={pw} h={ph} a={player} z={playerZ} shade={room.dance ? 'rgba(255,255,255,0.3)' : 'rgba(69,16,122,0.28)'} />
             </View>
@@ -925,12 +1223,13 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
               if (!board.order[cell] || G.st.got & board.fbit[cell] || !friends[k]) return null;
               const q = standOn(B, cell, board.life[cell] === 2 ? PILE_TOP : 0);
               const hh = bodyH(friends[k], fw) * (q.s / B.T);
-              return <OrderChip key={`o${lv}:${k}`} n={board.order[cell]} x={q.x + fw * (q.s / B.T) * 0.42} y={q.y - hh * 0.9} size={Math.max(18, q.s * 0.3)} />;
+              return <OrderChip key={`o${tag}:${k}`} n={board.order[cell]} x={q.x + fw * (q.s / B.T) * 0.42} y={q.y - hh * 0.9} size={Math.max(18, q.s * 0.3)} />;
             })}
             <Banner banner={banner} top={4} />
             <FxLayer ref={fx} />
-          </>
+          </View>
         ) : null}
+        {count != null ? <Countdown value={count} /> : null}
       </View>
     </>
   );
@@ -942,36 +1241,61 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
           <Text style={styles.goalLabel}>GOAL</Text>
           <View style={styles.goalRow}>
             {slotOrder.map((k) =>
-              friends[k] ? <Slot key={`${lv}:${k}`} c={friends[k]} size={slotSize} got={!!(shown & board.fbit[board.friends[k]])} n={board.order[board.friends[k]] || 0} pop={slotPop[k]} onRef={(r) => (slotRefs.current[k] = r)} /> : null,
+              friends[k] ? <Slot key={`${tag}:${k}`} c={friends[k]} size={slotSize} got={!!(shown & board.fbit[board.friends[k]])} n={board.order[board.friends[k]] || 0} pop={slotPop[k]} onRef={(r) => (slotRefs.current[k] = r)} /> : null,
             )}
             {n ? <Text style={styles.goalArrow}>›</Text> : null}
             <View style={styles.miniGoal}>
               {room.dance ? <View style={styles.miniTile} /> : <FlatCushion size={34} col="peach" id="hopMini" />}
               <View style={styles.miniStar}>
-                <Star size={19} shut={leftToOpen > 0} />
+                <Star size={19} shut={toOpen > 0} />
               </View>
             </View>
           </View>
         </Animated.View>
         <View style={styles.stripRight}>
+          {blitz ? (
+            // Blitz: the boards cleared this run, and the best run (gold once it's beaten)
+            <View style={styles.meterRow}>
+              <View style={styles.pill}>
+                <Text style={styles.pillText}>{`CLEARED ${cleared}`}</Text>
+              </View>
+              <View style={[styles.pill, styles.hopsPill, beat && styles.bestPill]}>
+                <Text style={[styles.pillText, { color: beat ? '#ffffff' : '#5b3a29' }]}>{`${beat ? 'NEW BEST' : 'BEST'} ${Math.max(bestRun, cleared)}`}</Text>
+              </View>
+              <View style={[styles.pill, styles.hopsPill]}>
+                <Text style={[styles.pillText, { color: '#5b3a29' }]}>{`LEFT ${toOpen}`}</Text>
+              </View>
+            </View>
+          ) : (
           <View style={styles.meterRow}>
             <Meter stars={can} />
             <View style={styles.pill}>
-              <Text style={styles.pillText}>{`LEFT ${view.left}`}</Text>
+              <Text style={styles.pillText}>{`LEFT ${toOpen}`}</Text>
             </View>
             <View style={[styles.pill, styles.hopsPill]}>
               <Text style={[styles.pillText, { color: '#5b3a29' }]}>{`HOPS ${view.moves}`}</Text>
             </View>
             {spec.beats ? <BeatPill next={nextBeat} /> : null}
           </View>
-          <Text style={[styles.tip, !view.feasible && phase !== 'won' && styles.tipWarn]} numberOfLines={3}>
+          )}
+          <Text style={[styles.tip, !blitz && !view.feasible && phase !== 'won' && styles.tipWarn]} numberOfLines={3}>
             {tip || tipFor(spec, view, room)}
           </Text>
         </View>
       </View>
     </>
   );
-  const ctrlEl = (
+  const ctrlEl = blitz ? (
+    <>
+      {/* Blitz: the rule and the board's clock, on the Crib's glass */}
+      <View style={[styles.glass, wide ? styles.wGlass : { marginBottom: Math.max(insets.bottom, 6) + 6 }]}>
+        <Chip bg="#e01e4a" color="#ffffff">
+          1 MISTAKE = GAME OVER
+        </Chip>
+        <TimerBar frac={clk.frac} width={barW} warn={warn} label={label} />
+      </View>
+    </>
+  ) : (
     <>
       {/* undo, restart, hint */}
       <View style={[styles.controls, wide ? styles.wControls : { paddingBottom: Math.max(insets.bottom, 6) + 6 }]}>
@@ -1014,29 +1338,57 @@ export default function HopGame({ startLv = 1, cast, profile, uid, adsFree, hapt
         </>
       )}
 
-      <ResultCard visible={!!result} res={result} spec={spec} nextRoom={nextRoom} onNext={() => goTo(lv + 1)} onReplay={() => goTo(lv)} onHub={() => acts.current.leave()} />
-      <StuckCard
-        visible={stuck}
-        head={headOf(hopper, 'sad')}
-        uri={hopper?.uri}
-        shut={board.nbrs[view.cur].includes(board.goal) && popcount(view.got) < n}
-        onUndo={() => {
-          setStuck(false);
-          acts.current.undo();
-        }}
-        onRetry={() => acts.current.retry()}
-      />
-      <PauseCard
-        visible={paused}
-        onResume={() => setPaused(false)}
-        onRestart={() => {
-          setPaused(false);
-          fresh.current = false;
-          setRound((r) => r + 1);
-        }}
-        onQuit={() => acts.current.leave()}
-      />
-      <HintCard visible={hintAsk} adReady={ad.ready} adsFree={adsFree} onWatch={() => acts.current.watchHint()} onClose={() => setHintAsk(false)} />
+      {blitz ? (
+        <>
+          <BlitzPauseCard blitz visible={paused} onResume={() => acts.current.resume()} onRestart={() => acts.current.again()} onQuit={() => acts.current.leave()} />
+          <BlitzSaveCard
+            visible={blitzCard === 'save'}
+            reason={failReason}
+            why={failReason === 'mistake' ? `That hop left ${room.dance ? 'tile' : 'cushion'}s you can't clear.` : failReason === 'stuck' ? 'Nowhere left to hop.' : null}
+            board={idx + 1}
+            cleared={cleared}
+            adUsed={adUsed}
+            adReady={ad.ready}
+            adsFree={adsFree}
+            gems={Number(profile && profile.gems) || 0}
+            price={blitzSaveGems(gemSaves)}
+            saving={saving}
+            error={saveErr}
+            onAd={() => acts.current.saveByAd()}
+            onGems={() => acts.current.saveByGems()}
+            onEnd={() => acts.current.endRun()}
+          />
+          <BlitzOverCard visible={blitzCard === 'over'} res={over} onAgain={() => acts.current.again()} onQuit={() => acts.current.leave()} />
+          <FxLayer ref={fxTop} style={styles.fxTop} />
+        </>
+      ) : (
+        <>
+          <ResultCard visible={!!result} res={result} spec={spec} nextRoom={nextRoom} onNext={() => goTo(lv + 1)} onReplay={() => goTo(lv)} onHub={() => acts.current.leave()} />
+          <StuckCard
+            visible={stuck}
+            head={headOf(hopper, 'sad')}
+            uri={hopper?.uri}
+            shut={board.nbrs[view.cur].includes(board.goal) && toOpen > 0}
+            onUndo={() => {
+              setStuck(false);
+              acts.current.undo();
+            }}
+            onRetry={() => acts.current.retry()}
+          />
+          <PauseCard
+            visible={paused}
+            onResume={() => setPaused(false)}
+            onRestart={() => {
+              setPaused(false);
+              if (G.st.hops > 0) G.takebacks += 1;
+              fresh.current = false;
+              setRound((r) => r + 1);
+            }}
+            onQuit={() => acts.current.leave()}
+          />
+          <HintCard visible={hintAsk} adReady={ad.ready} adsFree={adsFree} onWatch={() => acts.current.watchHint()} onClose={() => setHintAsk(false)} />
+        </>
+      )}
 
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: flash }]}>
         <RoomFlash />
@@ -1091,4 +1443,10 @@ const styles = StyleSheet.create({
   controls: { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 8, zIndex: 1 },
   ctrl: { flex: 1, maxWidth: 130 },
   ctrlFace: { paddingHorizontal: 6, paddingVertical: 10 },
+  // Blitz: the rule and the clock on the glass, and the best pill once it's beaten
+  glass: { alignSelf: 'center', alignItems: 'center', gap: 8, marginTop: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
+  wGlass: { alignSelf: 'stretch', marginHorizontal: 10 },
+  bestPill: { backgroundColor: '#ffb02e', borderColor: '#ffffff' },
+  // the cards sit at elevation 50 (squishdoku/Overlays.js)
+  fxTop: { zIndex: 60, elevation: 60 },
 });

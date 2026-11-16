@@ -293,8 +293,8 @@ export const Star = memo(function Star({ size, shut = false }) {
   );
 });
 
-// The ★ standing over the goal cell, bobbing. While friends are still out
-// it's grey with how many are left; `pop` (0 → 1) is it opening, `gone`
+// The ★ standing over the goal cell, bobbing. While cushions are still to
+// clear it's grey with how many are left; `pop` (0 → 1) is it opening, `gone`
 // (0 → 1) it flying off at the end.
 export const GoalStar = memo(function GoalStar({ B, i, left, pop, gone, z }) {
   const q = project(B, (i % B.w) + 0.5, Math.floor(i / B.w) + 0.56);

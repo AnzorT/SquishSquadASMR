@@ -11,7 +11,8 @@
 // time of day moves on through each room's levels.
 import LEVEL_DATA from './levelData.js';
 import { DCH, parse, starsFor as engineStars } from './engine.js';
-import { addXp, gameXp, winXp } from '../playerXp.js';
+import { addXp, gameXp, winXp, xpRules } from '../playerXp.js';
+import { blitzShape, BLITZ_COINS } from './blitz.js';
 
 export const LEVELS = LEVEL_DATA.length;
 
@@ -43,7 +44,7 @@ const PHASES_OF = {
 
 // what each twist is called on the map and in the banner that brings it in
 export const TWISTS = {
-  friends: { name: 'FRIENDS', text: 'FRIENDS!', sub: 'The ★ opens when everyone is with you' },
+  friends: { name: 'FRIENDS', text: 'FRIENDS!', sub: 'Hop onto each friend to pick them up on your way' },
   arrows: { name: 'ARROWS', text: 'ARROWS!', sub: 'Hop off an arrow cushion the way it points' },
   bubbles: { name: 'BUBBLES', text: 'BUBBLES!', sub: 'Land on a bubble and it bounces you one further' },
   piles: { name: 'PILES', text: 'PILES!', sub: 'Two cushions on top of each other take two hops' },
@@ -109,9 +110,11 @@ export function levelSpec(lv) {
 
 // --- scoring ----------------------------------------------------------------------
 
-// 3: every cushion cleared before the ★; 2: up to 3 left; 1: more left. A
-// hint (watched for with an ad) takes one off, never the last.
-export const starsFor = (left, hinted) => engineStars(left, hinted);
+// Every win clears every cushion (the ★ only opens then: the user,
+// 2026-11-16), so the stars are for how cleanly: 3 with no UNDO or RESTART,
+// 2 with up to 3, 1 with more. A hint (watched for with an ad) takes one off,
+// never the last.
+export const starsFor = (takebacks, hinted) => engineStars(takebacks, hinted);
 
 const STAR_MULT = [0, 1, 1.5, 2];
 // Bigger boards and more twists pay more; harder tiers 15% more each.
@@ -136,6 +139,8 @@ export function record(profile) {
     plays: s.plays || 0,
     wins: s.wins || 0,
     seen: !!s.seen,
+    // BLITZ MODE (2026-11-16): the most boards cleared in one run, and how many runs
+    blitz: { top: 0, runs: 0, ...(s.blitz || {}) },
   };
 }
 
@@ -146,10 +151,10 @@ export const doneOf = (rec) => rec.lv - 1 + (rec.best[LEVELS] ? 1 : 0);
 
 // The fields to write after a level is won, and what it paid: coins, the
 // player's XP (half on a replay: winXp) and the levels it reached (`before` /
-// `after`: the result's XP bar). result: { left, hinted }
+// `after`: the result's XP bar). result: { takebacks (UNDOs and RESTARTs), hinted }
 export function afterLevel(profile, spec, result) {
   const rec = record(profile);
-  const stars = starsFor(result.left, !!result.hinted);
+  const stars = starsFor(result.takebacks || 0, !!result.hinted);
   const update = {
     'hop.plays': rec.plays + 1,
     'hop.wins': rec.wins + 1,
@@ -166,3 +171,33 @@ export function afterLevel(profile, spec, result) {
 
 // a RETRY after getting stuck counts as a play
 export const afterStuck = (profile) => ({ 'hop.plays': record(profile).plays + 1, 'hop.seen': true });
+
+// --- Blitz -------------------------------------------------------------------------
+// BLITZ MODE (2026-11-16, the user: "the same thing" as Squishdoku's): fresh
+// small boards one after another (blitz.js), each on its own short clock. A
+// hop that leaves no full clear, or a board's clock running out, ends the run,
+// unless it's saved with a rewarded ad (once a run) or gems (functions/squad.js
+// blitzSave). Every board cleared pays.
+
+// What `cleared` boards pay: their coins (by their grid), and the player's XP
+// (config/levels `xp.blitz.hop` is the XP for ten boards: 20 a board by default).
+export function blitzPrize(cleared) {
+  let coins = 0;
+  for (let i = 0; i < cleared; i++) {
+    const b = blitzShape(i);
+    coins += BLITZ_COINS[b.w * b.h];
+  }
+  return { coins, xp: Math.round(((xpRules().blitz.hop || 200) / 10) * cleared) };
+}
+
+// The fields to write when a Blitz run is over (`cleared`: the boards it
+// cleared), and what it paid.
+export function afterBlitz(profile, { cleared }) {
+  const rec = record(profile);
+  const update = { 'hop.blitz.runs': rec.blitz.runs + 1, 'hop.seen': true };
+  const newTop = cleared > rec.blitz.top;
+  if (newTop) update['hop.blitz.top'] = cleared;
+  if (!cleared) return { update, coins: 0, xp: 0, levelUps: [], newTop: false };
+  const prize = blitzPrize(cleared);
+  return { update, coins: prize.coins, newTop, ...addXp(profile, prize.xp) };
+}

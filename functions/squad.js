@@ -703,8 +703,9 @@ function streakClaim(p, args) {
 //               daily one), squishEvery / squishDay (1 XP every so many
 //               squishes, up to so much a day), replay (a level beaten
 //               before pays this share), games (× every mini-game level's
-//               XP), blitz { squishdoku, sort, stack } (a won run; Squishdoku's
-//               endless Blitz: 10 boards cleared, a tenth per board)
+//               XP), blitz { squishdoku, sort, stack, hop } (a won run; the
+//               endless Blitz of Squishdoku, Squish Stack and Squish Hop: 10
+//               boards cleared, a tenth per board)
 const DEFAULT_LEVELS = {
   xpPerLevel: 100,
   // a prize at every level from 1 to 50 (user, 2026-10-25): coins rising,
@@ -721,7 +722,7 @@ const DEFAULT_LEVELS = {
     { k: 'coins', n: 3200 }, { k: 'chest', t: 'epic' }, { k: 'gems', n: 180 }, { k: 'coins', n: 3500 }, { k: 'chest', t: 'legendary' }, // 41-45
     { k: 'coins', n: 4000 }, { k: 'chest', t: 'epic' }, { k: 'gems', n: 250 }, { k: 'coins', n: 5000 }, { k: 'chest', t: 'set' }, // 46-50
   ],
-  xp: { challenge: 25, chest: 100, squishEvery: 5, squishDay: 200, replay: 0.5, games: 1, blitz: { squishdoku: 400, sort: 200, stack: 200 } },
+  xp: { challenge: 25, chest: 100, squishEvery: 5, squishDay: 200, replay: 0.5, games: 1, blitz: { squishdoku: 400, sort: 200, stack: 200, hop: 200 } },
 };
 const okPrize = (r) => r && ((r.k === 'coins' || r.k === 'gems') ? num(r.n) > 0 : r.k === 'chest' && SIZE_I[r.t] != null);
 const posNum = (v, d) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : d);
@@ -741,7 +742,7 @@ function levelsOf(cfg) {
       squishDay: posNum(x.squishDay, D.squishDay),
       replay: typeof x.replay === 'number' && x.replay >= 0 && x.replay <= 1 ? x.replay : D.replay,
       games: posNum(x.games, D.games),
-      blitz: { squishdoku: posNum(b.squishdoku, D.blitz.squishdoku), sort: posNum(b.sort, D.blitz.sort), stack: posNum(b.stack, D.blitz.stack) },
+      blitz: { squishdoku: posNum(b.squishdoku, D.blitz.squishdoku), sort: posNum(b.sort, D.blitz.sort), stack: posNum(b.stack, D.blitz.stack), hop: posNum(b.hop, D.blitz.hop) },
     },
   };
 }

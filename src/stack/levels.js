@@ -118,14 +118,17 @@ export function xpFor(spec, stars) {
 
 // --- Blitz -----------------------------------------------------------------------
 //
-// Ten puzzles in a row on one clock (the user, 2026-10-24: "in the Tower of
-// Hanoi game, i also want to have a blitz version", like Squishdoku's).
-// They grow from 3 squishies on 3 cushions to 7 on 4, all scrambled, some
-// with a goal card. Dropping a big one on a smaller one is the mistake that
-// ends the run (one revive per run: an ad, free with Remove Ads), and so does
-// the clock running out. No hints.
+// BLITZ MODE (2026-11-16, the user: "the same thing" as Squishdoku's): no more
+// ten puzzles on one 4:00 clock. A run goes on puzzle after puzzle, each on
+// its own short clock, until a mistake (a big one dropped on a smaller one)
+// or a clock running out ends it: GAME OVER, unless the player saves it, with
+// a rewarded ad (once a run) or with gems (functions/squad.js blitzSave: 10,
+// then 20, 40 …). Every puzzle cleared pays. The record is the most puzzles
+// cleared in one run (`stack.blitz.top`). No hints; UNDO and RESTART work.
 
-const BLITZ = [
+// the climb: from 3 squishies on 3 cushions to 7 on 4, all scrambled, some
+// with a goal card (the first Blitz's ten puzzles)
+const BLITZ_RAMP = [
   { n: 3, k: 3, tier: 0, par: [4, 6] },
   { n: 3, k: 3, tier: 0, par: [5, 7] },
   { n: 4, k: 3, tier: 0, par: [6, 9] },
@@ -137,17 +140,21 @@ const BLITZ = [
   { n: 6, k: 4, tier: 2, par: [11, 13], goal: 'picture' },
   { n: 7, k: 4, tier: 3, par: [13, 16] },
 ];
-export const BLITZ_ROUNDS = BLITZ.length;
-// the best answers add up to about 93 moves: some 2.6 s a move
-export const BLITZ_MS = 4 * 60 * 1000;
-export const BLITZ_COINS = 800;
-// a won run's XP: config/levels `xp.blitz.stack` (this by default)
-export const BLITZ_XP = 200;
+// past the climb: 7 on 4 for five puzzles, then 8 on 4 for good, every other
+// one with a goal card
+const BLITZ_PAST = [
+  { n: 7, k: 4, tier: 3, par: [13, 16] },
+  { n: 8, k: 4, tier: 2, par: [15, 19] },
+];
+// coins for each puzzle cleared, by its squishies
+export const BLITZ_COINS = { 3: 30, 4: 45, 5: 60, 6: 80, 7: 100, 8: 120 };
 
-// Puzzle i (0-9) at the Blitz skill, as a level spec (engine.makePuzzle):
-// a skill step moves its par range 2 moves either way.
+// Puzzle i of a run (0 = the first) at the Blitz skill, as a level spec
+// (engine.makePuzzle): a skill step moves its par range 2 moves either way.
+// `past`: how far beyond the climb it is (each clock is 3% shorter for it).
 export function blitzSpec(i, skill = 0) {
-  const b = BLITZ[i];
+  const past = Math.max(0, i - BLITZ_RAMP.length + 1);
+  const b = i < BLITZ_RAMP.length ? BLITZ_RAMP[i] : { ...BLITZ_PAST[past <= 5 ? 0 : 1], goal: i % 2 ? 'picture' : 'star' };
   const shift = skillShift(skill);
   return {
     lv: i + 1,
@@ -162,21 +169,43 @@ export function blitzSpec(i, skill = 0) {
     par: [Math.max(2, b.par[0] + 2 * shift), b.par[1] + 2 * shift],
     clock: false,
     news: null,
+    past,
   };
 }
 
-// The fields to write after a Blitz run ends (won or not), and what it paid.
-export function afterBlitz(profile, { won, reached, ms }) {
+// A Blitz puzzle's clock, for its best answer of `par` moves: 6 s to look,
+// then 2.4 s a move (well under Regular's 20 s + 3.6 s a move), whole seconds;
+// past the climb each puzzle's is 3% shorter than the last, down to three
+// quarters.
+export function blitzLimit(spec, par) {
+  const s = (6 + 2.4 * par) * Math.max(0.75, 1 - 0.03 * (spec.past || 0));
+  return Math.ceil(s) * 1000;
+}
+
+// What `cleared` puzzles pay: their coins, and the player's XP (config/levels
+// `xp.blitz.stack` is the XP for ten puzzles: 20 a puzzle by default).
+export function blitzPrize(cleared, skill = 0) {
+  let coins = 0;
+  for (let i = 0; i < cleared; i++) coins += BLITZ_COINS[blitzSpec(i, skill).n];
+  return { coins, xp: Math.round((xpRules().blitz.stack / 10) * cleared) };
+}
+
+// The fields to write when a Blitz run is over (`cleared`: the puzzles it
+// cleared), and what it paid. The skill moves up after a run of 10 or more,
+// down after one of under 5.
+export function afterBlitz(profile, { cleared }) {
   const rec = record(profile);
   const update = {
-    'stack.bSkill': clampSkill(rec.bSkill + (won ? 0.4 : reached >= 6 ? 0 : -0.3)),
-    'stack.blitz.reached': Math.max(rec.blitz.reached, reached),
+    'stack.bSkill': clampSkill(rec.bSkill + (cleared >= 10 ? 0.4 : cleared < 5 ? -0.3 : 0)),
+    'stack.blitz.runs': (rec.blitz.runs || 0) + 1,
+    'stack.seen': true,
   };
-  if (!won) return { update, coins: 0, xp: 0, levelUps: [] };
-  update['stack.blitz.wins'] = rec.blitz.wins + 1;
-  if (!rec.blitz.bestMs || ms < rec.blitz.bestMs) update['stack.blitz.bestMs'] = ms;
-  const xp = xpRules().blitz.stack;
-  return { update, coins: BLITZ_COINS, xp, ...addXp(profile, xp) };
+  const newTop = cleared > rec.blitz.top;
+  if (newTop) update['stack.blitz.top'] = cleared;
+  if (!cleared) return { update, coins: 0, xp: 0, levelUps: [], newTop: false };
+  // the skill the run's puzzles were dealt at (blitzSpec), so the coins match what was played
+  const prize = blitzPrize(cleared, rec.bSkill);
+  return { update, coins: prize.coins, newTop, ...addXp(profile, prize.xp) };
 }
 
 // --- the profile's record -----------------------------------------------------------
@@ -191,7 +220,9 @@ export function record(profile) {
     wins: s.wins || 0,
     seen: !!s.seen,
     bSkill: s.bSkill || 0,
-    blitz: { reached: 0, bestMs: 0, wins: 0, ...(s.blitz || {}) },
+    // top: the most puzzles cleared in one run (the endless Blitz, 2026-11-16;
+    // `reached` / `bestMs` / `wins` were the ten-puzzle runs')
+    blitz: { top: 0, runs: 0, reached: 0, bestMs: 0, wins: 0, ...(s.blitz || {}) },
   };
 }
 

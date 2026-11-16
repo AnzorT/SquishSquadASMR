@@ -32,6 +32,9 @@ The third mini-game, asked for on 2026-10-24. It's the Tower of Hanoi with squis
   - Levels before 15 can't be lost.
 
 ## Blitz (asked for on 2026-10-24: "also in the Tower of Hanoi game, i also want to have a blitz version")
+**Since 2026-11-16 (the user): BLITZ MODE is endless, and the hub is in the new design.** See "Hub and BLITZ MODE
+(2026-11-16)" at the end. What follows was the first Blitz, kept for history.
+
 Like Squishdoku's Blitz. The game now opens on a hub with REGULAR (the map) and BLITZ ⚡:
 - **10 puzzles in a row**, all scrambled, from 3 squishies on 3 cushions to 7 on 4. Puzzles 5, 7 and 9 have a goal card.
   - Par ranges run from 4-6 up to 13-16 moves; a skill step moves them by 2.
@@ -115,3 +118,43 @@ Like Squishdoku's Blitz. The game now opens on a hub with REGULAR (the map) and 
 - Blitz, played on the Pixel_8_Pro on 2026-10-24:
   - checked: the hub, the countdown, puzzle 1 solved (pip, clock held, PUZZLE 2), big on small opening the revive card, giving up for BACK TO PUZZLE 1 and the best saved, GO AGAIN with a fresh countdown, the Blitz pause card.
   - not yet: the revive in Stack (it's the same code as Sort's, which was checked), a full 10-puzzle win, a timeout.
+
+## Hub and BLITZ MODE (2026-11-16)
+
+The user, after Squishdoku's hub and Blitz redesign: "I want the same thing to be done with squish stack, squish hop".
+They chose the hub **and** the endless Blitz (not the hub alone).
+
+**The hub** (`src/stack/Hub.js`, built on Squishdoku's `GameHub` in `src/squishdoku/Hub.js`)
+- The title stands alone at the top (no squishies bobbing beside it, no tagline).
+- **REGULAR MODE** and **BLITZ MODE** are the new design's wood plaques with a picture each, tapped as a whole (no PLAY
+  or GO buttons).
+  - The pictures are the Game Park's Squish Stack clip near its end (the tower almost built): as is for Regular, and
+    turned electric blue with lightning bolts for Blitz (`tools/games/mode-art.mjs` -> `assets/stack/mode-*.jpg`).
+  - REGULAR MODE's line is the progress bar and "23/50". BLITZ MODE's is "BEST: n".
+- HOW TO PLAY has a ? on it.
+- Squishdoku's other pieces (`ModePanel`, `LevelsLine`, `BestLine`, `RulesButton`, `HubTitle`) are exported for this.
+
+**BLITZ MODE** (`src/stack/Game.js` `blitz`, `levels.js` blitzSpec / blitzLimit / blitzPrize / afterBlitz)
+- Puzzle after puzzle, with no end, each on its own clock: 6 s to look plus 2.4 s a move of its par, in whole seconds.
+  That is always under Regular's clock for the same par (a test checks it).
+- The puzzles climb as the first Blitz's ten did (3 on 3 up to 7 on 4, some with a goal card), then 7 on 4 for five
+  more and 8 on 4 for good, every other one with a goal card. Past the climb each clock is 3% shorter than the last,
+  down to three quarters.
+- A big one dropped on a smaller one (still squashed and bounced home) or a puzzle's clock running out stops the run.
+  Saving it works as in Squishdoku:
+  - **with a rewarded ad**, once a run (free with Remove Ads);
+  - **with gems**: 10, 20, 40 … up to 320 in the same run, through the same `blitzSave` move (`functions/squad.js`).
+  - After a mistake the puzzle's clock runs on; after the clock ran out it starts again.
+  - **END RUN** is GAME OVER (Squishdoku's card, saying PUZZLES CLEARED).
+- Each puzzle cleared pays coins by its squishies (3: 30, 4: 45, 5: 60, 6: 80, 7: 100, 8: 120) and a tenth of
+  config/levels `xp.blitz.stack` in XP (20 by default). Quitting or starting over mid-run pays too.
+- UNDO and RESTART still work; no hints.
+- The HUD: PUZZLE n, CLEARED and BEST (NEW BEST in gold), "1 MISTAKE = GAME OVER", "Big on small ends the run!" and the
+  puzzle's clock. The pips and the revive chip are gone.
+- The skill (`bSkill`) still moves the par ranges: up after a run of 10 or more, down after one under 5.
+- Saved as `stack.blitz.{top, runs}`. `reached`, `bestMs` and `wins` were the ten-puzzle runs' and are no longer written.
+- The PICK A GAME card shows "BLITZ BEST n" once there is one.
+- **Checked** in the web version's preview with the bundled cut-outs (`?phone=1&preview=1&card=stack-blitz`): the
+  countdown, puzzle 1 solved and puzzle 2 with its own clock, TOO BIG opening the save card, the free save carrying
+  on, TIME'S UP without the used ad button, END RUN with +30 coins and +20 XP; and Regular level 5 to PERFECT STACK.
+  The gem save wasn't tried (it calls the server). Not checked on a phone.

@@ -50,8 +50,9 @@ export function ModeCard({ kind, title, lines, cta, onPress, delay, children, bi
 // Squishdoku's two modes as the app's new design (2026-11-16, the user: "remodel the cards … to match the new design",
 // no PLAY or GO buttons, the card itself is tapped): a wood plaque like the Game Park's game card, the mode's name in
 // the menu's lettering, a picture in a gold-ringed window (tools/squishdoku/mode-art.mjs), and one line under it.
+// Squish Stack's and Squish Hop's hubs use it too, with their own pictures (`pic`; tools/games/mode-art.mjs).
 const PIC = { regular: require('../../assets/squishdoku/mode-regular.jpg'), blitz: require('../../assets/squishdoku/mode-blitz.jpg') };
-function ModePanel({ kind, title, onPress, delay, width, picH = 138, children }) {
+export function ModePanel({ kind, pic, title, onPress, delay, width, picH = 138, children }) {
   return (
     <SlideIn delay={delay} dy={50} style={width ? { width } : styles.cardWrap}>
       <Plaque
@@ -66,7 +67,7 @@ function ModePanel({ kind, title, onPress, delay, width, picH = 138, children })
         <Lettering text={title} variant="white" size={22} />
         <View style={styles.winRing}>
           <View style={[styles.win, { height: picH }]}>
-            <Image source={PIC[kind]} style={styles.winPic} resizeMode="cover" fadeDuration={0} />
+            <Image source={pic || PIC[kind]} style={styles.winPic} resizeMode="cover" fadeDuration={0} />
           </View>
         </View>
         <View style={styles.info}>{children}</View>
@@ -98,7 +99,7 @@ function HeadStart({ on, onToggle, delay, width }) {
 }
 
 // the ? on HOW TO PLAY (the user: a ?, not an X)
-function QGlyph({ size = 18 }) {
+export function QGlyph({ size = 18 }) {
   return (
     <View style={[styles.q, { width: size, height: size, borderRadius: size / 2 }]}>
       <Text style={[styles.qText, { fontSize: size * 0.72 }]}>?</Text>
@@ -106,28 +107,25 @@ function QGlyph({ size = 18 }) {
   );
 }
 
-// `pl`: the player's level and XP (src/playerXp.js xpView); not shown since REDESIGN_V9
-function Hub({ rec, head, onToggleHead, onRegular, onBlitz, onRules }) {
-  const done = rec.lv - 1 + (rec.best[LEVELS] ? 1 : 0);
-  const wide = useWide();
-  // REGULAR MODE: how far through the levels, as a bar and "25/600" on one row (the user)
-  const regular = (width) => (
-    <ModePanel kind="regular" title="Regular Mode" onPress={onRegular} delay={300} width={width}>
+// REGULAR MODE's line: how far through the levels, as a bar and "25/600" on one row (the user)
+export function LevelsLine({ lv, done, total }) {
+  return (
+    <>
       <View style={styles.progTrack}>
-        <LinearGradient colors={['#ffe38a', '#ffb02e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.progFill, { width: `${Math.max(4, (done / LEVELS) * 100)}%` }]} />
+        <LinearGradient colors={['#ffe38a', '#ffb02e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.progFill, { width: `${Math.max(4, (done / total) * 100)}%` }]} />
       </View>
-      <Text style={styles.infoText}>{`${Math.min(rec.lv, LEVELS)}/${LEVELS}`}</Text>
-    </ModePanel>
+      <Text style={styles.infoText}>{`${Math.min(lv, total)}/${total}`}</Text>
+    </>
   );
-  // BLITZ MODE: only the most boards cleared in one run (the user: "the only text … the level you got to without errors")
-  const blitz = (width) => (
-    <ModePanel kind="blitz" title="Blitz Mode" onPress={onBlitz} delay={420} width={width}>
-      <Text style={[styles.infoText, styles.infoCenter]}>{`BEST: ${rec.blitz.top}`}</Text>
-    </ModePanel>
-  );
-  const rules = (
-    <SlideIn delay={600} dy={30}>
-      <SdButton kind="white" onPress={onRules} sound="sd_mode" faceStyle={styles.rulesFace}>
+}
+// BLITZ MODE's only line: the most boards cleared in one run (the user: "the only text … the level you got to without
+// errors")
+export const BestLine = ({ top }) => <Text style={[styles.infoText, styles.infoCenter]}>{`BEST: ${top}`}</Text>;
+
+export function RulesButton({ onPress, delay = 600 }) {
+  return (
+    <SlideIn delay={delay} dy={30}>
+      <SdButton kind="white" onPress={onPress} sound="sd_mode" faceStyle={styles.rulesFace}>
         <QGlyph size={18} />
         <BtnLabel kind="white" size={14}>
           HOW TO PLAY
@@ -135,16 +133,77 @@ function Hub({ rec, head, onToggleHead, onRegular, onBlitz, onRules }) {
       </SdButton>
     </SlideIn>
   );
-  // the title on its own (the user, 2026-11-16: no creature on either side of it)
-  const title = (size) => (
+}
+
+// the title on its own (the user, 2026-11-16: no creature on either side of it)
+export function HubTitle({ text, size }) {
+  return (
     <View style={styles.wTitle} pointerEvents="none">
       <PopIn delay={60} from={0.3} twist={-10}>
         <Rock deg={2} ms={3400}>
-          <OutlinedTitle text="SQUISHDOKU" size={size} fill="gold" />
+          <OutlinedTitle text={text} size={size} fill="gold" />
         </Rock>
       </PopIn>
     </View>
   );
+}
+
+// A game's hub in the new design (Squish Stack's and Squish Hop's; Squishdoku's below adds HEAD START): the title,
+// REGULAR MODE and BLITZ MODE, and HOW TO PLAY. Landscape: the title at the top, the two cards side by side in the
+// middle, HOW TO PLAY under them; upright: one column.
+export function GameHub({ title, pics, lv, done, total, top, onRegular, onBlitz, onRules }) {
+  const wide = useWide();
+  const regular = (width) => (
+    <ModePanel kind="regular" pic={pics.regular} title="Regular Mode" onPress={onRegular} delay={300} width={width}>
+      <LevelsLine lv={lv} done={done} total={total} />
+    </ModePanel>
+  );
+  const blitz = (width) => (
+    <ModePanel kind="blitz" pic={pics.blitz} title="Blitz Mode" onPress={onBlitz} delay={420} width={width}>
+      <BestLine top={top} />
+    </ModePanel>
+  );
+  if (wide)
+    return (
+      <View style={styles.wPage}>
+        <View style={styles.wTop}>
+          <HubTitle text={title} size={34} />
+        </View>
+        <View style={styles.wCards}>
+          {regular(CARD_W)}
+          {blitz(CARD_W)}
+        </View>
+        <View style={styles.wBottom}>
+          <RulesButton onPress={onRules} />
+        </View>
+      </View>
+    );
+  return (
+    <ScrollView style={styles.fill} contentContainerStyle={styles.wrap} showsVerticalScrollIndicator={false}>
+      <HubTitle text={title} size={32} />
+      {regular()}
+      {blitz()}
+      <RulesButton onPress={onRules} />
+    </ScrollView>
+  );
+}
+
+// `pl`: the player's level and XP (src/playerXp.js xpView); not shown since REDESIGN_V9
+function Hub({ rec, head, onToggleHead, onRegular, onBlitz, onRules }) {
+  const done = rec.lv - 1 + (rec.best[LEVELS] ? 1 : 0);
+  const wide = useWide();
+  const regular = (width) => (
+    <ModePanel kind="regular" title="Regular Mode" onPress={onRegular} delay={300} width={width}>
+      <LevelsLine lv={rec.lv} done={done} total={LEVELS} />
+    </ModePanel>
+  );
+  const blitz = (width) => (
+    <ModePanel kind="blitz" title="Blitz Mode" onPress={onBlitz} delay={420} width={width}>
+      <BestLine top={rec.blitz.top} />
+    </ModePanel>
+  );
+  const rules = <RulesButton onPress={onRules} />;
+  const title = (size) => <HubTitle text="SQUISHDOKU" size={size} />;
   // landscape (REDESIGN_V9, the user's marked-up screenshot, 2026-11-16): the title at the top in the middle, level with
   // the back button; the two modes side by side in the middle; HEAD START and HOW TO PLAY in a row along the bottom
   if (wide)

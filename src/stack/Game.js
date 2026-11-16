@@ -1,4 +1,4 @@
-import { GameBack, useWide } from '../royal/GameFrame';
+import { GameBack, useGameDims, useWide } from '../royal/GameFrame';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, AppState, BackHandler, Easing, PanResponder, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -6,17 +6,18 @@ import RoundButton, { BackGlyph } from '../components/candy/RoundButton';
 import useRewardedAd from '../components/useRewardedAd';
 import sfx from '../audio/sfx';
 import { FxLayer, PopIn } from '../squishdoku/fx';
-import { makeHaptics, pickCreatures, prefetchImages, useClock } from '../squishdoku/game';
+import { makeHaptics, prefetchImages, useClock } from '../squishdoku/game';
 import { Countdown } from '../squishdoku/BlitzGame';
-import { Pips } from '../squishdoku/Hud';
-import { BlitzFailCard, BlitzWinCard, PauseCard as BlitzPauseCard, ReviveCard } from '../squishdoku/Overlays';
+import { BlitzOverCard, BlitzSaveCard, PauseCard as BlitzPauseCard } from '../squishdoku/Overlays';
+import { blitzSaveGems } from '../squishdoku/levels';
+import * as squad from '../squad/api';
 import { BtnLabel, Chip, SdButton } from '../squishdoku/ui';
 import { F, INK } from '../squishdoku/theme';
 import { saveStack } from '../firebase/firestore';
 import { Banner, Bar } from '../sort/Game';
 import { FailCard, HintCard, PauseCard, ResultCard } from './Cards';
 import { bestMove, canMove, left as movesLeft, makePuzzle, same, stackOf, topOf } from './engine';
-import { BLITZ_MS, BLITZ_ROUNDS, LEVELS, TIER_COLORS, TIER_NAMES, afterBlitz, afterLevel, blitzSpec, clock, levelSpec, limitFor, record, starsFor } from './levels';
+import { LEVELS, TIER_COLORS, TIER_NAMES, afterBlitz, afterLevel, blitzLimit, blitzSpec, clock, levelSpec, limitFor, record, starsFor } from './levels';
 import { Cushion, GoalCard, OVER, StarBadge, Squishy, bodyH } from './Pieces';
 import { pickCast } from './roster';
 import { usePingPong } from '../components/idleLoop';
@@ -31,9 +32,14 @@ import { usePingPong } from '../components/idleLoop';
 //   won / lost (the clock ran out)
 // The puzzle's rules are engine.js; this draws and animates them.
 //
-// Blitz (`blitz`, levels.js BLITZ_*): ten puzzles on one clock after a 3, 2,
-// 1, GO! A big one dropped on a smaller one is a mistake: the clock stops
-// ('held') and the run ends, unless its one revive is used. No hints.
+// BLITZ MODE (`blitz`, levels.js blitzSpec; 2026-11-16, the user: "the same
+// thing" as Squishdoku's): after a 3, 2, 1, GO! puzzle after puzzle, each on
+// its own short clock (blitzLimit), with no end. A big one dropped on a
+// smaller one is a mistake: the clock stops ('held'). A mistake or a clock
+// running out can be saved, once with a rewarded ad (free with Remove Ads)
+// or with gems, each save twice the last (functions/squad.js blitzSave), and
+// the run goes on from the same puzzle; or it's GAME OVER and the puzzles
+// cleared pay out (levels.js afterBlitz). No hints.
 
 const LOAD_SOUNDS = ['st_lift', 'st_land', 'st_cushion', 'st_ouch', 'st_bounce', 'st_undo', 'st_hint', 'st_empty', 'st_news', 'sd_tick', 'sd_solve', 'sd_confetti', 'sd_boardIn', 'sd_timeUp'];
 
@@ -193,25 +199,31 @@ function useRefState(init) {
 
 export default function StackGame({ startLv = 1, cast, blitz = false, profile, uid, adsFree, haptics: hapticsOn = true, onExit }) {
   const wide = useWide(); // landscape (REDESIGN_V8)
+  const dims = useGameDims();
   const haptics = useRef(makeHaptics(hapticsOn)).current;
   const ad = useRewardedAd();
   const [lv, setLv] = useState(startLv);
   const [round, setRound] = useState(0);
-  // Blitz: the run, its puzzle, the puzzles done (the pips), the revive,
-  // which of its cards is up, and the countdown
+  // Blitz: the run, its puzzle, the puzzles cleared, its saves, which of its
+  // cards is up, and the countdown
   const [run, setRun] = useState(0);
   const [idx, setIdx] = useState(0);
   const idxRef = useRef(0);
   idxRef.current = idx;
-  const [done, setDone] = useState(0);
-  const [revived, setRevived] = useState(false);
-  const revivedRef = useRef(false);
-  revivedRef.current = revived;
-  const [blitzCard, setBlitzCard] = useState(null); // revive | fail | win
+  const [cleared, setCleared] = useState(0);
+  const [blitzCard, setBlitzCard] = useState(null); // save | over
+  const blitzCardRef = useRef(null);
+  blitzCardRef.current = blitzCard;
   const [failReason, setFailReason] = useState('mistake');
-  const [blitzWin, setBlitzWin] = useState(null);
+  const [adUsed, setAdUsed] = useState(false);
+  const [gemSaves, setGemSaves] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState(null);
+  const [over, setOver] = useState(null);
   const [count, setCount] = useState(null); // 3, 2, 1, 'GO!'
   const runStarted = useRef(false);
+  // the run so far: the puzzles it cleared, and whether it's been paid out (payOut)
+  const runRec = useRef({ cleared: 0, ended: false });
   // the level at the player's skill when it starts (adaptive difficulty;
   // fixed for the puzzle even when the saved skill changes under it)
   const profileRef = useRef(profile);
@@ -223,7 +235,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   // a fresh puzzle and fresh squishies for every level and every retry
   const puzzle = useMemo(() => makePuzzle(spec), [spec]);
   const who = useMemo(() => pickCast(cast, spec.n), [puzzle]); // eslint-disable-line react-hooks/exhaustive-deps
-  const limit = limitFor(spec, puzzle.par);
+  const limit = blitz ? blitzLimit(spec, puzzle.par) : limitFor(spec, puzzle.par);
 
   const [area, setArea] = useState(null);
   const areaRef = useRef(null);
@@ -255,6 +267,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   );
   const bumps = useMemo(() => Array.from({ length: 4 }, () => new Animated.Value(0)), []);
   const fx = useRef(null);
+  const fxTop = useRef(null); // Blitz: over the cards, a new best's confetti
   const clk = useClock();
 
   // --- state ---
@@ -489,36 +502,89 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     });
   }
 
-  // Blitz: a mistake stops the clock; then the revive, or the run's over
+  // Blitz: a mistake stops the clock; then the save card
   function blitzMistake() {
     clk.pause();
     setPhase('held');
     setGlow(null);
     if (heldRef.current) drop(heldRef.current.from);
-    later(1000, () => {
-      if (revivedRef.current) endRun('mistake');
-      else setBlitzCard('revive');
-    });
+    later(1000, () => offerSave('mistake'));
   }
 
-  // Blitz: the run's over (a mistake with the revive used or turned down, or
-  // the clock), back to puzzle 1
-  function endRun(reason) {
+  // Blitz: a mistake or the clock — save the run, or END RUN for GAME OVER
+  function offerSave(reason) {
+    setFailReason(reason);
+    setSaveErr(null);
+    setBlitzCard('save');
+  }
+
+  // The run goes on from the same puzzle: after a mistake its clock runs on,
+  // after the clock ran out it starts again.
+  function goOn() {
+    setSaving(false);
+    setBlitzCard(null);
+    sfx.play('sd_revive');
+    lastTick.current = 0;
+    setPhase('play');
+    if (failReason === 'time') clk.start(live.current.limit);
+    else clk.resume();
+  }
+  function saveByAd() {
+    const back = () => {
+      setAdUsed(true);
+      acts.current.goOn();
+    };
+    if (adsFree) back();
+    else ad.show(back);
+  }
+  function saveByGems() {
+    if (saving) return;
+    setSaving(true);
+    setSaveErr(null);
+    squad
+      .blitzSave(gemSaves)
+      .then(() => {
+        setGemSaves((n) => n + 1);
+        acts.current.goOn();
+      })
+      .catch((e) => {
+        setSaving(false);
+        setSaveErr(String((e && e.message) || e) === 'not_enough_gems' ? 'Not enough gems' : "Couldn't reach the server. Try again?");
+      });
+  }
+
+  // Pays the run out once (the puzzles it cleared) and saves the record. Also
+  // when the player quits or starts over in the middle of a run, so cleared
+  // puzzles always count.
+  function payOut() {
+    const R = runRec.current;
+    if (!blitz || !runStarted.current || R.ended) return null;
+    R.ended = true;
+    const out = afterBlitz(profileRef.current, { cleared: R.cleared });
+    if (uid) saveStack(uid, out.update, out.coins, out.xp, profileRef.current);
+    return out;
+  }
+
+  // Blitz: GAME OVER — the puzzles cleared, the best, and what they paid
+  function endRun() {
     setPhase('lost');
     clk.pause();
     setGlow(null);
     if (heldRef.current) drop(heldRef.current.from);
-    setFailReason(reason);
-    setBlitzCard('fail');
-    if (reason === 'time') sfx.play('sd_timeUp');
-    haptics.wrong();
-    later(reason === 'time' ? 900 : 0, () => sfx.play('sd_blitzFail'));
-    later(reason === 'time' ? 1500 : 600, () => {
-      sfx.play('sd_drain');
-      setDone(0);
-    });
-    const out = afterBlitz(profileRef.current, { won: false, reached: idxRef.current + 1 });
-    if (uid) saveStack(uid, out.update, 0);
+    const top = record(profileRef.current).blitz.top;
+    const out = payOut() || { coins: 0, xp: 0, levelUps: [], newTop: false };
+    const res = { ...out, cleared: runRec.current.cleared, best: Math.max(top, runRec.current.cleared) };
+    setOver(res);
+    setBlitzCard('over');
+    if (res.newTop) {
+      sfx.play('sd_blitzWin');
+      haptics.win();
+      [0, 300, 600].forEach((d, i) => later(d, () => fxTop.current?.burst('confetti', dims.width * (0.25 + 0.25 * i), dims.height * 0.3, 1)));
+    } else {
+      sfx.play('sd_blitzFail');
+      haptics.wrong();
+      later(600, () => sfx.play('sd_drain'));
+    }
   }
 
   function undo() {
@@ -618,9 +684,8 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
           );
         });
     }
-    // (Blitz keeps its confetti for the end of the run)
-    const last = !blitz || idxRef.current === BLITZ_ROUNDS - 1;
-    if (last) {
+    // (Blitz keeps its confetti for a new best at GAME OVER)
+    if (!blitz) {
       later(250, () => {
         sfx.play('sd_confetti');
         fx.current?.burst('confetti', G.w / 2, G.h * 0.35, 1.2);
@@ -629,27 +694,16 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
       later(800, () => fx.current?.burst('confetti', G.w * 0.75, G.h * 0.5, 1));
     }
     if (blitz) {
-      // a pip fills; on to the next puzzle, or the run is won
+      // one more cleared; on to the next puzzle
       const i = idxRef.current;
+      runRec.current.cleared = i + 1;
       later(300, () => {
-        setDone(i + 1);
-        sfx.play('sd_pip', { rate: 0.9 + i * 0.06 });
+        setCleared(i + 1);
+        sfx.play('sd_pip', { rate: 0.9 + Math.min(12, i) * 0.05 });
       });
-      if (i < BLITZ_ROUNDS - 1) {
-        later(1300, () => {
-          sfx.play('sd_blitzNext');
-          setIdx(i + 1);
-        });
-        return;
-      }
-      later(1000, () => {
-        const ms = clk.elapsed();
-        const rec = record(profileRef.current);
-        const out = afterBlitz(profileRef.current, { won: true, reached: BLITZ_ROUNDS, ms });
-        if (uid) saveStack(uid, out.update, out.coins, out.xp, profileRef.current);
-        setBlitzWin({ ...out, ms, newBest: !rec.blitz.bestMs || ms < rec.blitz.bestMs, uris: pickCreatures(cast.map((c) => c.uri), 3) });
-        setBlitzCard('win');
-        sfx.play('sd_blitzWin');
+      later(1300, () => {
+        sfx.play('sd_blitzNext');
+        setIdx(i + 1);
       });
       return;
     }
@@ -663,7 +717,14 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   function lose() {
     if (phaseRef.current !== 'play') return;
     if (blitz) {
-      endRun('time');
+      // the puzzle's clock ran out: TIME'S UP, then the save card
+      setPhase('held');
+      clk.pause();
+      setGlow(null);
+      if (heldRef.current) drop(heldRef.current.from);
+      sfx.play('sd_timeUp');
+      haptics.wrong();
+      later(900, () => offerSave('time'));
       return;
     }
     setPhase('lost');
@@ -682,15 +743,10 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
 
   function startPlay() {
     setPhase('play');
-    if (blitz) {
-      // the run's one clock goes on from where the last puzzle left it
-      if (runStarted.current) clk.resume();
-      else {
-        runStarted.current = true;
-        setSecs(BLITZ_MS / 1000);
-        clk.start(BLITZ_MS);
-      }
-    } else if (live.current.spec.clock) clk.start(live.current.limit);
+    lastTick.current = 0;
+    // Blitz: every puzzle has its own clock
+    if (blitz) runStarted.current = true;
+    if (blitz || live.current.spec.clock) clk.start(live.current.limit);
   }
   function deal() {
     const { g: G, anims: AS, puzzle: P, spec: S } = live.current;
@@ -724,8 +780,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   useEffect(() => {
     if (!g) return undefined;
     clearTimers();
-    // (Blitz keeps its clock from puzzle to puzzle: again() resets it)
-    if (!blitz) clk.reset();
+    clk.reset();
     setResult(null);
     setFail(false);
     setPaused(false);
@@ -740,7 +795,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     setCanUndo(false);
     setMoves(0);
     setHinted(false);
-    if (!blitz) setSecs(Math.ceil(limit / 1000));
+    setSecs(Math.ceil(limit / 1000));
     // everyone above their spot, waiting to drop in (their spots are already
     // their targets, so nothing settles them there early)
     const m = spotsOf(g, puzzle.start);
@@ -763,7 +818,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
       const chips = [TIER_NAMES[spec.tier]];
       if (spec.goal === 'picture') chips.push('GOAL CARD');
       if (spec.k === 4) chips.push('4 CUSHIONS');
-      if (spec.clock) chips.push(`⏱ ${clock(limit)}`);
+      if (spec.clock || blitz) chips.push(`⏱ ${clock(limit)}`);
       say(blitz ? `PUZZLE ${spec.round}` : `LEVEL ${spec.lv}`, { chips, hold: 900 });
       sfx.play('sd_boardIn');
     }
@@ -799,8 +854,8 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   const lastTick = useRef(0);
   useEffect(() => {
     if (phase !== 'play' || paused || !(spec.clock || blitz)) return undefined;
-    // ticks for the last seconds (more of them on Blitz's long clock)
-    const tickFrom = blitz ? 15 : 5;
+    // ticks for the last seconds
+    const tickFrom = 5;
     const id = setInterval(() => {
       const ms = clk.limit() - clk.elapsed();
       const s = Math.max(0, Math.ceil(ms / 1000));
@@ -829,6 +884,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     if (live.current.spec.clock || blitz) clk.resume();
   }
   function leave() {
+    payOut();
     clearTimers();
     clk.reset();
     onExit();
@@ -838,35 +894,42 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     setRound((r) => r + 1);
   }, []);
   const replay = useCallback(() => setRound((r) => r + 1), []);
-  // Blitz: a fresh run from puzzle 1
+  // Blitz: a fresh run from puzzle 1 (the one before is paid out first)
   function again() {
+    payOut();
     clearTimers();
     clk.reset();
     runStarted.current = false;
+    runRec.current = { cleared: 0, ended: false };
     setBlitzCard(null);
-    setBlitzWin(null);
-    setRevived(false);
-    setDone(0);
+    setOver(null);
+    setAdUsed(false);
+    setGemSaves(0);
+    setSaving(false);
+    setSaveErr(null);
+    setCleared(0);
     setCount(null);
     setPaused(false);
     setIdx(0);
     setRun((r) => r + 1);
   }
-  // Blitz: the run's one revive (an ad, free with Remove Ads), back to it
-  function revive() {
-    const back = () => {
-      setRevived(true);
-      setBlitzCard(null);
-      sfx.play('sd_revive');
-      setPhase('play');
-      clk.resume();
-    };
-    if (adsFree) back();
-    else ad.show(back);
-  }
 
   const acts = useRef({});
-  acts.current = { pickUp, drop, undo, restart, askHint, watchHint, showHint, pause, resume, leave, lose, replay, again, revive, endRun };
+  acts.current = { pickUp, drop, undo, restart, askHint, watchHint, showHint, pause, resume, leave, lose, replay, again, goOn, saveByAd, saveByGems, endRun };
+  // web, development only: the browser tests move squishies without finding the cushions on screen (src/web/README.md)
+  if (__DEV__ && typeof window !== 'undefined' && window.document) {
+    window.__stack = {
+      best: () => bestMove(live.current.puzzle.sol, posRef.current),
+      move: (from, to) => {
+        const r = topOf(posRef.current, from);
+        if (r < 0 || phaseRef.current !== 'play') return false;
+        acts.current.pickUp(r, from);
+        setTimeout(() => acts.current.drop(to), 60);
+        return true;
+      },
+      state: () => ({ phase: phaseRef.current, pos: posRef.current.slice(), k: live.current.spec.k }),
+    };
+  }
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -874,6 +937,8 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
       if (hintAskRef.current) setHintAsk(false);
       else if (pausedRef.current) A.resume();
       else if (phaseRef.current === 'play') A.pause();
+      else if (blitzCardRef.current === 'save') A.endRun();
+      else if (phaseRef.current === 'held') return true;
       else A.leave();
       return true;
     });
@@ -971,6 +1036,9 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   const nudge = spec.lv === 1 && moves === 0 && phase === 'play' ? (held ? puzzle.star : 0) : -1;
   const glowOf = (p) => (glow ? (p === glow.to ? 'gold' : p === glow.from ? 'white' : null) : p === nudge ? 'white' : null);
   const playing = phase === 'play' && !paused;
+  // Blitz: the best run so far, and whether this one has beaten it
+  const bestRun = record(profile).blitz.top;
+  const beat = blitz && cleared > bestRun && bestRun > 0;
 
   // landscape (REDESIGN_V8, the games sideways): the top bar, the goal and the stars / clock in a column on the left,
   // the cushions in the middle, UNDO / RESTART / HINT down the right
@@ -980,18 +1048,26 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
       <View style={[styles.hud, wide && styles.wHud]}>
         <GameBack onPress={() => (phaseRef.current === 'play' ? acts.current.pause() : acts.current.leave())} />
         <View style={[styles.titleBox, wide && styles.wTitleBox]}>
-          <Text style={styles.gameName}>{blitz ? 'SQUISH STACK · BLITZ ⚡' : 'SQUISH STACK'}</Text>
+          <Text style={styles.gameName}>{blitz ? 'SQUISH STACK · BLITZ MODE' : 'SQUISH STACK'}</Text>
           <View style={styles.row6}>
-            <Text style={styles.levelText}>{blitz ? `PUZZLE ${spec.round}/${BLITZ_ROUNDS}` : `LEVEL ${spec.lv}`}</Text>
+            <Text style={styles.levelText}>{blitz ? `PUZZLE ${spec.round}` : `LEVEL ${spec.lv}`}</Text>
             <View style={[styles.challenge, { backgroundColor: TIER_COLORS[spec.tier] }]}>
               <Text style={styles.challengeText}>{TIER_NAMES[spec.tier]}</Text>
             </View>
           </View>
         </View>
         {blitz ? (
-          <Chip bg={revived ? '#b9a6cc' : '#ffb02e'} color="#ffffff">
-            {revived ? 'REVIVE USED' : '♥ 1 REVIVE'}
-          </Chip>
+          // the puzzles cleared this run, and the best run (gold once it's beaten)
+          <View style={[styles.movesPill, styles.scorePill]}>
+            <View style={styles.scoreCol}>
+              <Text style={styles.movesLabel}>CLEARED</Text>
+              <Text style={styles.movesNum}>{cleared}</Text>
+            </View>
+            <View style={styles.scoreCol}>
+              <Text style={[styles.movesLabel, beat && styles.gold]}>{beat ? 'NEW BEST' : 'BEST'}</Text>
+              <Text style={[styles.movesNum, styles.bestNum, beat && styles.gold]}>{Math.max(bestRun, cleared)}</Text>
+            </View>
+          </View>
         ) : (
           <View style={styles.movesPill}>
             <Text style={styles.movesLabel}>MOVES</Text>
@@ -999,25 +1075,25 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
           </View>
         )}
       </View>
-      {blitz ? (
-        <View style={styles.pips}>
-          <Pips small={wide} count={BLITZ_ROUNDS} done={done} current={blitzCard === 'fail' || blitzCard === 'win' ? -1 : idx} />
-        </View>
-      ) : null}
 
       {/* the goal, and the stars still possible and the clock or a tip
-          (Blitz: the run's clock and its rule) */}
+          (Blitz: the puzzle's clock and the run's rule) */}
       <View style={[styles.info, wide && styles.wInfo]}>
         <GoalCard who={who} goal={puzzle.goal} k={spec.k} star={puzzle.star} />
         <View style={styles.infoRight}>
           {blitz ? (
             <>
               <View style={styles.clockRow}>
-                <Text style={[styles.clockText, phase === 'play' && secs <= 15 && { color: '#e01e4a' }]}>{clock((runStarted.current ? secs : BLITZ_MS / 1000) * 1000)}</Text>
+                <Text style={[styles.clockText, phase === 'play' && secs <= 5 && { color: '#e01e4a' }]}>{clock(secs * 1000)}</Text>
                 <Bar frac={clk.frac} colors={['#b0fbff', '#3fd7f6']} />
               </View>
-              <Text style={styles.blitzRule} numberOfLines={2}>
-                Big on small = back to puzzle 1!
+              <View style={styles.ruleRow}>
+                <Chip bg="#e01e4a" color="#ffffff">
+                  1 MISTAKE = GAME OVER
+                </Chip>
+              </View>
+              <Text style={styles.blitzRule} numberOfLines={1}>
+                Big on small ends the run!
               </Text>
             </>
           ) : (
@@ -1109,9 +1185,25 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
       {blitz ? (
         <>
           <BlitzPauseCard blitz visible={paused} onResume={() => acts.current.resume()} onRestart={() => acts.current.again()} onQuit={() => acts.current.leave()} />
-          <ReviveCard visible={blitzCard === 'revive'} board={idx + 1} unit="puzzle" adReady={ad.ready} adsFree={adsFree} onRevive={() => acts.current.revive()} onGiveUp={() => acts.current.endRun('mistake')} />
-          <BlitzFailCard visible={blitzCard === 'fail'} reason={failReason} reached={idx + 1} best={record(profile).blitz.reached} unit="puzzle" onAgain={() => acts.current.again()} onQuit={() => acts.current.leave()} />
-          <BlitzWinCard visible={blitzCard === 'win'} res={blitzWin} uris={blitzWin?.uris || []} unit="puzzle" onAgain={() => acts.current.again()} onQuit={() => acts.current.leave()} />
+          <BlitzSaveCard
+            visible={blitzCard === 'save'}
+            unit="puzzle"
+            reason={failReason}
+            board={idx + 1}
+            cleared={cleared}
+            adUsed={adUsed}
+            adReady={ad.ready}
+            adsFree={adsFree}
+            gems={Number(profile && profile.gems) || 0}
+            price={blitzSaveGems(gemSaves)}
+            saving={saving}
+            error={saveErr}
+            onAd={() => acts.current.saveByAd()}
+            onGems={() => acts.current.saveByGems()}
+            onEnd={() => acts.current.endRun()}
+          />
+          <BlitzOverCard visible={blitzCard === 'over'} unit="puzzle" res={over} onAgain={() => acts.current.again()} onQuit={() => acts.current.leave()} />
+          <FxLayer ref={fxTop} style={styles.fxTop} />
         </>
       ) : (
         <>
@@ -1160,8 +1252,14 @@ const styles = StyleSheet.create({
   clockRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   clockText: { minWidth: 40, fontFamily: F.display, fontSize: 14, color: INK, fontVariant: ['tabular-nums'] },
   tip: { fontFamily: F.heavy, fontSize: 12.5, lineHeight: 16, color: INK },
-  blitzRule: { fontFamily: F.display, fontSize: 12.5, color: '#e01e4a' },
-  pips: { marginTop: 8 },
+  blitzRule: { fontFamily: F.heavy, fontSize: 11.5, color: INK },
+  ruleRow: { flexDirection: 'row' },
+  scorePill: { flexDirection: 'row', gap: 10, minWidth: 0 },
+  scoreCol: { alignItems: 'center' },
+  bestNum: { color: '#ffffff' },
+  gold: { color: '#ffd23a' },
+  // the cards sit at elevation 50 (squishdoku/Overlays.js)
+  fxTop: { zIndex: 60, elevation: 60 },
   area: { flex: 1 },
   // landscape (REDESIGN_V8)
   wRow: { flex: 1, flexDirection: 'row' },

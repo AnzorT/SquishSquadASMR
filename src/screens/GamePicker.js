@@ -447,7 +447,7 @@ function GamePicker({ visible, warm = false, profile, creatureName, creatureUri,
               ring="#45189a"
               title="SQUISH STACK"
               lines={['Stack them up! Big ones never sit on small ones']}
-              chips={[`LEVEL ${stk.lv}/${STACK_LEVELS}`, ...(starsOfStack(stk) ? [`★ ${starsOfStack(stk)}`] : []), stk.blitz.reached ? `BLITZ ${stk.blitz.reached}/10` : 'BLITZ ⚡', 'NEW!']}
+              chips={[`LEVEL ${stk.lv}/${STACK_LEVELS}`, ...(starsOfStack(stk) ? [`★ ${starsOfStack(stk)}`] : []), ...(stk.blitz.top ? [`BLITZ BEST ${stk.blitz.top}`] : []), 'NEW!']}
               art={<StackArt cast={stackCast} />}
               onPress={pick('stack')}
             />
@@ -458,7 +458,7 @@ function GamePicker({ visible, warm = false, profile, creatureName, creatureUri,
               ring="#0b6670"
               title="SQUISH HOP"
               lines={['Hop every cushion before the ★! They puff away behind you']}
-              chips={[`LEVEL ${hop.lv}/${HOP_LEVELS}`, ...(starsOfHop(hop) ? [`★ ${starsOfHop(hop)}`] : []), 'NEW!']}
+              chips={[`LEVEL ${hop.lv}/${HOP_LEVELS}`, ...(starsOfHop(hop) ? [`★ ${starsOfHop(hop)}`] : []), ...(hop.blitz.top ? [`BLITZ BEST ${hop.blitz.top}`] : []), 'NEW!']}
               art={<HopArt cast={stackCast} />}
               onPress={pick('hop')}
             />

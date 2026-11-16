@@ -1,13 +1,18 @@
 // Squish Hop: the rules and the solver (SQUISH_HOP.md). A copy, as an ES
 // module, of prototypes/squish-hop/engine.js, which the level tools there
-// still run: keep the two the same.
+// still run: keep the two the same, but for one rule. Here (the user,
+// 2026-11-16) the ★ stays shut until every other cushion has been cleared;
+// the prototype's ★ opens once the friends are picked up. The solver finds
+// the same full clears either way, so the level tools are unaffected.
 //
 // A level is a grid of cushions. The squishy hops one cell at a time; the
 // cushion it leaves puffs away, so it can't go back there. Hopping onto the
-// ★ cushion ends the level, and three stars need every other cushion
-// cleared first. The twists:
+// ★ cushion ends the level, and it opens only once every other cushion is
+// cleared (a pile's two layers, the friends' cushions and the bubbles too).
+// The twists:
 //   pile      'D'  two cushions on top of each other: two hops to clear
-//   friend    'F'  hop on to pick it up; the ★ opens when all are picked up
+//   friend    'F'  hop on to pick it up (every friend sits on a cushion, so
+//                  clearing them all picks every friend up)
 //   in order  '1'-'9'  numbered friends, picked up in that order
 //   arrow     '^' '>' 'v' '<'  you can only hop off it the way it points
 //   bubble    'o'  hop onto it and you bounce on, one cushion further the
@@ -99,7 +104,9 @@ function newState(lv) {
 function blockOf(lv, life, got, hops, j) {
   if (j < 0) return 'edge';
   if (life[j] <= 0) return 'gone';
-  if (j === lv.goal && got !== lv.all) return 'locked';
+  // the ★: shut until every other cushion is cleared (`life` already has
+  // the cushion being hopped off, and any bubbles bounced over, taken off)
+  if (j === lv.goal && (got !== lv.all || leftOf(lv, life) > 0)) return 'locked';
   if (lv.need[j] & ~got) return 'order';
   if (lv.beat[j] >= 0 && (hops + 1) % 3 !== lv.beat[j]) return 'beat';
   return '';
@@ -251,7 +258,7 @@ function search(lv, st, opts = {}) {
       let j = -1;
       for (;;) {
         j = nb[at][d];
-        if (j < 0 || life[j] <= 0 || (j === goal && g !== all) || need[j] & ~g || (beat[j] >= 0 && (h + 1) % 3 !== beat[j])) {
+        if (j < 0 || life[j] <= 0 || (j === goal && (g !== all || remaining !== 0)) || need[j] & ~g || (beat[j] >= 0 && (h + 1) % 3 !== beat[j])) {
           okMove = false;
           break;
         }
@@ -322,10 +329,12 @@ function replay(lv, dirs, st0) {
   return { ok: true, steps, st };
 }
 
-// Stars for a finished level: 3 for every cushion cleared, 2 for up to
-// 3 left, else 1; a hint takes one off (never below 1).
-function starsFor(left, hinted) {
-  const s = left === 0 ? 3 : left <= 3 ? 2 : 1;
+// Stars for a finished level. Every win is a full clear now (the ★ only
+// opens after it), so the stars count the take-backs on the way (the user,
+// 2026-11-16): 3 with no UNDO or RESTART, 2 with up to 3, else 1; a hint
+// takes one off (never below 1).
+function starsFor(takebacks, hinted) {
+  const s = takebacks === 0 ? 3 : takebacks <= 3 ? 2 : 1;
   return Math.max(1, s - (hinted ? 1 : 0));
 }
 

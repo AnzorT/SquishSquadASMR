@@ -3,12 +3,12 @@ import { Animated, BackHandler, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameBackground as CandyBackground, GameBack, useWide } from '../royal/GameFrame';
 import { MapBackdrop } from '../royal/WorldBg';
-import { Orb } from '../royal';
 import { KeptView, ViewSlot, useViewSwitch } from '../components/ViewSwitch';
 import RoundButton, { BackGlyph } from '../components/candy/RoundButton';
 import sfx from '../audio/sfx';
 import LevelMap from '../sort/LevelMap';
 import HopGame from '../hop/Game';
+import Hub from '../hop/Hub';
 import { RulesCard } from '../hop/Cards';
 import { RoomCard } from '../hop/Room';
 import { LEVELS, LEVEL_LIST, ROOMS, TWISTS, doneOf, record, starsOf } from '../hop/levels';
@@ -18,15 +18,17 @@ import { saveHop } from '../firebase/firestore';
 import { F, INK } from '../squishdoku/theme';
 
 // Squish Hop (SQUISH_HOP.md), opened from the Lobby's PLAY game picker: the
-// level map (Squish Sort's map, a band per Crib room with the room's picture
-// over its banner) and a level, sliding in over it as placeholders first
-// (src/components/ViewSwitch.js).
+// hub (REGULAR MODE and BLITZ MODE cards, as Squishdoku's: the user,
+// 2026-11-16), the level map (Squish Sort's map, a band per Crib room with the
+// room's picture over its banner) and a level, each sliding in over the last
+// as placeholders first (src/components/ViewSwitch.js); or BLITZ MODE,
+// straight from the hub.
 
 // sounds kept loaded while the game is open (src/audio/sfx.js setBudget)
-const SOUND_BUDGET = 28;
+const SOUND_BUDGET = 34;
 // the most friends a level has, and the hopper
 const MIN_CAST = 6;
-const BONES = { map: 'map', game: 'game' };
+const BONES = { hub: 'hub', map: 'map', game: 'game', blitz: 'game' };
 
 // a room's banner: its name and the twist it brings in
 const bannerOf = (L) => {
@@ -39,7 +41,7 @@ function HopScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack }
   const wide = useWide(); // landscape (REDESIGN_V8)
   const insets = useSafeAreaInsets();
   const rec = record(profile);
-  const sw = useViewSwitch('map'); // map | game
+  const sw = useViewSwitch('hub'); // hub | map | game | blitz
   const { view, go } = sw;
   const [playLv, setPlayLv] = useState(1);
   const [rules, setRules] = useState(false);
@@ -58,17 +60,18 @@ function HopScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // back: rules → map → lobby (the game handles its own)
+  // back: rules → map → hub → lobby (the game and Blitz handle their own)
   useEffect(() => {
-    if (view === 'game') return undefined;
+    if (view === 'game' || view === 'blitz') return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (rules) setRules(false);
+      else if (view === 'map') go('hub');
       else onBack();
       sfx.play('sd_boardOut');
       return true;
     });
     return () => sub.remove();
-  }, [view, rules, onBack]);
+  }, [view, rules, go, onBack]);
 
   const play = useCallback(
     (lv) => {
@@ -81,9 +84,13 @@ function HopScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack }
     sfx.play('sd_boardOut');
     go('map');
   }, [go]);
+  const leaveBlitz = useCallback(() => {
+    sfx.play('sd_boardOut');
+    go('hub');
+  }, [go]);
 
   const ready = cast.length >= MIN_CAST;
-  const playing = view === 'game';
+  const playing = view === 'game' || view === 'blitz';
 
   return (
     <CandyBackground style={{ paddingTop: playing ? 0 : insets.top }} sparkles={!playing}>
@@ -91,23 +98,18 @@ function HopScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack }
       <MapBackdrop sw={sw} on={wide && view === 'map'} />
       {!playing ? (
         <View style={styles.header}>
-          <GameBack onPress={onBack} />
-          <View style={styles.titleBox}>
-            <Text style={styles.headerTitle}>SQUISH HOP</Text>
-            <Text style={styles.headerSub}>{`${doneOf(rec)} / ${LEVELS} levels`}</Text>
-          </View>
-          {wide ? (
-            <Orb size={40} onPress={() => setRules(true)}>
-              <Text style={styles.help}>?</Text>
-            </Orb>
-          ) : (
-            <RoundButton size={40} onPress={() => setRules(true)}>
-              <Text style={styles.help}>?</Text>
-            </RoundButton>
-          )}
-          <View style={styles.starPill}>
-            <Text style={styles.starPillText}>{`★ ${starsOf(rec)}`}</Text>
-          </View>
+          <GameBack onPress={() => (view === 'map' ? go('hub') : onBack())} />
+          {view === 'map' ? (
+            <>
+              <View style={styles.titleBox}>
+                <Text style={styles.headerTitle}>SQUISH HOP</Text>
+                <Text style={styles.headerSub}>{`${doneOf(rec)} / ${LEVELS} levels`}</Text>
+              </View>
+              <View style={styles.starPill}>
+                <Text style={styles.starPillText}>{`★ ${starsOf(rec)}`}</Text>
+              </View>
+            </>
+          ) : null}
         </View>
       ) : null}
       <Animated.View style={[styles.fill, sw.style]}>
@@ -117,16 +119,23 @@ function HopScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack }
         </KeptView>
         {view !== 'map' ? (
           <ViewSlot sw={sw} bones={BONES[view]}>
-            {ready ? (
-              <HopGame startLv={playLv} cast={cast} profile={profile} uid={uid} adsFree={adsFree} haptics={haptics} onExit={leaveGame} />
-            ) : (
-              <View style={[styles.wait, { paddingTop: insets.top }]}>
-                <Text style={styles.waitText}>The squishies are still on their way. Try again in a moment!</Text>
-                <RoundButton size={44} onPress={leaveGame}>
-                  <BackGlyph />
-                </RoundButton>
-              </View>
-            )}
+            {view === 'hub' ? <Hub rec={rec} onRegular={() => go('map')} onBlitz={() => go('blitz')} onRules={() => setRules(true)} /> : null}
+            {playing ? (
+              ready ? (
+                view === 'blitz' ? (
+                  <HopGame blitz cast={cast} profile={profile} uid={uid} adsFree={adsFree} haptics={haptics} onExit={leaveBlitz} />
+                ) : (
+                  <HopGame startLv={playLv} cast={cast} profile={profile} uid={uid} adsFree={adsFree} haptics={haptics} onExit={leaveGame} />
+                )
+              ) : (
+                <View style={[styles.wait, { paddingTop: insets.top }]}>
+                  <Text style={styles.waitText}>The squishies are still on their way. Try again in a moment!</Text>
+                  <RoundButton size={44} onPress={view === 'blitz' ? leaveBlitz : leaveGame}>
+                    <BackGlyph />
+                  </RoundButton>
+                </View>
+              )
+            ) : null}
           </ViewSlot>
         ) : null}
       </Animated.View>
@@ -141,7 +150,6 @@ const styles = StyleSheet.create({
   titleBox: { flex: 1, alignItems: 'center' },
   headerTitle: { fontFamily: F.display, fontSize: 20, letterSpacing: 1, color: '#8a3a0e' },
   headerSub: { fontFamily: F.heavy, fontSize: 11.5, color: INK },
-  help: { fontFamily: F.display, fontSize: 20, color: '#ffffff', includeFontPadding: false },
   starPill: { backgroundColor: '#ffffff', borderRadius: 999, borderWidth: 2.5, borderColor: '#ffd23a', paddingHorizontal: 10, paddingVertical: 4 },
   starPillText: { fontFamily: F.display, fontSize: 14, color: '#b86200' },
   wait: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30, gap: 16 },

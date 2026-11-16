@@ -17,9 +17,10 @@ import { saveStack } from '../firebase/firestore';
 import { F, INK } from '../squishdoku/theme';
 
 // Squish Stack (SQUISH_STACK.md), opened from the Lobby's PLAY game picker:
-// the hub, REGULAR's 50-level map (Squish Sort's map, with this game's
-// levels) and a level, each sliding in over the last as placeholders first
-// (src/components/ViewSwitch.js); or BLITZ, straight from the hub.
+// the hub (REGULAR MODE and BLITZ MODE cards), REGULAR's 50-level map (Squish
+// Sort's map, with this game's levels) and a level, each sliding in over the
+// last as placeholders first (src/components/ViewSwitch.js); or BLITZ MODE,
+// straight from the hub.
 
 // sounds kept loaded while the game is open (src/audio/sfx.js setBudget)
 const SOUND_BUDGET = 28;
@@ -120,7 +121,7 @@ function StackScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack
         </KeptView>
         {view !== 'map' ? (
           <ViewSlot sw={sw} bones={BONES[view]}>
-            {view === 'hub' ? <Hub rec={rec} uris={uris} onRegular={() => go('map')} onBlitz={() => go('blitz')} onRules={() => setRules(true)} /> : null}
+            {view === 'hub' ? <Hub rec={rec} onRegular={() => go('map')} onBlitz={() => go('blitz')} onRules={() => setRules(true)} /> : null}
             {view === 'game' ? (
               ready ? (
                 <View style={[styles.fill, { paddingBottom: insets.bottom }]}>

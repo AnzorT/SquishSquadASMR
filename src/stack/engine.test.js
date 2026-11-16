@@ -1,7 +1,7 @@
 // node src/stack/engine.test.js — Squish Stack's puzzle, levels and scoring.
 import assert from 'node:assert/strict';
 import { bestMove, canMove, left, makePuzzle, same, solve, stackOf, topOf } from './engine.js';
-import { BLITZ_COINS, BLITZ_ROUNDS, CLOCK_FROM, LEVELS, LEVEL_LIST, PICTURE_FROM, afterBlitz, afterLevel, blitzSpec, coinsFor, levelSpec, limitFor, nextSkill, record, starsFor, twoStarMoves, xpFor } from './levels.js';
+import { BLITZ_COINS, CLOCK_FROM, LEVELS, LEVEL_LIST, PICTURE_FROM, afterBlitz, afterLevel, blitzLimit, blitzPrize, blitzSpec, coinsFor, levelSpec, limitFor, nextSkill, record, starsFor, twoStarMoves, xpFor } from './levels.js';
 
 // a seeded random
 const rng = (seed) => () => {
@@ -120,10 +120,10 @@ const lost = afterLevel(profile, levelSpec(3), 7, { won: false });
 assert.equal(lost.coins, 0);
 assert.equal(lost.update['stack.plays'], 6);
 
-// Blitz: ten puzzles, never shrinking, each one close to its par range, and
-// never already solved; the run's record
-assert.equal(BLITZ_ROUNDS, 10);
-for (let i = 0; i < BLITZ_ROUNDS; i++) {
+// Blitz (endless since 2026-11-16): the puzzles never shrink, each one is
+// close to its par range and never already solved, and its clock is well
+// under Regular's for the same par; the run's record and its pay
+for (let i = 0; i < 24; i++) {
   for (const skill of [-2, 0, 2]) {
     const s = blitzSpec(i, skill);
     if (i > 0) assert.ok(s.n >= blitzSpec(i - 1, skill).n && s.k >= blitzSpec(i - 1, skill).k, i);
@@ -131,19 +131,26 @@ for (let i = 0; i < BLITZ_ROUNDS; i++) {
     const P = makePuzzle(s, rng(i * 13 + skill + 5));
     assert.ok(P.par >= 1, `blitz ${i} not solved already`);
     assert.ok(P.par >= s.par[0] - 3 && P.par <= s.par[1], `blitz ${i} skill ${skill} par ${P.par} vs ${s.par}`);
+    assert.ok(blitzLimit(s, P.par) < limitFor({ clock: true, tier: 3 }, P.par), `blitz ${i}'s clock is under Regular's`);
   }
 }
+assert.equal(blitzSpec(30).n, 8);
 assert.ok(blitzSpec(9, 2).par[0] > blitzSpec(9, -2).par[0]);
-const lostRun = afterBlitz(profile, { won: false, reached: 4 });
-assert.equal(lostRun.coins, 0);
-assert.equal(lostRun.update['stack.blitz.reached'], 4);
-assert.ok(lostRun.update['stack.bSkill'] < 0);
-const wonRun = afterBlitz({ stack: { blitz: { reached: 10, bestMs: 200000, wins: 1 } } }, { won: true, reached: 10, ms: 150000 });
-assert.equal(wonRun.coins, BLITZ_COINS);
-assert.equal(wonRun.update['stack.blitz.wins'], 2);
-assert.equal(wonRun.update['stack.blitz.bestMs'], 150000);
-const slowRun = afterBlitz({ stack: { blitz: { reached: 10, bestMs: 100000, wins: 1 } } }, { won: true, reached: 10, ms: 150000 });
-assert.equal(slowRun.update['stack.blitz.bestMs'], undefined);
+// each clock past the climb is shorter, down to three quarters
+assert.ok(blitzLimit(blitzSpec(14), 14) < blitzLimit(blitzSpec(10), 14));
+assert.equal(blitzLimit(blitzSpec(80), 20), Math.ceil((6 + 2.4 * 20) * 0.75) * 1000);
+const none = afterBlitz(profile, { cleared: 0 });
+assert.equal(none.coins, 0);
+assert.equal(none.update['stack.blitz.runs'], 1);
+assert.ok(none.update['stack.bSkill'] < 0);
+const run = afterBlitz({ pxp: 0, stack: { blitz: { top: 3, runs: 4 } } }, { cleared: 5 });
+assert.equal(run.newTop, true);
+assert.equal(run.update['stack.blitz.top'], 5);
+assert.equal(run.update['stack.blitz.runs'], 5);
+assert.equal(run.coins, BLITZ_COINS[3] * 2 + BLITZ_COINS[4] * 3);
+assert.equal(run.xp, 100);
+assert.equal(afterBlitz({ stack: { blitz: { top: 9 } } }, { cleared: 5 }).update['stack.blitz.top'], undefined);
+assert.equal(blitzPrize(10).xp, 200);
 
 // the player's XP: all of it on a first win, half on a replay; a hint's lost star costs some
 {
@@ -153,8 +160,8 @@ assert.equal(slowRun.update['stack.blitz.bestMs'], undefined);
   const again = afterLevel({ pxp: 0, stack: { lv: 21, best: { 20: 3 } } }, spec, 9, { won: true, moves: 9, hinted: false });
   assert.equal(again.xp, Math.round(xpFor(spec, 3) / 2));
   assert.ok(afterLevel({ pxp: 0 }, spec, 9, { won: true, moves: 9, hinted: true }).xp < first.xp);
-  assert.equal(afterBlitz({ pxp: 0 }, { won: true, reached: 10, ms: 1000 }).xp, 200);
-  assert.equal(afterBlitz({ pxp: 0 }, { won: false, reached: 3 }).xp, 0);
+  assert.equal(afterBlitz({ pxp: 0 }, { cleared: 10 }).xp, 200);
+  assert.equal(afterBlitz({ pxp: 0 }, { cleared: 0 }).xp, 0);
 }
 
 console.log('stack: all good');
