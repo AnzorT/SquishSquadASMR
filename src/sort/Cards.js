@@ -115,7 +115,7 @@ export function ResultCard({ visible, res, spec, theme, last, onNext, onReplay, 
 // Out of hearts, or out of time: the right spots were shown on the shelves.
 export function FailCard({ visible, reason, uri, onRetry, onHub }) {
   return (
-    <Overlay visible={visible} tint="rgba(80,0,30,0.5)">
+    <Overlay visible={visible} tint="rgba(80,0,30,0.5)" column>
       <PopIn trigger={visible} delay={60}>
         <OutlinedTitle text={reason === 'time' ? "TIME'S UP!" : 'OH NO!'} size={32} fill="gold" />
       </PopIn>
@@ -127,13 +127,13 @@ export function FailCard({ visible, reason, uri, onRetry, onHub }) {
       <Split />
       <Text style={styles.body}>{reason === 'time' ? 'The clock ran out. You saw where they go. Try again!' : `${HEARTS} mistakes. You saw where they go. Try again!`}</Text>
       <SlideIn trigger={visible} delay={380} style={styles.btnRow}>
-        <SdButton kind="white" onPress={onHub} sound="sd_select" faceStyle={styles.smallFace}>
-          <BtnLabel kind="white" size={15}>
+        <SdButton kind="white" onPress={onHub} sound="sd_select" faceStyle={styles.pairFace}>
+          <BtnLabel kind="white" size={17}>
             MENU
           </BtnLabel>
         </SdButton>
-        <SdButton kind="pink" onPress={onRetry} sound="sd_select" faceStyle={styles.bigFace}>
-          <BtnLabel kind="pink" size={18}>
+        <SdButton kind="gold" onPress={onRetry} sound="sd_select" faceStyle={styles.pairFace}>
+          <BtnLabel kind="gold" size={17}>
             RETRY
           </BtnLabel>
         </SdButton>
@@ -235,6 +235,8 @@ const styles = StyleSheet.create({
   col: { alignSelf: 'stretch', gap: 4, marginTop: 6 },
   smallFace: { paddingHorizontal: 14, paddingVertical: 10 },
   bigFace: { paddingHorizontal: 22, paddingVertical: 12 },
+  // a fail card's two buttons (MENU / MAP / UNDO and RETRY): the same size, RETRY in the app's gold (the user, 2026-11-16)
+  pairFace: { width: 150, paddingVertical: 11, paddingHorizontal: 8 },
   wideFace: { paddingVertical: 12 },
   body: { fontFamily: F.heavy, fontSize: 14, color: INK, textAlign: 'center', paddingHorizontal: 6 },
   rules: { alignSelf: 'stretch', gap: 8, marginTop: 4 },

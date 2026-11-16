@@ -151,10 +151,14 @@ Checked in the web version only: not on a phone, nothing committed.
   (`src/squishdoku/Overlays.js`): set tighter, with the stars and score creatures at 72% and the XP bar and LEVEL n!
   side by side (`useCompact`), so a result with a level-up fits the 384 dp height. The other popups keep two columns.
 - Every mini-game's pause card is one column in landscape too: PAUSED above its three buttons (the user's screenshot).
-- **Squish Stack's level and Blitz, sideways** (the user: "level needs to be in the middle with the difficulty"; the
-  moves, goal, stars and par "too much text, needs to be simple and in the middle"): one row along the top, the level
-  (or PUZZLE n) and its tier in the middle of the screen, a small pill each side of it: the goal (a smaller card),
-  MOVES and PAR (Blitz: CLEARED and BEST) on the left; the stars still possible and the clock (Blitz: the clock and
-  1 MISTAKE = GAME OVER) on the right. The tip lines are gone. The cushions sit in the middle under it, between a
-  spacer and the buttons' column. One row rather than two keeps the cushions most of the height: on the 8-squishy
-  levels the squishies are about 80% of their old size; the small levels are as big as before. Upright is unchanged.
+- **Squish Stack's level and Blitz** (the user's two marked-up screenshots, 2026-11-16):
+  - No UNDO (RESTART and HINT only), no clock in Regular or Blitz, no stars meter, no level number, no game name, no
+    tip lines, no dashed outline round the cushions.
+  - The counter at the top in the middle: MOVES n / par (n turns red once past the par: 3 stars is at or under it) and
+    the tier. Blitz: CLEARED, BEST, the tier and 1 MISTAKE = GAME OVER.
+  - Sideways: the back button top left, the goal card bottom left, RESTART and HINT side by side bottom right; the
+    cushions in the middle between two side columns of the same width. Upright: the back button and the counter along
+    the top, the goal under them, the two buttons at the bottom.
+- The fail cards are one column in landscape too, their two buttons the same size and RETRY in the app's gold:
+  Squishdoku's TIME'S UP / OUT OF HEARTS, Squish Sort's TIME'S UP / OH NO, Squish Hop's STUCK. Squish Stack's TIME'S UP
+  is gone with its clock.

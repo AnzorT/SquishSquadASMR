@@ -103,13 +103,13 @@ export function StuckCard({ visible, head, uri, shut, onUndo, onRetry }) {
       <Split />
       <Text style={styles.body}>{shut ? 'The ★ stays shut until every other cushion is cleared, and there is nowhere else to hop.' : 'There is nowhere left to hop.'}</Text>
       <SlideIn trigger={visible} delay={380} style={styles.btnRow}>
-        <SdButton kind="white" onPress={onUndo} sound="sd_select" faceStyle={styles.smallFace}>
-          <BtnLabel kind="white" size={15}>
+        <SdButton kind="white" onPress={onUndo} sound="sd_select" faceStyle={styles.pairFace}>
+          <BtnLabel kind="white" size={17}>
             UNDO
           </BtnLabel>
         </SdButton>
-        <SdButton kind="pink" onPress={onRetry} sound="sd_select" faceStyle={styles.bigFace}>
-          <BtnLabel kind="pink" size={18}>
+        <SdButton kind="gold" onPress={onRetry} sound="sd_select" faceStyle={styles.pairFace}>
+          <BtnLabel kind="gold" size={17}>
             RETRY
           </BtnLabel>
         </SdButton>
@@ -236,6 +236,8 @@ const styles = StyleSheet.create({
   col: { alignSelf: 'stretch', gap: 4, marginTop: 6 },
   smallFace: { paddingHorizontal: 14, paddingVertical: 10 },
   bigFace: { paddingHorizontal: 22, paddingVertical: 12 },
+  // a fail card's two buttons (MENU / MAP / UNDO and RETRY): the same size, RETRY in the app's gold (the user, 2026-11-16)
+  pairFace: { width: 150, paddingVertical: 11, paddingHorizontal: 8 },
   wideFace: { paddingVertical: 12 },
   body: { fontFamily: F.heavy, fontSize: 14, color: INK, textAlign: 'center', paddingHorizontal: 6 },
   cost: { fontFamily: F.display, fontSize: 13, color: '#e01e4a', textAlign: 'center' },

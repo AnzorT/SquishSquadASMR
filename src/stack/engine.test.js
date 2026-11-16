@@ -1,7 +1,7 @@
 // node src/stack/engine.test.js — Squish Stack's puzzle, levels and scoring.
 import assert from 'node:assert/strict';
 import { bestMove, canMove, left, makePuzzle, same, solve, stackOf, topOf } from './engine.js';
-import { BLITZ_COINS, CLOCK_FROM, LEVELS, LEVEL_LIST, PICTURE_FROM, afterBlitz, afterLevel, blitzLimit, blitzPrize, blitzSpec, coinsFor, levelSpec, limitFor, nextSkill, record, starsFor, twoStarMoves, xpFor } from './levels.js';
+import { BLITZ_COINS, LATE_FROM, LEVELS, LEVEL_LIST, PICTURE_FROM, afterBlitz, afterLevel, blitzPrize, blitzSpec, coinsFor, levelSpec, nextSkill, record, starsFor, twoStarMoves, xpFor } from './levels.js';
 
 // a seeded random
 const rng = (seed) => () => {
@@ -66,11 +66,12 @@ assert.equal(levelSpec(4).start, 'tower');
 assert.equal(levelSpec(22).k, 4);
 assert.equal(levelSpec(22).news, 'cushion');
 assert.equal(levelSpec(PICTURE_FROM).news, 'picture');
-assert.equal(levelSpec(CLOCK_FROM).news, 'clock');
+// no clock (2026-11-16): nothing on a level says there is one, and the late levels pay as they did with it
+for (let lv = 1; lv <= LEVELS; lv++) assert.equal(levelSpec(lv).clock, undefined, lv);
+assert.ok(coinsFor(levelSpec(LATE_FROM), 10, 3) > coinsFor({ ...levelSpec(LATE_FROM), lv: LATE_FROM - 1 }, 10, 3));
 assert.equal(levelSpec(50).n, 8);
 for (let lv = 1; lv < PICTURE_FROM; lv++) for (const s of [-2, 0, 2]) assert.equal(levelSpec(lv, s).goal, 'star', lv);
 for (let lv = 1; lv <= LEVELS; lv++) {
-  assert.equal(levelSpec(lv).clock, lv >= CLOCK_FROM, lv);
   for (const skill of [-2, 0, 2]) {
     const s = levelSpec(lv, skill);
     assert.ok(s.tier >= 0 && s.tier <= 3);
@@ -82,8 +83,6 @@ for (let lv = 1; lv <= LEVELS; lv++) {
     if (s.start === 'scrambled') assert.ok(P.par >= s.par[0] - 3 && P.par <= s.par[1], `lv ${lv} skill ${skill} par ${P.par} vs ${s.par}`);
     if (s.goal === 'picture') assert.ok(new Set(P.goal).size >= 2, lv);
     else assert.ok(P.goal.every((g) => g === P.star), lv);
-    if (s.clock) assert.ok(limitFor(s, P.par) >= 20000 + P.par * 2500, lv);
-    else assert.equal(limitFor(s, P.par), 0);
   }
 }
 // adaptive: a high skill asks for more, a low one for less
@@ -120,25 +119,21 @@ const lost = afterLevel(profile, levelSpec(3), 7, { won: false });
 assert.equal(lost.coins, 0);
 assert.equal(lost.update['stack.plays'], 6);
 
-// Blitz (endless since 2026-11-16): the puzzles never shrink, each one is
-// close to its par range and never already solved, and its clock is well
-// under Regular's for the same par; the run's record and its pay
+// Blitz (endless and with no clock since 2026-11-16): the puzzles never
+// shrink, each one is close to its par range and never already solved; the
+// run's record and its pay
 for (let i = 0; i < 24; i++) {
   for (const skill of [-2, 0, 2]) {
     const s = blitzSpec(i, skill);
     if (i > 0) assert.ok(s.n >= blitzSpec(i - 1, skill).n && s.k >= blitzSpec(i - 1, skill).k, i);
-    assert.equal(s.clock, false);
+    assert.equal(s.clock, undefined);
     const P = makePuzzle(s, rng(i * 13 + skill + 5));
     assert.ok(P.par >= 1, `blitz ${i} not solved already`);
     assert.ok(P.par >= s.par[0] - 3 && P.par <= s.par[1], `blitz ${i} skill ${skill} par ${P.par} vs ${s.par}`);
-    assert.ok(blitzLimit(s, P.par) < limitFor({ clock: true, tier: 3 }, P.par), `blitz ${i}'s clock is under Regular's`);
   }
 }
 assert.equal(blitzSpec(30).n, 8);
 assert.ok(blitzSpec(9, 2).par[0] > blitzSpec(9, -2).par[0]);
-// each clock past the climb is shorter, down to three quarters
-assert.ok(blitzLimit(blitzSpec(14), 14) < blitzLimit(blitzSpec(10), 14));
-assert.equal(blitzLimit(blitzSpec(80), 20), Math.ceil((6 + 2.4 * 20) * 0.75) * 1000);
 const none = afterBlitz(profile, { cleared: 0 });
 assert.equal(none.coins, 0);
 assert.equal(none.update['stack.blitz.runs'], 1);

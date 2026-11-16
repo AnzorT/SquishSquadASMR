@@ -1,13 +1,11 @@
 import { GameBack, useGameDims, useWide } from '../royal/GameFrame';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, AppState, BackHandler, Easing, PanResponder, StyleSheet, Text, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
-import OutlinedTitle from '../components/candy/OutlinedTitle';
 import RoundButton, { BackGlyph } from '../components/candy/RoundButton';
 import useRewardedAd from '../components/useRewardedAd';
 import sfx from '../audio/sfx';
 import { FxLayer, PopIn } from '../squishdoku/fx';
-import { makeHaptics, prefetchImages, useClock } from '../squishdoku/game';
+import { makeHaptics, prefetchImages } from '../squishdoku/game';
 import { Countdown } from '../squishdoku/BlitzGame';
 import { BlitzOverCard, BlitzSaveCard, PauseCard as BlitzPauseCard } from '../squishdoku/Overlays';
 import { blitzSaveGems } from '../squishdoku/levels';
@@ -15,10 +13,10 @@ import * as squad from '../squad/api';
 import { BtnLabel, Chip, SdButton } from '../squishdoku/ui';
 import { F, INK } from '../squishdoku/theme';
 import { saveStack } from '../firebase/firestore';
-import { Banner, Bar } from '../sort/Game';
-import { FailCard, HintCard, PauseCard, ResultCard } from './Cards';
-import { bestMove, canMove, left as movesLeft, makePuzzle, same, stackOf, topOf } from './engine';
-import { LEVELS, TIER_COLORS, TIER_NAMES, afterBlitz, afterLevel, blitzLimit, blitzSpec, clock, levelSpec, limitFor, record, starsFor } from './levels';
+import { Banner } from '../sort/Game';
+import { HintCard, PauseCard, ResultCard } from './Cards';
+import { bestMove, canMove, makePuzzle, same, stackOf, topOf } from './engine';
+import { LEVELS, TIER_COLORS, TIER_NAMES, afterBlitz, afterLevel, blitzSpec, levelSpec, record } from './levels';
 import { Cushion, GoalCard, OVER, StarBadge, Squishy, bodyH } from './Pieces';
 import { pickCast } from './roster';
 import { usePingPong } from '../components/idleLoop';
@@ -29,15 +27,14 @@ import { usePingPong } from '../components/idleLoop';
 //   play   tap a cushion to lift its top squishy (it hovers and wiggles),
 //          tap another to put it there; or drag it. A big one dropped on a
 //          smaller one squashes it flat and boings home (no move counted).
-//          The clock runs from level 15.
-//   won / lost (the clock ran out)
+//          No clock (the user, 2026-11-16), and no UNDO: RESTART and HINT.
+//   won
 // The puzzle's rules are engine.js; this draws and animates them.
 //
 // BLITZ MODE (`blitz`, levels.js blitzSpec; 2026-11-16, the user: "the same
-// thing" as Squishdoku's): after a 3, 2, 1, GO! puzzle after puzzle, each on
-// its own short clock (blitzLimit), with no end. A big one dropped on a
-// smaller one is a mistake: the clock stops ('held'). A mistake or a clock
-// running out can be saved, once with a rewarded ad (free with Remove Ads)
+// thing" as Squishdoku's): after a 3, 2, 1, GO! puzzle after puzzle, with no
+// end and no clock. A big one dropped on a smaller one is the mistake that
+// stops the run ('held'). It can be saved, once with a rewarded ad (free with Remove Ads)
 // or with gems, each save twice the last (functions/squad.js blitzSave), and
 // the run goes on from the same puzzle; or it's GAME OVER and the puzzles
 // cleared pay out (levels.js afterBlitz). No hints.
@@ -49,7 +46,6 @@ const GRAVITY = Easing.bezier(0.55, 0, 1, 0.45);
 
 const NEWS = {
   picture: { text: 'GOAL CARD!', sub: 'Make the cushions look like the picture' },
-  clock: { text: 'BEAT THE CLOCK!', sub: 'From now on, every level has a timer' },
   cushion: { text: 'A 4TH CUSHION!', sub: 'Big towers move much faster now' },
 };
 
@@ -163,21 +159,7 @@ const Seat = memo(function Seat({ i, x, top, w, h, star, bump, glow }) {
   );
 });
 
-const STAR_D = 'M12 2.2 L14.9 8.6 L21.8 9.3 L16.6 14 L18.1 20.9 L12 17.4 L5.9 20.9 L7.4 14 L2.2 9.3 L9.1 8.6 Z';
-// the stars still possible, if every move from here is the best one
-const Meter = memo(function Meter({ stars }) {
-  return (
-    <View style={styles.meter}>
-      {[0, 1, 2].map((i) => (
-        <Svg key={i} width={i === 1 ? 26 : 21} height={i === 1 ? 26 : 21} viewBox="0 0 24 24" style={{ marginTop: i === 1 ? 0 : 4 }}>
-          <Path d={STAR_D} fill={i < stars ? '#ffd23a' : 'rgba(255,255,255,0.55)'} stroke={i < stars ? '#b86200' : '#b9a6cc'} strokeWidth={1.6} strokeLinejoin="round" />
-        </Svg>
-      ))}
-    </View>
-  );
-});
-
-// a number in the landscape level's middle bar: a small label over it
+// a number in the counter: a small label over it
 const Stat = memo(function Stat({ label, value, gold }) {
   return (
     <View style={styles.stat}>
@@ -186,14 +168,6 @@ const Stat = memo(function Stat({ label, value, gold }) {
     </View>
   );
 });
-
-// the line under the meter on levels with no clock (upright only)
-function tipFor(spec, holding, moves) {
-  if (spec.lv === 1 && moves === 0) return holding ? 'Now tap the ★ cushion to put it there!' : 'Tap a cushion to lift the squishy on top.';
-  if (spec.lv <= 3) return 'A big squishy can never sit on a smaller one!';
-  if (spec.goal === 'picture') return 'Make the cushions look like the GOAL card.';
-  return 'Get everyone onto the ★ cushion.';
-}
 
 // state with a ref beside it, for the touch handlers and the timers
 function useRefState(init) {
@@ -246,7 +220,6 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   // a fresh puzzle and fresh squishies for every level and every retry
   const puzzle = useMemo(() => makePuzzle(spec), [spec]);
   const who = useMemo(() => pickCast(cast, spec.n), [puzzle]); // eslint-disable-line react-hooks/exhaustive-deps
-  const limit = blitz ? blitzLimit(spec, puzzle.par) : limitFor(spec, puzzle.par);
 
   const [area, setArea] = useState(null);
   const areaRef = useRef(null);
@@ -279,7 +252,6 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   const bumps = useMemo(() => Array.from({ length: 4 }, () => new Animated.Value(0)), []);
   const fx = useRef(null);
   const fxTop = useRef(null); // Blitz: over the cards, a new best's confetti
-  const clk = useClock();
 
   // --- state ---
   const [phase, phaseRef, setPhase] = useRefState('load');
@@ -294,9 +266,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   const [glow, setGlow] = useState(null); // the hint: { from, to }
   const [dragCol, setDragCol] = useState(-1);
   const [banner, setBanner] = useState(null);
-  const [secs, setSecs] = useState(0);
   const [result, setResult] = useState(null);
-  const [fail, setFail] = useState(false);
   const [hintAsk, setHintAsk] = useState(false);
   const hintAskRef = useRef(false);
   hintAskRef.current = hintAsk;
@@ -325,7 +295,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
 
   // what the handlers and timers read
   const live = useRef({});
-  live.current = { g, anims, puzzle, spec, who, bumps, limit };
+  live.current = { g, anims, puzzle, spec, who, bumps };
 
   // --- moving things ---------------------------------------------------------------------
 
@@ -513,32 +483,27 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     });
   }
 
-  // Blitz: a mistake stops the clock; then the save card
+  // Blitz: a mistake stops the run; then the save card
   function blitzMistake() {
-    clk.pause();
     setPhase('held');
     setGlow(null);
     if (heldRef.current) drop(heldRef.current.from);
     later(1000, () => offerSave('mistake'));
   }
 
-  // Blitz: a mistake or the clock — save the run, or END RUN for GAME OVER
+  // Blitz: a mistake — save the run, or END RUN for GAME OVER
   function offerSave(reason) {
     setFailReason(reason);
     setSaveErr(null);
     setBlitzCard('save');
   }
 
-  // The run goes on from the same puzzle: after a mistake its clock runs on,
-  // after the clock ran out it starts again.
+  // The run goes on from the same puzzle.
   function goOn() {
     setSaving(false);
     setBlitzCard(null);
     sfx.play('sd_revive');
-    lastTick.current = 0;
     setPhase('play');
-    if (failReason === 'time') clk.start(live.current.limit);
-    else clk.resume();
   }
   function saveByAd() {
     const back = () => {
@@ -579,7 +544,6 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   // Blitz: GAME OVER — the puzzles cleared, the best, and what they paid
   function endRun() {
     setPhase('lost');
-    clk.pause();
     setGlow(null);
     if (heldRef.current) drop(heldRef.current.from);
     const top = record(profileRef.current).blitz.top;
@@ -617,7 +581,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     settle(); // the stack it left stands up
   }
 
-  // everyone back where this puzzle started (the clock keeps going)
+  // everyone back where this puzzle started
   function restart() {
     if (phaseRef.current !== 'play' || pausedRef.current) return;
     if (heldRef.current) {
@@ -667,14 +631,12 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     // the ad leaves the app (the pause card comes up); a reward brings the game back
     ad.show(() => {
       setPaused(false);
-      if (live.current.spec.clock) clk.resume();
       later(250, () => acts.current.showHint());
     });
   }
 
   function win() {
     setPhase('won');
-    clk.pause();
     setGlow(null);
     const { g: G, anims: AS, puzzle: P, spec: S } = live.current;
     sfx.play('sd_solve');
@@ -725,39 +687,11 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     later(1500, () => setResult(res));
   }
 
-  function lose() {
-    if (phaseRef.current !== 'play') return;
-    if (blitz) {
-      // the puzzle's clock ran out: TIME'S UP, then the save card
-      setPhase('held');
-      clk.pause();
-      setGlow(null);
-      if (heldRef.current) drop(heldRef.current.from);
-      sfx.play('sd_timeUp');
-      haptics.wrong();
-      later(900, () => offerSave('time'));
-      return;
-    }
-    setPhase('lost');
-    clk.pause();
-    setGlow(null);
-    if (heldRef.current) drop(heldRef.current.from);
-    sfx.play('sd_timeUp');
-    haptics.wrong();
-    const { puzzle: P, spec: S } = live.current;
-    const out = afterLevel(profileRef.current, S, P.par, { won: false });
-    if (uid) saveStack(uid, out.update, 0);
-    later(1300, () => setFail(true));
-  }
-
   // --- the round -----------------------------------------------------------------------
 
   function startPlay() {
     setPhase('play');
-    lastTick.current = 0;
-    // Blitz: every puzzle has its own clock
     if (blitz) runStarted.current = true;
-    if (blitz || live.current.spec.clock) clk.start(live.current.limit);
   }
   function deal() {
     const { g: G, anims: AS, puzzle: P, spec: S } = live.current;
@@ -791,9 +725,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   useEffect(() => {
     if (!g) return undefined;
     clearTimers();
-    clk.reset();
     setResult(null);
-    setFail(false);
     setPaused(false);
     setHintAsk(false);
     setGlow(null);
@@ -806,7 +738,6 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     setCanUndo(false);
     setMoves(0);
     setHinted(false);
-    setSecs(Math.ceil(limit / 1000));
     // everyone above their spot, waiting to drop in (their spots are already
     // their targets, so nothing settles them there early)
     const m = spotsOf(g, puzzle.start);
@@ -829,7 +760,6 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
       const chips = [TIER_NAMES[spec.tier]];
       if (spec.goal === 'picture') chips.push('GOAL CARD');
       if (spec.k === 4) chips.push('4 CUSHIONS');
-      if (spec.clock || blitz) chips.push(`⏱ ${clock(limit)}`);
       say(blitz ? `PUZZLE ${spec.round}` : `LEVEL ${spec.lv}`, { chips, hold: 900 });
       sfx.play('sd_boardIn');
     }
@@ -861,43 +791,19 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle, readyKey]);
 
-  // the clock running out (and the time left, by the second)
-  const lastTick = useRef(0);
-  useEffect(() => {
-    if (phase !== 'play' || paused || !(spec.clock || blitz)) return undefined;
-    // ticks for the last seconds
-    const tickFrom = 5;
-    const id = setInterval(() => {
-      const ms = clk.limit() - clk.elapsed();
-      const s = Math.max(0, Math.ceil(ms / 1000));
-      setSecs((x) => (x !== s ? s : x));
-      if (s > 0 && s <= tickFrom && s !== lastTick.current) {
-        lastTick.current = s;
-        sfx.play('sd_tick', { rate: s <= 5 ? 1.3 : 1 });
-        haptics.tick();
-      }
-      if (ms <= 0) acts.current.lose();
-    }, 250);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, paused, spec.clock]);
-
   // --- pause and leaving ---------------------------------------------------------------
 
   function pause() {
     if (phaseRef.current !== 'play' || pausedRef.current) return;
     if (heldRef.current) drop(heldRef.current.from);
-    clk.pause();
     setPaused(true);
   }
   function resume() {
     setPaused(false);
-    if (live.current.spec.clock || blitz) clk.resume();
   }
   function leave() {
     payOut();
     clearTimers();
-    clk.reset();
     onExit();
   }
   const next = useCallback(() => {
@@ -909,7 +815,6 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   function again() {
     payOut();
     clearTimers();
-    clk.reset();
     runStarted.current = false;
     runRec.current = { cleared: 0, ended: false };
     setBlitzCard(null);
@@ -926,7 +831,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   }
 
   const acts = useRef({});
-  acts.current = { pickUp, drop, undo, restart, askHint, watchHint, showHint, pause, resume, leave, lose, replay, again, goOn, saveByAd, saveByGems, endRun };
+  acts.current = { pickUp, drop, undo, restart, askHint, watchHint, showHint, pause, resume, leave, replay, again, goOn, saveByAd, saveByGems, endRun };
   // web, development only: the browser tests move squishies without finding the cushions on screen (src/web/README.md)
   if (__DEV__ && typeof window !== 'undefined' && window.document) {
     window.__stack = {
@@ -1043,7 +948,6 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   const zOf = {};
   for (let p = 0; p < spec.k; p++) stackOf(at, p).forEach((r, j) => (zOf[r] = 10 + j));
   const order = who.map((_, r) => r).sort((a, b) => (a === top ? 99 : zOf[a] || 0) - (b === top ? 99 : zOf[b] || 0));
-  const can = starsFor(puzzle.par, { moves: moves + movesLeft(puzzle.sol, at), hinted });
   const nudge = spec.lv === 1 && moves === 0 && phase === 'play' ? (held ? puzzle.star : 0) : -1;
   const glowOf = (p) => (glow ? (p === glow.to ? 'gold' : p === glow.from ? 'white' : null) : p === nudge ? 'white' : null);
   const playing = phase === 'play' && !paused;
@@ -1051,136 +955,48 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   const bestRun = record(profile).blitz.top;
   const beat = blitz && cleared > bestRun && bestRun > 0;
 
-  // landscape (REDESIGN_V8, the games sideways): the top bar, the goal and the stars / clock in a column on the left,
-  // the cushions in the middle, UNDO / RESTART / HINT down the right
+  // The counter (the user, 2026-11-16: "my attempt / attempts for 3 stars", no stars, no level, no game name, no
+  // clock): the moves so far over the par, red once past it, and the level's tier. Blitz: the puzzles cleared and the
+  // best run, and its one rule.
+  const pastPar = moves > puzzle.par;
+  const counterEl = (
+    <View style={styles.counter}>
+      {blitz ? (
+        <>
+          <Stat label="CLEARED" value={cleared} />
+          <Stat label={beat ? 'NEW BEST' : 'BEST'} value={Math.max(bestRun, cleared)} gold={beat} />
+        </>
+      ) : (
+        <View style={styles.stat}>
+          <Text style={styles.statLabel}>MOVES</Text>
+          <Text style={styles.countLine}>
+            <Text style={[styles.countNum, pastPar && styles.countOver]}>{moves}</Text>
+            <Text style={styles.countPar}>{` / ${puzzle.par}`}</Text>
+          </Text>
+        </View>
+      )}
+      <View style={[styles.challenge, { backgroundColor: TIER_COLORS[spec.tier] }]}>
+        <Text style={styles.challengeText}>{TIER_NAMES[spec.tier]}</Text>
+      </View>
+      {blitz ? (
+        <Chip bg="#e01e4a" color="#ffffff">
+          1 MISTAKE = GAME OVER
+        </Chip>
+      ) : null}
+    </View>
+  );
+  const backEl = <GameBack onPress={() => (phaseRef.current === 'play' ? acts.current.pause() : acts.current.leave())} />;
+  const goalEl = <GoalCard who={who} goal={puzzle.goal} k={spec.k} star={puzzle.star} />;
+  // upright: the back button and the counter along the top, the goal under them
   const topEl = (
     <>
-      {/* the top bar */}
-      <View style={[styles.hud, wide && styles.wHud]}>
-        <GameBack onPress={() => (phaseRef.current === 'play' ? acts.current.pause() : acts.current.leave())} />
-        <View style={[styles.titleBox, wide && styles.wTitleBox]}>
-          <Text style={styles.gameName}>{blitz ? 'SQUISH STACK · BLITZ MODE' : 'SQUISH STACK'}</Text>
-          <View style={styles.row6}>
-            <Text style={styles.levelText}>{blitz ? `PUZZLE ${spec.round}` : `LEVEL ${spec.lv}`}</Text>
-            <View style={[styles.challenge, { backgroundColor: TIER_COLORS[spec.tier] }]}>
-              <Text style={styles.challengeText}>{TIER_NAMES[spec.tier]}</Text>
-            </View>
-          </View>
-        </View>
-        {blitz ? (
-          // the puzzles cleared this run, and the best run (gold once it's beaten)
-          <View style={[styles.movesPill, styles.scorePill]}>
-            <View style={styles.scoreCol}>
-              <Text style={styles.movesLabel}>CLEARED</Text>
-              <Text style={styles.movesNum}>{cleared}</Text>
-            </View>
-            <View style={styles.scoreCol}>
-              <Text style={[styles.movesLabel, beat && styles.gold]}>{beat ? 'NEW BEST' : 'BEST'}</Text>
-              <Text style={[styles.movesNum, styles.bestNum, beat && styles.gold]}>{Math.max(bestRun, cleared)}</Text>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.movesPill}>
-            <Text style={styles.movesLabel}>MOVES</Text>
-            <Text style={styles.movesNum}>{moves}</Text>
-          </View>
-        )}
+      <View style={styles.hud}>
+        {backEl}
+        <View style={styles.titleBox} />
+        {counterEl}
       </View>
-
-      {/* the goal, and the stars still possible and the clock or a tip
-          (Blitz: the puzzle's clock and the run's rule) */}
-      <View style={[styles.info, wide && styles.wInfo]}>
-        <GoalCard who={who} goal={puzzle.goal} k={spec.k} star={puzzle.star} />
-        <View style={styles.infoRight}>
-          {blitz ? (
-            <>
-              <View style={styles.clockRow}>
-                <Text style={[styles.clockText, phase === 'play' && secs <= 5 && { color: '#e01e4a' }]}>{clock(secs * 1000)}</Text>
-                <Bar frac={clk.frac} colors={['#b0fbff', '#3fd7f6']} />
-              </View>
-              <View style={styles.ruleRow}>
-                <Chip bg="#e01e4a" color="#ffffff">
-                  1 MISTAKE = GAME OVER
-                </Chip>
-              </View>
-              <Text style={styles.blitzRule} numberOfLines={1}>
-                Big on small ends the run!
-              </Text>
-            </>
-          ) : (
-            <>
-              <View style={styles.meterRow}>
-                <Meter stars={can} />
-                <View style={styles.parPill}>
-                  <Text style={styles.parText}>{`PAR ${puzzle.par}`}</Text>
-                </View>
-              </View>
-              {spec.clock ? (
-                <View style={styles.clockRow}>
-                  <Text style={[styles.clockText, phase === 'play' && secs <= 10 && { color: '#e01e4a' }]}>{clock(secs * 1000)}</Text>
-                  <Bar frac={clk.frac} colors={['#b8ffd9', '#3ddc97']} />
-                </View>
-              ) : (
-                <Text style={styles.tip} numberOfLines={2}>
-                  {tipFor(spec, !!held, moves)}
-                </Text>
-              )}
-            </>
-          )}
-        </View>
-      </View>
+      <View style={styles.info}>{goalEl}</View>
     </>
-  );
-  // landscape (the user, 2026-11-16: the level in the middle with its tier, and the rest simple, in the middle): one row
-  // at the top, the level and its tier in the middle of the screen, a small pill on each side of them: the goal, the
-  // moves and the par on the left (Blitz: cleared and best), the stars still possible and the clock on the right. No
-  // tip lines. (One row, so the cushions keep most of the height: the towers are as big as before.)
-  const wideHeadEl = (
-    <View style={styles.wHead}>
-      <View style={styles.wBack}>
-        <GameBack onPress={() => (phaseRef.current === 'play' ? acts.current.pause() : acts.current.leave())} />
-      </View>
-      <View style={[styles.wGroup, styles.wGroupL]}>
-        <View style={styles.wPill}>
-          <GoalCard who={who} goal={puzzle.goal} k={spec.k} star={puzzle.star} width={84} small />
-          {blitz ? (
-            <>
-              <Stat label="CLEARED" value={cleared} />
-              <Stat label={beat ? 'NEW BEST' : 'BEST'} value={Math.max(bestRun, cleared)} gold={beat} />
-            </>
-          ) : (
-            <>
-              <Stat label="MOVES" value={moves} />
-              <Stat label="PAR" value={puzzle.par} />
-            </>
-          )}
-        </View>
-      </View>
-      <View style={styles.wTitle}>
-        <OutlinedTitle text={blitz ? `PUZZLE ${spec.round}` : `LEVEL ${spec.lv}`} size={22} fill="gold" />
-        <View style={[styles.challenge, { backgroundColor: TIER_COLORS[spec.tier] }]}>
-          <Text style={styles.challengeText}>{TIER_NAMES[spec.tier]}</Text>
-        </View>
-      </View>
-      <View style={[styles.wGroup, styles.wGroupR]}>
-        <View style={styles.wPill}>
-          {blitz ? null : <Meter stars={can} />}
-          {blitz || spec.clock ? (
-            <View style={styles.wClock}>
-              <Text style={[styles.wClockText, phase === 'play' && secs <= (blitz ? 5 : 10) && { color: '#ff8fa3' }]}>{clock(secs * 1000)}</Text>
-              <View style={styles.wClockBar}>
-                <Bar frac={clk.frac} colors={blitz ? ['#b0fbff', '#3fd7f6'] : ['#b8ffd9', '#3ddc97']} />
-              </View>
-            </View>
-          ) : null}
-          {blitz ? (
-            <Chip bg="#e01e4a" color="#ffffff">
-              1 MISTAKE = GAME OVER
-            </Chip>
-          ) : null}
-        </View>
-      </View>
-    </View>
   );
   const areaEl = (
     <>
@@ -1204,42 +1020,41 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
       </View>
     </>
   );
+  // restart and hint (no UNDO: the user, 2026-11-16); sideways, side by side at the bottom right
   const ctrlEl = (
-    <>
-      {/* undo, restart, hint */}
-      <View style={[styles.controls, wide && styles.wControls]}>
-        <SdButton kind="white" onPress={() => acts.current.undo()} disabled={!playing || !canUndo} sound={null} faceStyle={styles.ctrlFace} style={styles.ctrl}>
-          <BtnLabel kind="white" size={15}>
-            UNDO
+    <View style={[styles.controls, wide && styles.wControls]}>
+      <SdButton kind="purple" onPress={() => acts.current.restart()} disabled={!playing || moves === 0} sound="sd_select" faceStyle={[styles.ctrlFace, wide && styles.wCtrlFace]} style={wide ? null : styles.ctrl}>
+        <BtnLabel kind="purple" size={wide ? 14 : 15}>
+          RESTART
+        </BtnLabel>
+      </SdButton>
+      {!blitz ? (
+        <SdButton kind="gold" onPress={() => acts.current.askHint()} disabled={!playing || (hinted && !adsFree && !ad.ready)} sound="sd_select" faceStyle={[styles.ctrlFace, wide && styles.wCtrlFace]} style={wide ? null : styles.ctrl}>
+          <BtnLabel kind="gold" size={wide ? 14 : 15}>
+            {adsFree ? 'HINT' : '▶ HINT'}
           </BtnLabel>
         </SdButton>
-        <SdButton kind="purple" onPress={() => acts.current.restart()} disabled={!playing || moves === 0} sound="sd_select" faceStyle={styles.ctrlFace} style={styles.ctrl}>
-          <BtnLabel kind="purple" size={15}>
-            RESTART
-          </BtnLabel>
-        </SdButton>
-        {!blitz ? (
-          <SdButton kind="gold" onPress={() => acts.current.askHint()} disabled={!playing || (hinted && !adsFree && !ad.ready)} sound="sd_select" faceStyle={styles.ctrlFace} style={styles.ctrl}>
-            <BtnLabel kind="gold" size={15}>
-              {adsFree ? 'HINT' : '▶ HINT'}
-            </BtnLabel>
-          </SdButton>
-        ) : null}
-      </View>
-    </>
+      ) : null}
+    </View>
   );
   return (
     <View style={styles.fill}>
       {wide ? (
-        <>
-          {wideHeadEl}
-          <View style={styles.wRow}>
-            {/* (as wide as the buttons' column, so the cushions sit in the middle under the level) */}
-            <View style={styles.wSide} />
-            {areaEl}
-            <View style={styles.wRight}>{ctrlEl}</View>
+        // sideways (the user, 2026-11-16): the back button top left and the goal bottom left; the counter at the top in
+        // the middle, the cushions under it; RESTART and HINT side by side at the bottom right. The two side columns are
+        // as wide as each other, so the cushions sit in the middle of the screen.
+        <View style={styles.wRow}>
+          <View style={styles.wSide}>
+            {backEl}
+            <View style={styles.fill} />
+            {goalEl}
           </View>
-        </>
+          <View style={styles.fill}>
+            <View style={styles.wCounterRow}>{counterEl}</View>
+            {areaEl}
+          </View>
+          <View style={[styles.wSide, styles.wSideR]}>{ctrlEl}</View>
+        </View>
       ) : (
         <>
           {topEl}
@@ -1274,10 +1089,8 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
       ) : (
         <>
           <ResultCard visible={!!result} res={result} spec={spec} last={lv >= LEVELS} onNext={next} onReplay={replay} onHub={() => acts.current.leave()} />
-          <FailCard visible={fail} uri={who[0]?.uri} onRetry={replay} onHub={() => acts.current.leave()} />
           <PauseCard
             visible={paused}
-            clock={spec.clock}
             onResume={() => acts.current.resume()}
             onRestart={() => {
               setPaused(false);
@@ -1301,28 +1114,9 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   hud: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 6 },
   titleBox: { flex: 1, minWidth: 0 },
-  gameName: { fontFamily: F.display, fontSize: 13, letterSpacing: 1, color: '#8a3a0e' },
-  row6: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  levelText: { fontFamily: F.display, fontSize: 21, color: '#ffffff', textShadowColor: INK, textShadowOffset: { width: 0, height: 2.5 }, textShadowRadius: 1, includeFontPadding: false },
   challenge: { paddingHorizontal: 7, paddingVertical: 1, borderRadius: 999, borderWidth: 2, borderColor: '#ffffff' },
   challengeText: { fontFamily: F.display, fontSize: 10, letterSpacing: 0.6, color: '#ffffff' },
-  movesPill: { alignItems: 'center', minWidth: 64, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 16, backgroundColor: 'rgba(107,68,38,0.5)', borderWidth: 2.5, borderColor: '#ffffff' },
-  movesLabel: { fontFamily: F.display, fontSize: 10, letterSpacing: 1, color: '#ffffff' },
-  movesNum: { fontFamily: F.display, fontSize: 22, color: '#ffe045', includeFontPadding: false, fontVariant: ['tabular-nums'] },
   info: { flexDirection: 'row', alignItems: 'stretch', gap: 10, paddingHorizontal: 14, marginTop: 8, minHeight: 72 },
-  infoRight: { flex: 1, minWidth: 0, justifyContent: 'center', gap: 6 },
-  meterRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  meter: { flexDirection: 'row', alignItems: 'flex-start', gap: 1 },
-  parPill: { paddingHorizontal: 10, paddingVertical: 2, borderRadius: 999, backgroundColor: '#ffffff', borderWidth: 2.5, borderColor: '#ffd23a' },
-  parText: { fontFamily: F.display, fontSize: 13, color: '#b86200', letterSpacing: 0.6 },
-  clockRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  clockText: { minWidth: 40, fontFamily: F.display, fontSize: 14, color: INK, fontVariant: ['tabular-nums'] },
-  tip: { fontFamily: F.heavy, fontSize: 12.5, lineHeight: 16, color: INK },
-  blitzRule: { fontFamily: F.heavy, fontSize: 11.5, color: INK },
-  ruleRow: { flexDirection: 'row' },
-  scorePill: { flexDirection: 'row', gap: 10, minWidth: 0 },
-  scoreCol: { alignItems: 'center' },
-  bestNum: { color: '#ffffff' },
   gold: { color: '#ffd23a' },
   // the cards sit at elevation 50 (squishdoku/Overlays.js)
   fxTop: { zIndex: 60, elevation: 60 },
@@ -1330,26 +1124,23 @@ const styles = StyleSheet.create({
   // landscape (REDESIGN_V8)
   wRow: { flex: 1, flexDirection: 'row' },
   wSide: { width: 150 },
-  wRight: { width: 150, justifyContent: 'center' },
-  // landscape's top row: the back button at the left; the level in the middle, a pill each side of it
-  wHead: { height: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 64, marginTop: 4, gap: 12 },
-  wBack: { position: 'absolute', left: 12, top: 4 },
-  wGroup: { flex: 1, flexDirection: 'row' },
-  wGroupL: { justifyContent: 'flex-end' },
-  wGroupR: { justifyContent: 'flex-start' },
-  wTitle: { alignItems: 'center', gap: 1 },
-  wPill: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, backgroundColor: 'rgba(91,58,41,0.75)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)' },
+  // the counter (both ways up): MOVES n / par, the tier; Blitz: cleared, best, the rule
+  counter: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 3, borderRadius: 16, backgroundColor: 'rgba(91,58,41,0.75)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)' },
   stat: { alignItems: 'center', minWidth: 44 },
   statLabel: { fontFamily: F.display, fontSize: 9.5, letterSpacing: 1, color: '#ffe6c2', includeFontPadding: false },
   statNum: { fontFamily: F.display, fontSize: 21, color: '#ffe045', includeFontPadding: false, fontVariant: ['tabular-nums'] },
-  wClock: { width: 96, gap: 2 },
-  wClockText: { fontFamily: F.display, fontSize: 15, color: '#ffffff', textAlign: 'center', includeFontPadding: false, fontVariant: ['tabular-nums'] },
-  wClockBar: { flexDirection: 'row' },
-  wHud: { flexWrap: 'wrap', rowGap: 6, paddingHorizontal: 12 },
-  wTitleBox: { flexBasis: 150 },
-  wInfo: { flexDirection: 'column', paddingHorizontal: 12 },
-  wControls: { flexDirection: 'column', alignItems: 'stretch', paddingHorizontal: 14, gap: 10 },
-  rug: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)', borderStyle: 'dashed' },
+  countLine: { includeFontPadding: false },
+  countNum: { fontFamily: F.display, fontSize: 22, color: '#ffe045', fontVariant: ['tabular-nums'] },
+  countOver: { color: '#ff8fa3' },
+  countPar: { fontFamily: F.display, fontSize: 16, color: '#ffe6c2', fontVariant: ['tabular-nums'] },
+  // sideways: two side columns of the same width, the counter and the cushions between them
+  wSide: { width: 200, paddingHorizontal: 12, paddingTop: 6, paddingBottom: 10, alignItems: 'flex-start' },
+  wSideR: { alignItems: 'flex-end', justifyContent: 'flex-end' },
+  wCounterRow: { alignItems: 'center', paddingTop: 6 },
+  wCtrlFace: { paddingHorizontal: 10, paddingVertical: 10 },
+  wControls: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 0, paddingTop: 0, paddingBottom: 0, gap: 8 },
+  // (no dashed outline: the user, 2026-11-16)
+  rug: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.16)' },
   colGlow: { position: 'absolute', top: 0, bottom: 0, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.16)' },
   seat: { position: 'absolute' },
   halo: { position: 'absolute', left: -10, right: -10, top: -9, bottom: -6 },

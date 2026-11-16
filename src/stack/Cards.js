@@ -3,12 +3,12 @@ import { StyleSheet, Text, View } from 'react-native';
 import OutlinedTitle from '../components/candy/OutlinedTitle';
 import { CoinIcon } from '../squad/ui';
 import sfx from '../audio/sfx';
-import { CountUp, PopIn, Rock, SlideIn } from '../squishdoku/fx';
+import { CountUp, PopIn, SlideIn } from '../squishdoku/fx';
 import { Overlay, Split, XpGain, XpPlus } from '../squishdoku/Overlays';
-import { BtnLabel, Head, SdButton } from '../squishdoku/ui';
+import { BtnLabel, SdButton } from '../squishdoku/ui';
 import { F, INK } from '../squishdoku/theme';
 import { Star } from '../sort/Cards';
-import { CLOCK_FROM, PICTURE_FROM, TIER_NAMES } from './levels';
+import { PICTURE_FROM, TIER_NAMES } from './levels';
 
 // Squish Stack's cards over the game: the win (stars popping in one by one,
 // coins counting up), time's up, pause, the hint offer, and how to play.
@@ -77,36 +77,6 @@ export function ResultCard({ visible, res, spec, last, onNext, onReplay, onHub }
   );
 }
 
-// The clock ran out.
-export function FailCard({ visible, uri, onRetry, onHub }) {
-  return (
-    <Overlay visible={visible} tint="rgba(80,0,30,0.5)">
-      <PopIn trigger={visible} delay={60}>
-        <OutlinedTitle text="TIME'S UP!" size={32} fill="gold" />
-      </PopIn>
-      <PopIn trigger={visible} delay={220}>
-        <Rock deg={8} ms={1800}>
-          <Head uri={uri} size={86} dim ring="#ffffff" bg="#efe9f5" />
-        </Rock>
-      </PopIn>
-      <Split />
-      <Text style={styles.body}>The clock ran out before the stack was done. Try again!</Text>
-      <SlideIn trigger={visible} delay={380} style={styles.btnRow}>
-        <SdButton kind="white" onPress={onHub} sound="sd_select" faceStyle={styles.smallFace}>
-          <BtnLabel kind="white" size={15}>
-            MENU
-          </BtnLabel>
-        </SdButton>
-        <SdButton kind="pink" onPress={onRetry} sound="sd_select" faceStyle={styles.bigFace}>
-          <BtnLabel kind="pink" size={18}>
-            RETRY
-          </BtnLabel>
-        </SdButton>
-      </SlideIn>
-    </Overlay>
-  );
-}
-
 export function PauseCard({ visible, clock, onResume, onRestart, onQuit }) {
   return (
     <Overlay visible={visible} column>
@@ -165,7 +135,6 @@ const RULES = [
 ];
 const LATER = [
   ['GOAL CARD', `From level ${PICTURE_FROM}: match a picture, not just one tower.`],
-  ['CLOCK', `From level ${CLOCK_FROM}: finish before the time runs out.`],
   ['4 CUSHIONS', 'Later on, an extra cushion and more squishies.'],
 ];
 
@@ -200,7 +169,7 @@ export function RulesCard({ visible, onClose }) {
       </Text>
       <Text style={styles.twist}>
         <Text style={[styles.twistName, { color: '#0c5a9c' }]}>{'BLITZ MODE  '}</Text>
-        Puzzle after puzzle, each on its own short clock. A big one on a smaller one, or a clock running out, is GAME OVER, unless you save the run.
+        Puzzle after puzzle, no clock. A big one on a smaller one is GAME OVER, unless you save the run.
       </Text>
       <SdButton kind="green" onPress={onClose} sound="sd_select" faceStyle={styles.bigFace} style={{ marginTop: 8 }}>
         <BtnLabel kind="green" size={18}>

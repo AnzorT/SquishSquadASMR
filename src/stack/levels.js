@@ -35,11 +35,12 @@ export const TIER_COLORS = ['#3ddc97', '#5fb8ff', '#ff8a4a', '#e01e4a'];
 const TOWERS = [1, 4, 22, 29];
 // the goal card's first level (before it, every goal is one ★ cushion)
 export const PICTURE_FROM = 9;
-// "for a certain level it will start a timer" (the user, 2026-10-24)
-export const CLOCK_FROM = 15;
+// No clock any more (the user, 2026-11-16: "no need for timer here, also not in blitz"). From 2026-10-24 every level
+// from 15 had one; those levels keep the +4 coins it added (coinsFor), so the pay stays the same.
+export const LATE_FROM = 15;
 
 // Level `lv` (1-50) at a skill: { lv, band, n, k, tier, baseTier, start,
-// goal, par, clock, news }.
+// goal, par, news }.
 //   start  'tower' or 'scrambled' (engine.makePuzzle)
 //   goal   'star' (everyone on one cushion) or 'picture' (the goal card)
 //   news   what's new on this level, said before it starts
@@ -52,7 +53,6 @@ export function levelSpec(lv, skill = 0) {
   const picture = !tower && L >= PICTURE_FROM && (tier >= 2 || (tier === 1 && L % 2 === 1));
   let news = null;
   if (L === PICTURE_FROM) news = 'picture';
-  else if (L === CLOCK_FROM) news = 'clock';
   else if (L > 1 && b.k > LEVEL_LIST[L - 2].k) news = 'cushion';
   return {
     lv: L,
@@ -64,17 +64,8 @@ export function levelSpec(lv, skill = 0) {
     start: tower ? 'tower' : 'scrambled',
     goal: tower ? 'star' : picture ? 'picture' : 'star',
     par: band.par[tier],
-    clock: L >= CLOCK_FROM,
     news,
   };
-}
-
-// The clock for a puzzle whose best answer is `par` moves: generous, but it
-// runs out (thinking time up front, then a few seconds a move).
-export function limitFor(spec, par) {
-  if (!spec.clock) return 0;
-  const s = 20 + par * (spec.tier >= 2 ? 3 : 3.6);
-  return Math.ceil(s / 5) * 5 * 1000;
 }
 
 // --- adaptive difficulty -------------------------------------------------------
@@ -106,7 +97,7 @@ export function starsFor(par, { moves, hinted }) {
 
 const STAR_MULT = [0, 1, 1.5, 2];
 export function coinsFor(spec, par, stars) {
-  const base = 6 + 2 * spec.n + 0.6 * par + (spec.goal === 'picture' ? 3 : 0) + (spec.clock ? 4 : 0);
+  const base = 6 + 2 * spec.n + 0.6 * par + (spec.goal === 'picture' ? 3 : 0) + (spec.lv >= LATE_FROM && !spec.round ? 4 : 0);
   return Math.round(base * STAR_MULT[stars] * (1 + 0.15 * spec.tier));
 }
 
@@ -119,12 +110,13 @@ export function xpFor(spec, stars) {
 // --- Blitz -----------------------------------------------------------------------
 //
 // BLITZ MODE (2026-11-16, the user: "the same thing" as Squishdoku's): no more
-// ten puzzles on one 4:00 clock. A run goes on puzzle after puzzle, each on
-// its own short clock, until a mistake (a big one dropped on a smaller one)
-// or a clock running out ends it: GAME OVER, unless the player saves it, with
-// a rewarded ad (once a run) or with gems (functions/squad.js blitzSave: 10,
-// then 20, 40 …). Every puzzle cleared pays. The record is the most puzzles
-// cleared in one run (`stack.blitz.top`). No hints; UNDO and RESTART work.
+// ten puzzles on one 4:00 clock. A run goes on puzzle after puzzle, with no
+// clock (the user, later the same day: "no need for timer … also not in
+// blitz"), until a mistake (a big one dropped on a smaller one) ends it:
+// GAME OVER, unless the player saves it, with a rewarded ad (once a run) or
+// with gems (functions/squad.js blitzSave: 10, then 20, 40 …). Every puzzle
+// cleared pays. The record is the most puzzles cleared in one run
+// (`stack.blitz.top`). No hints; RESTART works.
 
 // the climb: from 3 squishies on 3 cushions to 7 on 4, all scrambled, some
 // with a goal card (the first Blitz's ten puzzles)
@@ -151,7 +143,7 @@ export const BLITZ_COINS = { 3: 30, 4: 45, 5: 60, 6: 80, 7: 100, 8: 120 };
 
 // Puzzle i of a run (0 = the first) at the Blitz skill, as a level spec
 // (engine.makePuzzle): a skill step moves its par range 2 moves either way.
-// `past`: how far beyond the climb it is (each clock is 3% shorter for it).
+// `past`: how far beyond the climb it is.
 export function blitzSpec(i, skill = 0) {
   const past = Math.max(0, i - BLITZ_RAMP.length + 1);
   const b = i < BLITZ_RAMP.length ? BLITZ_RAMP[i] : { ...BLITZ_PAST[past <= 5 ? 0 : 1], goal: i % 2 ? 'picture' : 'star' };
@@ -167,19 +159,9 @@ export function blitzSpec(i, skill = 0) {
     start: 'scrambled',
     goal: b.goal || 'star',
     par: [Math.max(2, b.par[0] + 2 * shift), b.par[1] + 2 * shift],
-    clock: false,
     news: null,
     past,
   };
-}
-
-// A Blitz puzzle's clock, for its best answer of `par` moves: 6 s to look,
-// then 2.4 s a move (well under Regular's 20 s + 3.6 s a move), whole seconds;
-// past the climb each puzzle's is 3% shorter than the last, down to three
-// quarters.
-export function blitzLimit(spec, par) {
-  const s = (6 + 2.4 * par) * Math.max(0.75, 1 - 0.03 * (spec.past || 0));
-  return Math.ceil(s) * 1000;
 }
 
 // What `cleared` puzzles pay: their coins, and the player's XP (config/levels

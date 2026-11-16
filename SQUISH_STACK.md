@@ -158,3 +158,17 @@ They chose the hub **and** the endless Blitz (not the hub alone).
   countdown, puzzle 1 solved and puzzle 2 with its own clock, TOO BIG opening the save card, the free save carrying
   on, TIME'S UP without the used ad button, END RUN with +30 coins and +20 XP; and Regular level 5 to PERFECT STACK.
   The gem save wasn't tried (it calls the server). Not checked on a phone.
+
+## No clock, no UNDO, the new level screen (2026-11-16)
+
+The user's marked-up screenshots of a level:
+- "remove undo button": the level has RESTART and HINT (Blitz: RESTART).
+- "no need for timer here, also not in blitz": **no clock at all.** Regular levels from 15 used to have one (and a
+  TIME'S UP card); they keep the +4 coins it added (`LATE_FROM`), so the pay is the same. Blitz has no per-puzzle
+  clock either: a run ends only on a mistake (big on small), which can be saved as before. `limitFor`, `blitzLimit`
+  and the "BEAT THE CLOCK!" news are gone.
+- "remove level 49, squish stack text", "remove the 3 stars themselves", the moves and par as "my attempt / attempts for
+  3 stars": the counter at the top in the middle reads MOVES 5 / 24 (red once past the par) with the tier beside it.
+- "put the goal at the bottom left", "the 2 buttons put them at the bottom on the same row": the goal card bottom left,
+  RESTART and HINT side by side bottom right.
+- "remove the dashed lines": the dashed outline round the cushions is gone (its soft glow stays).

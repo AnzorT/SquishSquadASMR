@@ -300,7 +300,7 @@ const coinsAt = (res) => 420 + 3 * 520 + (res.perfect ? 600 : 100);
 // The clock ran out, or (`hearts`: the hearts were all lost) the mistakes did.
 export function TimeUpCard({ visible, onRetry, onMap, uri, hearts = 0 }) {
   return (
-    <Overlay visible={visible} tint="rgba(80,0,30,0.5)">
+    <Overlay visible={visible} tint="rgba(80,0,30,0.5)" column>
       <PopIn trigger={visible} delay={60}>
         <OutlinedTitle text={hearts ? 'OUT OF HEARTS!' : "TIME'S UP!"} size={hearts ? 28 : 32} fill="pink" />
       </PopIn>
@@ -312,11 +312,11 @@ export function TimeUpCard({ visible, onRetry, onMap, uri, hearts = 0 }) {
       <Split />
       <Text style={styles.body}>{hearts ? `${hearts} mistakes. The same board is waiting: think it through and try again!` : 'The same board is waiting. Try it again!'}</Text>
       <SlideIn trigger={visible} delay={380} style={styles.btnRow}>
-        <SdButton kind="white" onPress={onMap} sound="sd_select" faceStyle={styles.smallFace}>
-          <BtnLabel kind="white" size={15}>MAP</BtnLabel>
+        <SdButton kind="white" onPress={onMap} sound="sd_select" faceStyle={styles.pairFace}>
+          <BtnLabel kind="white" size={17}>MAP</BtnLabel>
         </SdButton>
-        <SdButton kind="pink" onPress={onRetry} sound="sd_select" faceStyle={styles.bigFace}>
-          <BtnLabel kind="pink" size={18}>RETRY</BtnLabel>
+        <SdButton kind="gold" onPress={onRetry} sound="sd_select" faceStyle={styles.pairFace}>
+          <BtnLabel kind="gold" size={17}>RETRY</BtnLabel>
         </SdButton>
       </SlideIn>
     </Overlay>
@@ -551,6 +551,8 @@ const styles = StyleSheet.create({
   col: { alignSelf: 'stretch', gap: 4, marginTop: 6 },
   smallFace: { paddingHorizontal: 14, paddingVertical: 10 },
   bigFace: { paddingHorizontal: 22, paddingVertical: 12 },
+  // a fail card's two buttons (MENU / MAP / UNDO and RETRY): the same size, RETRY in the app's gold (the user, 2026-11-16)
+  pairFace: { width: 150, paddingVertical: 11, paddingHorizontal: 8 },
   wideFace: { paddingVertical: 12 },
   body: { fontFamily: F.heavy, fontSize: 14, color: INK, textAlign: 'center', paddingHorizontal: 6 },
   small: { fontFamily: F.bold, fontSize: 12, color: '#9a6a3a', textAlign: 'center' },
