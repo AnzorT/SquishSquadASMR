@@ -91,17 +91,15 @@ static page with no login: e.g. a private claude.ai artifact (`page.html` is the
 - **Google, Facebook and TikTok sign-in.** The `oauth` function sends the player back to
   `com.plushcrush.app://auth`, which a browser can't open. It needs a web return address: an allowed list of
   origins in `functions/oauth.js`, plus a deploy.
-- **Putting it online.** `npx expo export -p web` builds the app into `dist/`. Hosting it also needs three things:
-  - `android/app/src/main/assets` copied to `dist/android_asset/`, with the start line added to each page (Metro adds
-    it today).
-  - CORS on the Storage bucket, replacing the `/__fbstorage/` relay. The `gcloud` CLI isn't installed on this PC.
-    With it:
-    ```
-    gcloud storage buckets update gs://squishy-app-61445.firebasestorage.app --cors-file=cors.json
-    ```
-    where `cors.json` is:
-    ```json
-    [{ "origin": ["https://your-site"], "method": ["GET"], "maxAgeSeconds": 3600 }]
-    ```
-  - The site's domain added in Firebase Console → Authentication → Settings → Authorized domains.
+- **Putting it online** (Firebase Hosting, set up 2026-11-16; not deployed yet):
+  1. `node tools/web/host.mjs` builds the whole app into `dist/`: the menu's pages, the web version, and the pages the
+     app opens from its APK at `dist/android_asset/` with their start line (`src/web/frameHook.js`).
+  2. `firebase deploy --only hosting` puts it at https://squishy-app-61445.web.app (`firebase.json` `hosting`).
+     Firebase's own `web.app` and `firebaseapp.com` addresses are already allowed to sign in.
+  3. Once: let those sites read Storage, for the 3D squishies and the creature art drawn in WebGL (`cors.json`; the
+     hosted app goes to Storage directly, only the dev server has the `/__fbstorage/` relay). With the `gcloud` CLI,
+     or in the Google Cloud console's Cloud Shell:
+     ```
+     gcloud storage buckets update gs://squishy-app-61445.firebasestorage.app --cors-file=cors.json
+     ```
 - **Purchases** can't work in a browser through Google Play.

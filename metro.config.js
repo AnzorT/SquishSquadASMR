@@ -67,8 +67,7 @@ const MIME = {
   '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.otf': 'font/otf', '.glb': 'model/gltf-binary',
   '.riv': 'application/octet-stream', '.wasm': 'application/wasm', '.txt': 'text/plain; charset=utf-8',
 };
-const FRAME_HOOK =
-  '<script>(function(){try{var p=window.parent,f=window.frameElement;if(f&&p!==window&&p.__rnwFrame)p.__rnwFrame(window,f)}catch(e){}})();</script>';
+const FRAME_HOOK = require('./src/web/frameHook.js');
 function serveAsset(req, res, next) {
   if (!req.url.startsWith('/android_asset/')) return next();
   let rel;

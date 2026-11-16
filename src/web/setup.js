@@ -110,11 +110,13 @@ window.addEventListener('scroll', () => {
   }, { passive: false, capture: true });
 })();
 
-// Firebase Storage sends no CORS headers, so the creature art a WebGL texture needs (an image asked for with
-// crossOrigin) and the 3D models the app fetches come through the dev server (/__fbstorage/, metro.config.js).
-// A plain image on a screen needs no CORS and still loads from Storage directly.
+// Firebase Storage sends no CORS headers unless the bucket is set up for the site (cors.json), so in development the
+// creature art a WebGL texture needs (an image asked for with crossOrigin) and the 3D models the app fetches come
+// through the dev server (/__fbstorage/, metro.config.js). A plain image on a screen needs no CORS and still loads
+// from Storage directly. The hosted build (tools/web/host.mjs) has no dev server: it goes to Storage, whose CORS
+// lets its sites in.
 const STORAGE = 'https://firebasestorage.googleapis.com/';
-const viaServer = (u) => (typeof u === 'string' && u.startsWith(STORAGE) ? `/__fbstorage/${u.slice(STORAGE.length)}` : u);
+const viaServer = (u) => (__DEV__ && typeof u === 'string' && u.startsWith(STORAGE) ? `/__fbstorage/${u.slice(STORAGE.length)}` : u);
 const realFetch = window.fetch.bind(window);
 window.fetch = (input, init) => realFetch(typeof input === 'string' ? viaServer(input) : input, init);
 const srcProp = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
