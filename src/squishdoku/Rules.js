@@ -62,8 +62,8 @@ export default function RulesCard({ visible, roster, onClose }) {
     </SlideIn>
   ));
   const ok = (
-    <SdButton key="ok" kind="green" onPress={onClose} sound="sd_select" faceStyle={{ paddingHorizontal: 30, paddingVertical: wide ? 9 : 11 }} style={{ marginTop: 4 }}>
-      <BtnLabel kind="green" size={18}>
+    <SdButton key="ok" kind="gold" onPress={onClose} sound="sd_select" faceStyle={{ paddingHorizontal: 30, paddingVertical: wide ? 9 : 11 }} style={{ marginTop: 4 }}>
+      <BtnLabel kind="gold" size={18}>
         GOT IT!
       </BtnLabel>
     </SdButton>

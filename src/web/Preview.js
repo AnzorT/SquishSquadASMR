@@ -19,6 +19,10 @@ import VerifyEmailScreen from '../screens/VerifyEmailScreen';
 import VaultLoader from '../components/VaultLoader';
 import StackScreen from '../screens/StackScreen';
 import HopScreen from '../screens/HopScreen';
+import SquishdokuScreen from '../screens/SquishdokuScreen';
+import SortScreen from '../screens/SortScreen';
+import { Asset } from 'expo-asset';
+import { BY_ID } from '../squad/data';
 import StackGame from '../stack/Game';
 import HopGame from '../hop/Game';
 import STACK_ART from '../stack/art';
@@ -40,6 +44,20 @@ const uris = [null, null, null];
 const CAST = Object.entries(STACK_ART)
   .slice(0, 12)
   .map(([key, a], i) => ({ id: key, key, uri: null, source: a.src, ar: a.ar, box: [0, 0, 1, 1], mine: i < 3 }));
+// the roster as Firestore gives it ({ id, thumb: { url } }), from the creatures with a bundled cut-out: the four games'
+// whole screens run on it (screen-sd, screen-sort, screen-stack, screen-hop), with some progress on the profile
+const CREATURES = Object.entries(BY_ID)
+  .filter(([, d]) => STACK_ART[d.key] && !d.pass)
+  .map(([id, d]) => ({ id, thumb: { url: Asset.fromModule(STACK_ART[d.key].src).uri } }));
+const PROFILE = {
+  gems: 120,
+  ownedIds: CREATURES.slice(0, 10).map((c) => c.id),
+  sdk: { lv: 25, blitz: { top: 12 } },
+  sort: { seen: true, fridge: { lv: 6 }, cupboard: { lv: 3 }, blitz: { reached: 4 } },
+  stack: { lv: 23, seen: true, blitz: { top: 14 } },
+  hop: { lv: 37, seen: true, blitz: { top: 6 } },
+};
+const screen = (Screen) => () => <Screen profile={PROFILE} creatures={CREATURES} uid={null} adsFree onBack={noop} />;
 const over = { cleared: 7, best: 9, coins: 420, xp: 140, newTop: false, levelUps: [], before, after: { level: 6, into: 700 - 1, need: 700 } };
 
 // the chest smash's loading screen on its own: the page "paints" after `ms` (?ms=…, 4500 by default), then it plays
@@ -80,6 +98,12 @@ const CARDS = {
   'hop-pause': (v) => <HOP.PauseCard visible={v} onResume={noop} onRestart={noop} onQuit={noop} />,
   'hop-hint': (v) => <HOP.HintCard visible={v} adReady onWatch={noop} onClose={noop} />,
   'hop-rules': (v) => <HOP.RulesCard visible={v} onClose={noop} />,
+  'screen-sd': screen(SquishdokuScreen),
+  'screen-sort': screen(SortScreen),
+  'screen-stack': screen(StackScreen),
+  'screen-hop': screen(HopScreen),
+  'sd-save': (v) => <SD.BlitzSaveCard visible={v} reason="mistake" board={5} cleared={4} adReady gems={35} price={10} onAd={noop} onGems={noop} onEnd={noop} />,
+  'sd-over': (v) => <SD.BlitzOverCard visible={v} res={over} onAgain={noop} onQuit={noop} />,
   // BLITZ MODE's save and GAME OVER cards, as Squish Stack and Squish Hop say them
   'stack-save': (v) => <SD.BlitzSaveCard visible={v} unit="puzzle" reason="mistake" board={6} cleared={5} adReady gems={35} price={20} onAd={noop} onGems={noop} onEnd={noop} />,
   'stack-over': (v) => <SD.BlitzOverCard visible={v} unit="puzzle" res={over} onAgain={noop} onQuit={noop} />,

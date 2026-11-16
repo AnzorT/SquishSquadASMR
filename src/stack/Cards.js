@@ -127,7 +127,7 @@ const RULES = [
   ['1', 'Lift', "Tap a cushion to lift the squishy on top. Or drag it."],
   ['2', 'Stack', 'Tap another cushion to put it there. A big squishy can never sit on a smaller one!'],
   ['3', 'Goal', 'Get everyone onto the ★ cushion, or make the cushions look like the GOAL card.'],
-  ['★', 'Par', 'Use the fewest moves there are for 3 stars. The meter shows what you can still get.'],
+  ['★', 'Par', 'MOVES 5 / 7 at the top: your moves, and the most for 3 stars.'],
 ];
 const LATER = [
   ['GOAL CARD', `From level ${PICTURE_FROM}: match a picture, not just one tower.`],
@@ -167,8 +167,8 @@ export function RulesCard({ visible, onClose }) {
         <Text style={[styles.twistName, { color: '#0c5a9c' }]}>{'BLITZ MODE  '}</Text>
         Puzzle after puzzle, no clock. A big one on a smaller one is GAME OVER, unless you save the run.
       </Text>
-      <SdButton kind="green" onPress={onClose} sound="sd_select" faceStyle={styles.bigFace} style={{ marginTop: 8 }}>
-        <BtnLabel kind="green" size={18}>
+      <SdButton kind="gold" onPress={onClose} sound="sd_select" faceStyle={styles.bigFace} style={{ marginTop: 8 }}>
+        <BtnLabel kind="gold" size={18}>
           GOT IT!
         </BtnLabel>
       </SdButton>

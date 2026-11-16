@@ -216,8 +216,8 @@ export function RulesCard({ visible, onClose }) {
         <Text style={[styles.twistName, { color: '#0c5a9c' }]}>{'BLITZ ⚡  '}</Text>
         {`${BLITZ_ROUNDS} rounds on one clock that runs while you sort. One mistake and it's back to round 1 (one revive per run).`}
       </Text>
-      <SdButton kind="green" onPress={onClose} sound="sd_select" faceStyle={styles.bigFace} style={{ marginTop: 8 }}>
-        <BtnLabel kind="green" size={18}>
+      <SdButton kind="gold" onPress={onClose} sound="sd_select" faceStyle={styles.bigFace} style={{ marginTop: 8 }}>
+        <BtnLabel kind="gold" size={18}>
           GOT IT!
         </BtnLabel>
       </SdButton>

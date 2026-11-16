@@ -217,8 +217,8 @@ export function RulesCard({ visible, onClose }) {
         <Text style={[styles.twistName, { color: '#0c5a9c' }]}>{'BLITZ MODE  '}</Text>
         Fresh boards on short clocks. A wrong hop is GAME OVER, unless you save the run.
       </Text>
-      <SdButton kind="green" onPress={onClose} sound="sd_select" faceStyle={styles.bigFace} style={{ marginTop: 8 }}>
-        <BtnLabel kind="green" size={18}>
+      <SdButton kind="gold" onPress={onClose} sound="sd_select" faceStyle={styles.bigFace} style={{ marginTop: 8 }}>
+        <BtnLabel kind="gold" size={18}>
           GOT IT!
         </BtnLabel>
       </SdButton>
