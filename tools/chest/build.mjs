@@ -2,7 +2,7 @@
 // two fonts it uses into the Android assets, where src/components/ChestSmash.js loads them
 // (file:///android_asset/chest/host.html).
 // usage: node tools/chest/build.mjs   (re-run after a new design drop is unpacked in tools/design-v6)
-import { copyFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
+import { copyFileSync, mkdirSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,8 +21,9 @@ if (!existsSync(join(DESIGN, 'chest-models.js'))) throw new Error('unpack the de
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(join(OUT, 'fonts'), { recursive: true });
 copyFileSync(join(ROOT, 'tools', 'chest', 'host.html'), join(OUT, 'host.html'));
-// the vault room the chest stands in (tools/chest/vault-room.mjs)
-copyFileSync(join(ROOT, 'tools', 'chest', 'vault-room.jpg'), join(OUT, 'vault-room.jpg'));
+// the vault room the chest stands in, one per group (tools/chest/vault-room.mjs -> tools/chest/vault/<group>.webp)
+mkdirSync(join(OUT, 'vault'), { recursive: true });
+for (const f of readdirSync(join(ROOT, 'tools', 'chest', 'vault'))) if (f.endsWith('.webp') || f === 'spots.js') copyFileSync(join(ROOT, 'tools', 'chest', 'vault', f), join(OUT, 'vault', f));
 for (const f of SCRIPTS) copyFileSync(join(DESIGN, f), join(OUT, f));
 for (const [dir, f] of FONTS) copyFileSync(join(ROOT, 'node_modules', dir, f), join(OUT, 'fonts', f));
 console.log(`chest assets: host.html, ${SCRIPTS.length} scripts, ${FONTS.length} fonts -> ${OUT}`);

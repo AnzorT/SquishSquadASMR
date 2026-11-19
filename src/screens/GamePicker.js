@@ -12,7 +12,7 @@ import { PATCHES } from '../squishdoku/theme';
 import { headOf } from '../squishdoku/roster';
 import Tile from '../squishdoku/Tile';
 import { LEVELS, record } from '../squishdoku/levels';
-import { record as sortRecord } from '../sort/levels';
+import { LEVELS as SORT_LEVELS, record as sortRecord } from '../sort/levels';
 import { THEMES } from '../sort/themes';
 import { MiniContainer } from '../sort/Container';
 import { useDoorLoop } from '../sort/Hub';
@@ -436,7 +436,7 @@ function GamePicker({ visible, warm = false, profile, creatureName, creatureUri,
               ring="#a04a00"
               title="SQUISH SORT"
               lines={['Remember who sits where, then sort them back!']}
-              chips={[`FRIDGE LV ${srt.fridge.lv}`, `CUPBOARD LV ${srt.cupboard.lv}`, srt.blitz.reached ? `BLITZ ${srt.blitz.reached}/10` : 'BLITZ ⚡']}
+              chips={[`LEVEL ${srt.fridge.lv}/${SORT_LEVELS}`, ...(srt.blitz.top ? [`BLITZ BEST ${srt.blitz.top}`] : [])]}
               art={<SortArt uris={sortUris} />}
               onPress={pick('sort')}
             />

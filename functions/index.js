@@ -348,14 +348,17 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 //
 // Returns { already: true } if today's spin is used (or, for a bonus spin,
 // the day's video spin), otherwise the prize:
-// { index, kind: 'coins' | 'gems', amount, jackpot? }.
+// { index, kind: 'coins' | 'gems' | 'chest', amount, jackpot? } — a chest
+// (2026-11-17, one Common chest of today's first HOT group) is opened here
+// and comes with `size` and `chest`: the group chest's result, for the
+// app's chest smash (as a level road chest's).
 //
 // A profile that hasn't made a squad move yet gets its starting gems first
 // (squad.withStart), or a gems prize would stand in for them.
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { FieldValue } = require('firebase-admin/firestore');
-const { rollWheel, dayKey, spinOutcome, spinAllowed } = require('./dailySpin');
-const { withStart } = require('./squad');
+const { rollWheel, isChest, dayKey, spinOutcome, spinAllowed } = require('./dailySpin');
+const { withStart, hiddenOf, outIds, setRewardsOf, copiesOf, rainbowOf } = require('./squad');
 
 exports.spinWheel = onCall(async (request) => {
   const uid = request.auth && request.auth.uid;
@@ -364,6 +367,21 @@ exports.spinWheel = onCall(async (request) => {
   const day = dayKey(Date.now(), request.data && request.data.tzOffsetMinutes);
   const bonus = !!(request.data && request.data.bonus);
   const index = rollWheel();
+  // the chest slice: what a squad chest move reads first (the creatures with
+  // art that are out, and config/roster)
+  let chestArgs = {};
+  if (isChest(index)) {
+    const [artSnap, rosterSnap] = await Promise.all([db.collection('creatures').select().get(), db.collection('config').doc('roster').get()]);
+    const rosterCfg = rosterSnap.exists ? rosterSnap.data() : null;
+    const hidden = hiddenOf(rosterCfg);
+    chestArgs = {
+      hidden,
+      artIds: outIds(artSnap.docs.map((d) => d.id).filter((id) => /^\d+$/.test(id)), hidden),
+      setRewards: setRewardsOf(rosterCfg),
+      need: copiesOf(rosterCfg),
+      rainbow: rainbowOf(rosterCfg),
+    };
+  }
 
   const userRef = db.collection('users').doc(uid);
   return db.runTransaction(async (tx) => {
@@ -372,9 +390,10 @@ exports.spinWheel = onCall(async (request) => {
     const allowed = spinAllowed(snap.data(), day, bonus);
     if (!allowed) return { already: true, day, bonus };
 
-    const { result, changes } = spinOutcome({ day, index });
     const begun = withStart(snap.data());
-    const update = { ...begun.set, ...allowed, spins: FieldValue.increment(changes.spins) };
+    const { result, changes } = spinOutcome({ day, index, p: begun.p, chestArgs });
+    // (a chest's fields first: whole values, as the squad moves write them)
+    const update = { ...begun.set, ...(changes.set || {}), ...allowed, spins: FieldValue.increment(changes.spins) };
     if (changes.coins) {
       update.coins = FieldValue.increment(changes.coins);
       update.totalEarned = FieldValue.increment(changes.coins);

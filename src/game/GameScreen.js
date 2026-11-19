@@ -24,7 +24,10 @@ const toJs = (v) => JSON.stringify(v).split(LS).join('\\u2028').split(PS).join('
 // onClaim({ lv, all }): a Level Pass claim; resolves { ok, error } or { road: true } (a chest: the app opened its level road).
 // onAsk(what, payload): a page's request (App.ask in webgame/app/bridge.js); resolves its result, rejects with an error code.
 // page: { name, opts? } — open that menu page (a new object each time it should open).
-export default function GameScreen({ uid, player, startScreen = 'menu', onStarted, wantHouse, onHouseShown, onShop, onSettings, onAchievements, onPlay, onSelect, onClaim, onAsk, page }) {
+// intro: play the game intro when the menu first shows (webgame/app/intro.js; App.js asks once a launch);
+// onIntro('start' | 'awake' | 'done'): the page started it, Mittens was squished the third time (App.js starts the
+// music), or it's over (finished, skipped, or it couldn't play).
+export default function GameScreen({ uid, player, startScreen = 'menu', onStarted, wantHouse, onHouseShown, onShop, onSettings, onAchievements, onPlay, onSelect, onClaim, onAsk, page, intro = false, onIntro }) {
   const web = useRef(null);
   const ready = useRef(false);
   const queue = useRef([]);
@@ -66,7 +69,7 @@ export default function GameScreen({ uid, player, startScreen = 'menu', onStarte
   const state = player;
   const startRef = useRef(null);
   if (!startRef.current && house !== undefined && config) {
-    startRef.current = { screen: startScreen === 'park' ? 'park' : 'menu', state: { ...state, house: house || undefined }, config };
+    startRef.current = { screen: startScreen === 'park' ? 'park' : 'menu', intro: !!intro && startScreen !== 'park', state: { ...state, house: house || undefined }, config };
   }
   const start = startRef.current;
   useEffect(() => {
@@ -160,6 +163,9 @@ export default function GameScreen({ uid, player, startScreen = 'menu', onStarte
         case 'select':
           onSelect && onSelect(p.key);
           break;
+        case 'intro':
+          onIntro && onIntro(p.phase);
+          break;
         case 'backUnhandled':
           BackHandler.exitApp();
           break;
@@ -170,7 +176,7 @@ export default function GameScreen({ uid, player, startScreen = 'menu', onStarte
           break;
       }
     },
-    [uid, send, meter, onShop, onSettings, onAchievements, onPlay, onSelect, onClaim, onAsk]
+    [uid, send, meter, onShop, onSettings, onAchievements, onPlay, onSelect, onClaim, onAsk, onIntro]
   );
 
   // the page's process died (low memory): start it again

@@ -11,7 +11,7 @@
 //   after       { [piece]: { kind: 'slot' | 'tray', i } } — where each one is
 //               once the doors open again: the mixed-up ones inside, in
 //               the wrong spots; the rest tumbled out into the tray
-//   foodBefore  { [slot]: kind } — the clutter (food, toys) during the peek
+//   foodBefore  { [slot]: kind } — the clutter (food) during the peek
 //   foodAfter   { [slot]: kind } — the same clutter, moved about by the
 //               shake: never on a squishy's spot, but anywhere else, so it
 //               can't be used to remember by

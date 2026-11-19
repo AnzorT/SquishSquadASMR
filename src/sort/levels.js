@@ -2,7 +2,7 @@
 // and the profile's `sort` record they're saved in. Pure functions: the
 // screen writes what they return.
 //
-// Like Squishdoku: each container (the fridge, the toy cupboard) has 50
+// Like Squishdoku: the fridge (only the fridge since 2026-11-17) has 50
 // levels in bands of one size (shelves × spots per shelf) across seven
 // models, small to very very large (models.js), and each level
 // asks for a difficulty tier (0 easy, 1 medium, 2 hard, 3 expert) that
@@ -64,7 +64,7 @@ function twistsFor(lv, tier) {
 // cols, tier, baseTier, count, foods, decoys, swaps, mixed, peekMs,
 // limitMs, parMs }.
 //   count   squishies on the shelves: the band's, plus one per tier
-//   foods   the clutter (food in the fridge, toys in the cupboard): about
+//   foods   the clutter (food): about
 //           four in ten spots, more on harder tiers; it's moved about by
 //           the shake, so it's no landmark
 //   peekMs  ~5 s, a little more for many squishies, less on harder tiers
@@ -141,44 +141,68 @@ export function xpFor(spec, stars) {
 
 // --- Blitz -----------------------------------------------------------------------
 //
-// Ten rounds in a row (the user, 2026-10-24: "in the fridge game i also want
-// to have a blitz option", like Squishdoku's): the fridge and the toy
-// cupboard take turns, each round played like a Regular level from further
-// up the map. One clock for the run, running only while you sort (not
-// through the peek and the shake). One mistake ends the run; one revive per
-// run (an ad, free with Remove Ads).
+// BLITZ MODE (2026-11-17, the user: "its unlimited and it should behave like
+// the others, 1 fail means you failed it all"): no more ten rounds on one
+// clock with a revive. As in Squishdoku, Squish Stack and Squish Hop, a run
+// goes on round after round with no end, each round on its own clock (it
+// runs only while you sort, not through the peek and the shake). A mistake,
+// or the round's clock running out, stops the run: GAME OVER, unless the
+// player saves it with a rewarded ad (once a run) or gems (functions/squad.js
+// blitzSave: 10, then 20, 40 …). Every round cleared pays. The record is
+// the most rounds cleared in one run (`sort.blitz.top`). (The first Blitz,
+// 2026-10-24: the ten rounds below, one 5-minute clock, one revive.)
 
-const BLITZ_LEVELS = [2, 5, 8, 11, 14, 17, 20, 24, 28, 33];
-export const BLITZ_ROUNDS = BLITZ_LEVELS.length;
-// the rounds' 3-star times add up to about 3:45
-export const BLITZ_MS = 5 * 60 * 1000;
-export const BLITZ_COINS = 800;
-// a won run's XP: config/levels `xp.blitz.sort` (this by default)
-export const BLITZ_XP = 200;
+// the rounds climb as the first Blitz's ten did (Regular levels from further up the map, with their fridge, size,
+// twists and peek), on through the XXL fridge to the very very large one; then its eight-shelf levels in turn, for
+// good (the same size, hard and expert)
+const BLITZ_RAMP = [2, 5, 8, 11, 14, 17, 20, 24, 28, 33, 36, 39, 42];
+const BLITZ_LAST = [46, 47, 48, 49, 50];
+// a round's clock: a third more than the level's 3-star time, in whole seconds (the first Blitz's ten rounds had
+// 5 minutes for 3:45 of 3-star times). Past the climb each one is 3% shorter than the last, down to three quarters.
+// Always under Regular's clock for the same level (board.test.js checks it).
+const BLITZ_PAR = 1.33;
 
-export const blitzTheme = (i) => (i % 2 ? 'cupboard' : 'fridge');
-// round i (0-9) at the Blitz skill: a Regular level's spec, plus its round
+// Round `i` of a run (0 = the first) at the Blitz skill: that Regular level's spec, its round, and its own clock
+// (`limitMs`).
 export function blitzSpec(i, skill = 0) {
-  return { ...levelSpec(BLITZ_LEVELS[i], skill), round: i + 1 };
+  const past = Math.max(0, i - BLITZ_RAMP.length + 1);
+  const lv = i < BLITZ_RAMP.length ? BLITZ_RAMP[i] : BLITZ_LAST[(i - BLITZ_RAMP.length) % BLITZ_LAST.length];
+  const s = levelSpec(lv, skill);
+  const limitMs = Math.ceil(((s.parMs * BLITZ_PAR) / 1000) * Math.max(0.75, 1 - 0.03 * past)) * 1000;
+  return { ...s, round: i + 1, limitMs };
 }
 
-// The fields to write after a Blitz run ends (won or not), and what it paid.
-export function afterBlitz(profile, { won, reached, ms }) {
+// coins for a round cleared: twice what the same level pays Regular with 1 star (as Squishdoku's Blitz boards)
+export const blitzCoins = (spec) => 2 * coinsFor(spec, 1);
+
+// What `cleared` rounds pay: their coins, and the player's XP (config/levels `xp.blitz.sort` is the XP for ten
+// rounds: 20 a round by default).
+export function blitzPrize(cleared, skill = 0) {
+  let coins = 0;
+  for (let i = 0; i < cleared; i++) coins += blitzCoins(blitzSpec(i, skill));
+  return { coins, xp: Math.round((xpRules().blitz.sort / 10) * cleared) };
+}
+
+// The fields to write when a Blitz run is over (`cleared`: the rounds it cleared), and what it paid. The skill moves up
+// after a run of 10 or more, down after one of under 5.
+export function afterBlitz(profile, { cleared }) {
   const rec = record(profile);
   const update = {
-    'sort.bSkill': clampSkill(rec.bSkill + (won ? 0.4 : reached >= 6 ? 0 : -0.3)),
-    'sort.blitz.reached': Math.max(rec.blitz.reached, reached),
+    'sort.bSkill': clampSkill(rec.bSkill + (cleared >= 10 ? 0.4 : cleared < 5 ? -0.3 : 0)),
+    'sort.blitz.runs': (rec.blitz.runs || 0) + 1,
+    'sort.seen': true,
   };
-  if (!won) return { update, coins: 0, xp: 0, levelUps: [] };
-  update['sort.blitz.wins'] = rec.blitz.wins + 1;
-  if (!rec.blitz.bestMs || ms < rec.blitz.bestMs) update['sort.blitz.bestMs'] = ms;
-  const xp = xpRules().blitz.sort;
-  return { update, coins: BLITZ_COINS, xp, ...addXp(profile, xp) };
+  const newTop = cleared > rec.blitz.top;
+  if (newTop) update['sort.blitz.top'] = cleared;
+  if (!cleared) return { update, coins: 0, xp: 0, levelUps: [], newTop: false };
+  // the skill the run's rounds were dealt at (blitzSpec), so the coins match what was played
+  const prize = blitzPrize(cleared, rec.bSkill);
+  return { update, coins: prize.coins, newTop, ...addXp(profile, prize.xp) };
 }
 
 // --- the profile's record -----------------------------------------------------------
 
-export const THEME_KEYS = ['fridge', 'cupboard'];
+export const THEME_KEYS = ['fridge'];
 
 export function record(profile) {
   const s = (profile && profile.sort) || {};
@@ -189,12 +213,13 @@ export function record(profile) {
   });
   return {
     fridge: of('fridge'),
-    cupboard: of('cupboard'),
     plays: s.plays || 0,
     wins: s.wins || 0,
     seen: !!s.seen,
     bSkill: s.bSkill || 0,
-    blitz: { reached: 0, bestMs: 0, wins: 0, ...(s.blitz || {}) },
+    // top: the most rounds cleared in one run (the endless Blitz, 2026-11-17; `reached` / `bestMs` / `wins` were the
+    // ten-round runs')
+    blitz: { top: 0, runs: 0, reached: 0, bestMs: 0, wins: 0, ...(s.blitz || {}) },
   };
 }
 

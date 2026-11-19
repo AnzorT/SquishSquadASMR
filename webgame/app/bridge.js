@@ -25,6 +25,7 @@
   var App = {
     inApp: !!window.ReactNativeWebView,
     screen: init.screen || null,
+    intro: !!init.intro,   // play the game intro (app/intro.js) when the menu is up: the app's first menu of a launch
     // the player: { level, coins, gems, owned: [creature keys], col: { key: { f, eq, st } }, sel: key,
     //              hiddenKeys: [creature keys not out], games: [...], house: '<ssHouse5b JSON>' }
     state: init.state || {},
@@ -51,6 +52,11 @@
     // Android back button: close what's on top (the house, a game, the games page, the picker), like its own back
     // button would. Nothing open: tell the app (it leaves the app).
     back: function () {
+      // the game intro: back skips it
+      if (window.SquishMenu && window.SquishMenu.introBack && window.SquishMenu.introBack()) return true;
+      // the house map (its orb is hidden there): back to the room, like the map's own Back
+      var mb = document.querySelector('[data-screen-label="House map"] [aria-label="Back to room"]');
+      if (mb) { mb.click(); return true; }
       var hb = document.querySelector('.mm-hback');
       if (hb) { hb.click(); return true; }
       var xs = document.querySelectorAll('[data-x]');
@@ -171,6 +177,7 @@
       Object.defineProperty(window, '__SQUISH_INIT__', { configurable: true, enumerable: true, get: function () { return lateInit; }, set: function (v) {
         lateInit = v; if (!v) return;
         if (!App.screen && v.screen) App.screen = v.screen;
+        if (v.intro) App.intro = true;
         if (v.config && !Object.keys(App.config || {}).length) App.config = v.config;
         if (v.state) {
           App.state = Object.assign({}, v.state, App.state); seed(v.state); applyLive(v.state);
@@ -178,7 +185,7 @@
           // shows the app's character, collection and wallet, not the demo save it started with
           [PROFILE, COLLECTION, LOBBY, HOUSE].forEach(function (k) { try { window.dispatchEvent(new StorageEvent('storage', { key: k })); } catch (e) { /* old WebView */ } });
         }
-        if (v.screen === 'park' && window.SquishMenu && window.SquishMenu._x) window.SquishMenu.mounted(window.SquishMenu._x);
+        if ((v.screen === 'park' || v.intro) && window.SquishMenu && window.SquishMenu._x) window.SquishMenu.mounted(window.SquishMenu._x);
       } });
     } catch (e) { /* defined already */ }
   }

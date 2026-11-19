@@ -51,6 +51,9 @@
 <script src="pet-defs.js"></script>
 <script src="mittens-moves.js"></script>
 <script src="rig-shuffle.js"></script>
+<!-- the border look's outline on the rig (webgame/app/rig-look.js, its colours look-lines.js; rigHost.look) -->
+<script src="look-lines.js"></script>
+<script src="rig-look.js"></script>
 </head>
 <body>
 <div id="stage"></div>
@@ -58,7 +61,7 @@
 (function () {
   const post = m => { const s = JSON.stringify(m); if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(s); else (window.__rigOut = window.__rigOut || []).push(m); };
   const stage = document.getElementById('stage');
-  let ctrl = null, sh = null, key = null, shuffleOn = true;
+  let ctrl = null, sh = null, key = null, shuffleOn = true, lookN = 0;
 
   // Fabric grain. Each creature's art carries a live-noise filter (feTurbulence) applied to 2-4 parts
   // separately, which costs a full-size offscreen pass per part every frame: on the Galaxy A15 that
@@ -105,6 +108,7 @@
       const I = (window.__rgI || {})[k], generic = !window.RiveRig.DEFS[k];
       if (generic && !(I && I.ready)) { if (performance.now() - t0 < 8000) setTimeout(done, 16); else post({ type: 'error', message: 'timeout loading ' + k }); return; }
       bakeGrain();
+      if (window.RigLook) window.RigLook.apply(me, k, lookN); // after the grain: its filter stays first
       post({ type: 'mounted', key: k, ms: Math.round(performance.now() - t0), nodes: stage.getElementsByTagName('*').length });
     };
     done();
@@ -116,6 +120,8 @@
     shuffle: on => { shuffleOn = !!on; if (!sh) return; if (on && ctrl) sh.attach(ctrl); else sh.stop(); },
     destroy: () => { if (sh) sh.stop(); if (ctrl) ctrl.destroy(); ctrl = null; },
     pause: on => window.__rigPause(on),
+    // the creature's border look (src/squad/looks.js: 2 thin ink line, 3 bold ink line, 4 bold colour line; 0 and 1 none)
+    look: n => { lookN = +n || 0; if (ctrl && key && window.RigLook) window.RigLook.apply(ctrl, key, lookN); },
   };
 
   // Once a second: frames drawn, worst frame gap, and the JS time spent in animation callbacks.

@@ -2,8 +2,8 @@ import React, { memo } from 'react';
 import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
 
 // Squish Sort's clutter (the user, 2026-10-24: "random foods everywhere in
-// order to confuse the player"): food for the fridge, toys for the
-// cupboard, 16 kinds each, drawn in the app's candy style on a 64 × 64 box
+// order to confuse the player"): food for the fridge (only the fridge since
+// 2026-11-17, the user: "make it only with food"), 16 kinds, drawn in the app's candy style on a 64 × 64 box
 // standing on its bottom edge. Some look a lot like the food squishies (a
 // lemon, a watermelon slice, a cupcake), only without faces.
 
@@ -175,176 +175,11 @@ const FOODS = [
   ),
 ];
 
-const TOYS = [
-  // beach ball
-  () => (
-    <G>
-      <Circle cx={32} cy={38} r={22} fill={W} stroke="#5a4a8a" strokeWidth={2} />
-      <Path d="M32 16 C22 26 22 50 32 60 C27 48 27 28 32 16 Z" fill="#ff5c8a" />
-      <Path d="M32 16 C42 26 42 50 32 60 C37 48 37 28 32 16 Z" fill="#5fb8ff" />
-      <Path d="M10 38 C20 30 44 30 54 38 C44 34 20 34 10 38 Z" fill="#ffd23a" />
-      <Circle cx={23} cy={27} r={3} fill={W} opacity={0.8} />
-    </G>
-  ),
-  // ABC block
-  () => (
-    <G>
-      <Rect x={12} y={22} width={38} height={38} rx={5} fill="#5fb8ff" stroke="#2f6fc0" strokeWidth={2} />
-      <Path d="M12 22 L20 14 L58 14 L50 22 Z" fill="#9fd4ff" stroke="#2f6fc0" strokeWidth={2} strokeLinejoin="round" />
-      <Path d="M50 22 L58 14 L58 52 L50 60 Z" fill="#3a8ae0" stroke="#2f6fc0" strokeWidth={2} strokeLinejoin="round" />
-      <Path d="M24 52 L31 30 L38 52 M27 44 L35 44" stroke={W} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </G>
-  ),
-  // rubber duck
-  () => (
-    <G>
-      <Path d="M10 44 C10 34 22 32 30 36 C30 22 52 20 50 36 C56 36 58 46 52 52 C44 62 14 62 10 44 Z" fill="#ffd23a" stroke="#d99a00" strokeWidth={2} strokeLinejoin="round" />
-      <Path d="M48 30 L58 31 L49 35 Z" fill="#ff8a2a" stroke="#d45d00" strokeWidth={1.5} strokeLinejoin="round" />
-      <Circle cx={43} cy={29} r={2.4} fill="#3a2a2a" />
-      <Path d="M20 46 C26 52 34 50 36 44" stroke="#e8b000" strokeWidth={2.4} fill="none" strokeLinecap="round" />
-    </G>
-  ),
-  // ball of yarn
-  () => (
-    <G>
-      <Circle cx={32} cy={39} r={20} fill="#ff8fd0" stroke="#c0268f" strokeWidth={2} />
-      <Path d="M16 30 C26 36 38 36 48 28 M14 40 C26 46 40 46 52 38 M18 50 C28 54 38 54 46 50" stroke="#c0268f" strokeWidth={1.8} fill="none" />
-      <Path d="M48 50 C56 54 58 60 52 61" stroke="#c0268f" strokeWidth={2} fill="none" strokeLinecap="round" />
-    </G>
-  ),
-  // stack of books
-  () => (
-    <G>
-      <Rect x={10} y={48} width={44} height={11} rx={2} fill="#ff5c8a" stroke="#b8164a" strokeWidth={2} />
-      <Rect x={14} y={37} width={38} height={11} rx={2} fill="#5fb8ff" stroke="#2f6fc0" strokeWidth={2} />
-      <Rect x={12} y={26} width={40} height={11} rx={2} fill="#3ddc97" stroke="#16a86a" strokeWidth={2} />
-      <Path d="M14 53 L50 53 M18 42 L48 42 M16 31 L48 31" stroke={W} strokeWidth={2} opacity={0.8} />
-    </G>
-  ),
-  // drum
-  () => (
-    <G>
-      <Path d="M12 30 L12 52 C12 58 52 58 52 52 L52 30 Z" fill="#ff5c5c" stroke="#b81818" strokeWidth={2} />
-      <Path d="M12 34 L22 52 L32 34 L42 52 L52 34" stroke="#ffd23a" strokeWidth={2.4} fill="none" strokeLinejoin="round" />
-      <Ellipse cx={32} cy={30} rx={20} ry={6} fill="#fff6e0" stroke="#b81818" strokeWidth={2} />
-      <Path d="M22 10 L30 26 M44 12 L36 26" stroke="#c98a4a" strokeWidth={3} strokeLinecap="round" />
-      <Circle cx={22} cy={10} r={3} fill="#ffd23a" />
-      <Circle cx={44} cy={12} r={3} fill="#ffd23a" />
-    </G>
-  ),
-  // toy car
-  () => (
-    <G>
-      <Path d="M6 48 L6 40 C6 37 9 36 12 36 L18 36 L24 26 L42 26 L50 36 L56 37 C59 38 59 41 59 44 L59 48 Z" fill="#5fb8ff" stroke="#2f6fc0" strokeWidth={2} strokeLinejoin="round" />
-      <Path d="M22 36 L27 29 L33 29 L33 36 Z M36 36 L36 29 L41 29 L46 36 Z" fill="#dff3ff" />
-      <Circle cx={18} cy={50} r={7} fill="#3a3a4a" stroke={W} strokeWidth={2} />
-      <Circle cx={46} cy={50} r={7} fill="#3a3a4a" stroke={W} strokeWidth={2} />
-      <Circle cx={18} cy={50} r={2.4} fill="#c9c9d6" />
-      <Circle cx={46} cy={50} r={2.4} fill="#c9c9d6" />
-    </G>
-  ),
-  // spinning top
-  () => (
-    <G>
-      <Path d="M10 34 C10 26 54 26 54 34 L34 58 C33 60 31 60 30 58 Z" fill="#b48bff" stroke="#6a22d6" strokeWidth={2} strokeLinejoin="round" />
-      <Path d="M10 34 C20 38 44 38 54 34" stroke="#ffd23a" strokeWidth={3} fill="none" />
-      <Rect x={29} y={14} width={6} height={14} rx={3} fill="#ffd23a" stroke="#d99a00" strokeWidth={1.5} />
-    </G>
-  ),
-  // rocket
-  () => (
-    <G>
-      <Path d="M32 4 C42 14 44 30 40 48 L24 48 C20 30 22 14 32 4 Z" fill={W} stroke="#5a4a8a" strokeWidth={2} strokeLinejoin="round" />
-      <Path d="M32 4 C36 8 38 12 39 16 L25 16 C26 12 28 8 32 4 Z" fill="#ff5c8a" />
-      <Circle cx={32} cy={28} r={5} fill="#5fb8ff" stroke="#5a4a8a" strokeWidth={2} />
-      <Path d="M24 38 L14 50 L24 48 Z M40 38 L50 50 L40 48 Z" fill="#ff5c8a" stroke="#5a4a8a" strokeWidth={1.6} strokeLinejoin="round" />
-      <Path d="M27 48 L32 60 L37 48 Z" fill="#ffd23a" />
-    </G>
-  ),
-  // crayons
-  () => (
-    <G>
-      {[
-        ['#ff5c5c', 14],
-        ['#ffd23a', 24],
-        ['#3ddc97', 34],
-        ['#5fb8ff', 44],
-      ].map(([c, x], i) => (
-        <G key={i}>
-          <Rect x={x} y={20 + (i % 2) * 4} width={8} height={38 - (i % 2) * 4} rx={1.5} fill={c} stroke="#5a4a8a" strokeWidth={1.4} />
-          <Path d={`M${x} ${20 + (i % 2) * 4} L${x + 4} ${12 + (i % 2) * 4} L${x + 8} ${20 + (i % 2) * 4} Z`} fill={c} stroke="#5a4a8a" strokeWidth={1.4} strokeLinejoin="round" />
-        </G>
-      ))}
-      <Rect x={10} y={40} width={46} height={20} rx={3} fill="#ffcf8f" stroke="#a05a10" strokeWidth={2} />
-    </G>
-  ),
-  // teacup (a dolls' tea set)
-  () => (
-    <G>
-      <Ellipse cx={30} cy={58} rx={22} ry={4} fill="#ffd6f0" stroke="#c0268f" strokeWidth={1.6} />
-      <Path d="M12 30 L48 30 C48 46 40 56 30 56 C20 56 12 46 12 30 Z" fill={W} stroke="#c0268f" strokeWidth={2} strokeLinejoin="round" />
-      <Path d="M48 34 C58 34 58 46 46 46" stroke="#c0268f" strokeWidth={3} fill="none" />
-      <Circle cx={24} cy={42} r={3} fill="#ff8fd0" />
-      <Circle cx={34} cy={40} r={3} fill="#ff8fd0" />
-    </G>
-  ),
-  // star wand
-  () => (
-    <G>
-      <Path d="M30 30 L22 60" stroke="#c98a4a" strokeWidth={4} strokeLinecap="round" />
-      <Path d="M34 6 L38.5 16 L49.5 17 L41 24 L43.6 35 L34 29.2 L24.4 35 L27 24 L18.5 17 L29.5 16 Z" fill="#ffd23a" stroke="#d99a00" strokeWidth={2} strokeLinejoin="round" />
-      <Circle cx={31} cy={17} r={2} fill={W} />
-    </G>
-  ),
-  // xylophone
-  () => (
-    <G>
-      {['#ff5c5c', '#ff9c3a', '#ffd23a', '#3ddc97', '#5fb8ff'].map((c, i) => (
-        <Rect key={i} x={8 + i * 10} y={26 + i * 2} width={8} height={30 - i * 4} rx={2} fill={c} stroke="#5a4a8a" strokeWidth={1.4} />
-      ))}
-      <Path d="M8 30 L58 38 M8 52 L58 50" stroke="#a05a10" strokeWidth={2} />
-    </G>
-  ),
-  // pinwheel
-  () => (
-    <G>
-      <Path d="M32 34 L30 62" stroke="#c98a4a" strokeWidth={3.4} strokeLinecap="round" />
-      <Path d="M32 34 L32 10 C44 10 44 24 32 34 Z" fill="#ff5c8a" />
-      <Path d="M32 34 L56 34 C56 46 42 46 32 34 Z" fill="#5fb8ff" />
-      <Path d="M32 34 L32 58 C20 58 20 44 32 34 Z" fill="#ffd23a" />
-      <Path d="M32 34 L8 34 C8 22 22 22 32 34 Z" fill="#3ddc97" />
-      <Circle cx={32} cy={34} r={3} fill={W} stroke="#5a4a8a" strokeWidth={1.4} />
-    </G>
-  ),
-  // sailboat
-  () => (
-    <G>
-      <Path d="M8 46 L56 46 L48 58 L16 58 Z" fill="#ff5c5c" stroke="#b81818" strokeWidth={2} strokeLinejoin="round" />
-      <Path d="M31 8 L31 46" stroke="#a05a10" strokeWidth={3} />
-      <Path d="M33 10 L52 42 L33 42 Z" fill={W} stroke="#5a4a8a" strokeWidth={1.6} strokeLinejoin="round" />
-      <Path d="M29 16 L14 42 L29 42 Z" fill="#5fb8ff" stroke="#5a4a8a" strokeWidth={1.6} strokeLinejoin="round" />
-    </G>
-  ),
-  // music box
-  () => (
-    <G>
-      <Rect x={10} y={32} width={44} height={26} rx={4} fill="#b48bff" stroke="#6a22d6" strokeWidth={2} />
-      <Path d="M10 32 L18 22 L58 22 L54 32 Z" fill="#d9c4ff" stroke="#6a22d6" strokeWidth={2} strokeLinejoin="round" />
-      <Path d="M24 40 L24 50 M24 40 L32 38 L32 48" stroke={W} strokeWidth={2.4} fill="none" strokeLinecap="round" />
-      <Circle cx={22} cy={50} r={2.6} fill={W} />
-      <Circle cx={30} cy={48} r={2.6} fill={W} />
-      <Path d="M54 40 L60 40 M60 36 L60 44" stroke="#ffd23a" strokeWidth={3} strokeLinecap="round" />
-    </G>
-  ),
-];
-
 export const KINDS = 16;
-const SETS = { fridge: FOODS, cupboard: TOYS };
 
 // One piece of clutter, `kind` 0-15, `size` px square.
-export const Prop = memo(function Prop({ theme, kind, size }) {
-  const set = SETS[theme] || FOODS;
-  const draw = set[kind % set.length];
+export const Prop = memo(function Prop({ kind, size }) {
+  const draw = FOODS[kind % FOODS.length];
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64">
       {draw()}

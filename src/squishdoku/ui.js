@@ -22,11 +22,13 @@ export const BTN = {
   red: { ring: '#8e1030', colors: ['#ffc2cc', '#ff5c7a', '#e01e4a'] },
 };
 
-export function SdButton({ kind = 'pink', onPress, disabled, children, style, faceStyle, sound = 'tap', radius = 999, lip = 5, haptic }) {
+// onDown: fired as the finger lands rather than as it lifts (Squish Hop's arrow keys)
+export function SdButton({ kind = 'pink', onPress, onDown, disabled, children, style, faceStyle, sound = 'tap', radius = 999, lip = 5, haptic }) {
   const t = useRef(new Animated.Value(0)).current;
   const b = BTN[disabled ? 'grey' : kind] || BTN.pink;
   const down = () => {
     Animated.timing(t, { toValue: 1, duration: 70, useNativeDriver: true }).start();
+    onDown && onDown();
   };
   const up = () => {
     Animated.spring(t, { toValue: 0, friction: 3.5, tension: 260, useNativeDriver: true }).start();

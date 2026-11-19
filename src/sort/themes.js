@@ -1,9 +1,8 @@
 import { BY_ID, HIDDEN, isOut } from '../squad/data';
 
-// Squish Sort's containers: each holds its own groups' squishies (the user,
-// 2026-10-24: "for the food squishy for example i want them to be a
-// fridge"). They share one drawing (Container.js), told apart by these
-// colours and their top and doors.
+// Squish Sort's container: the fridge, with the food groups' squishies (the user, 2026-10-24: "for the food squishy
+// for example i want them to be a fridge"; 2026-11-17: "lets make it only with food ok ? so delete the toy
+// cupboard"). The fridges themselves are models.js and Container.js.
 
 export const THEMES = {
   fridge: {
@@ -25,26 +24,6 @@ export const THEMES = {
     tray: { ring: '#9a5a22', colors: ['#fff8ec', '#ffe6c4', '#f7cf98'], label: 'COUNTER' },
     card: { ring: '#1f5f7a', colors: ['#f0fbff', '#bfe9fb', '#7fd0f0'] },
     slotDash: 'rgba(31,95,122,0.28)',
-  },
-  cupboard: {
-    key: 'cupboard',
-    name: 'Toy Cupboard',
-    blurb: 'Pets, forest, dream and sky friends',
-    groups: ['pet', 'forest', 'dream', 'sky'],
-    ring: '#5a2e0e',
-    body: ['#ffd7a3', '#eaa865', '#c47a3a'],
-    top: ['#ffcf8f', '#d98e48'],
-    inside: ['#fff6e6', '#ffe4bf', '#f6cd96'],
-    lamp: '#fff3c4',
-    shelf: { top: '#f2bf86', face: '#c98a4a', edge: '#8a4f1e' },
-    door: ['#ffe0b6', '#f2b673', '#d68c46'],
-    doorInner: ['#f6c58c', '#d99a5a'],
-    handle: ['#fff6b0', '#ffd23a', '#d99400'],
-    trim: '#8a4f1e',
-    feet: '#5a2e0e',
-    tray: { ring: '#a01a7a', colors: ['#fff2fb', '#ffd6f0', '#ffb8e4'], label: 'TOY RUG' },
-    card: { ring: '#6a3a12', colors: ['#fff6e6', '#ffd9a8', '#f0a860'] },
-    slotDash: 'rgba(90,46,14,0.3)',
   },
 };
 

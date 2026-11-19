@@ -14,7 +14,6 @@ import { useFonts } from 'expo-font';
 import { Baloo2_500Medium, Baloo2_700Bold, Baloo2_800ExtraBold } from '@expo-google-fonts/baloo-2';
 import { Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold, Nunito_900Black } from '@expo-google-fonts/nunito';
 import { Fredoka_500Medium, Fredoka_600SemiBold, Fredoka_700Bold } from '@expo-google-fonts/fredoka';
-import SplashScreen from './src/screens/SplashScreen';
 import AuthScreen from './src/screens/AuthScreen';
 import MainScreen, { ShopAway } from './src/screens/MainScreen';
 import SettingsSheet from './src/screens/SettingsSheet';
@@ -51,7 +50,7 @@ import VerifyEmailScreen from './src/screens/VerifyEmailScreen';
 import FpsCounter from './src/components/FpsCounter';
 import { setFpsActive, setFpsWanted, useFpsWanted } from './src/components/fpsMeter';
 import { BY_ID, hiddenOf, isOut, lineup, owns, rainbowOf, setCopyCounts, setRainbowMode, setRewardsOf, wallet as walletOf } from './src/squad/data';
-import { withLooks } from './src/squad/looks';
+import { setLookConfig, withLooks } from './src/squad/looks';
 import {
   subscribeToUserProfile,
   subscribeToCreatures,
@@ -157,10 +156,14 @@ const PREFETCH_AT_ONCE = 6;
 const SHOP_AWAY_UNDER = new Set(['crib']);
 const FREEZE_UNDER = new Set([]);
 
-// The splash is silent. From its end on, Velvet Map Study (src/audio/sfx.js) is the one track on every screen: the
+// The splash is silent, and so is the game intro until Mittens is squished the third time (2026-11-17, the user: "start
+// it only after we click Mittens the 3rd time"; `musicHeld` below; a launch that signs in first is silent on the sign-in
+// screens too, up to that squish). From then on, Velvet Map Study (src/audio/sfx.js) is the one track on every screen: the
 // menus, Shop, Settings, Squish Time and the mini-games. It doesn't restart between them. (The user kept only it on
 // 2026-11-16; Squish Time, the games, the box and the Crib had tracks of their own before.) The new design's house
 // plays its own sounds; the old Crib has its own music switch (CribScreen).
+// the launch colour (android's native launch screen, REDESIGN_V8): what shows until the launch is ready
+const LAUNCH_BG = '#2a1608';
 const musicFor = (stage, onGame) => (stage === 'splash' || (onGame && stage !== 'home') ? null : 'theme');
 
 // The creature cheering on the streak screen: the owned one squished the
@@ -187,7 +190,15 @@ export default function App() {
     Fredoka_700Bold,
   });
 
+  // The game intro (2026-11-16, the user: the designer's "Squish wakes the house", webgame/app/intro.js) replaced the old
+  // splash screen (deleted). At launch the app waits on the launch colour until sign-in is known and, signed in, the
+  // profile and the catalog are here (`splashDone`; 10 s at most, offline), then the menu plays the intro the first time
+  // it shows in this launch (`introPending`): the daily spin, the streak screen and the level-up card wait for its end.
   const [splashDone, setSplashDone] = useState(false);
+  const [introPending, setIntroPending] = useState(true);
+  // the intro's third squish of Mittens has lit the house: the music may start (onIntro 'awake')
+  const [introAwake, setIntroAwake] = useState(false);
+  const introStartedRef = useRef(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [authUser, setAuthUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -375,6 +386,7 @@ export default function App() {
     return subscribeToRoster((cfg) => {
       setCopyCounts(cfg);
       setRainbowMode(cfg);
+      setLookConfig(cfg); // the live rigs' outline (RigCreature)
       setRosterCfg(cfg);
     });
   }, [authUser]);
@@ -452,7 +464,7 @@ export default function App() {
   }, [cribIsOpen]);
 
   // Seeds `creatures` from the on-device cache immediately (before auth even
-  // resolves — SplashScreen needs something to render at cold start), then
+  // resolves, so a signed-in launch is ready sooner), then
   // the live Firestore subscription below takes over once signed in and
   // refreshes the cache for next time.
   useEffect(() => {
@@ -564,7 +576,8 @@ export default function App() {
 
   // --- Daily Spin (src/dailySpin.js; the server rolls it) ---
   // `bonus`: "Watch ad, spin again", paid with a rewarded video on the
-  // wheel screen. The prizes (coins, gems) are paid by the server.
+  // wheel screen. The prizes (coins, gems, a Mystery Box chest) are paid by
+  // the server; the screen smashes a won chest itself.
   const handleSpin = useCallback((bonus = false) => callFunction('spinWheel', { tzOffsetMinutes: tzOffsetMinutes(), bonus }), []);
   const handleSpinDone = useCallback(() => {
     setSpinState('done');
@@ -966,10 +979,26 @@ export default function App() {
     window.__app = { setScreen, setSpinState, setStreakIntro, setLevelUp, setDailyOpen, setSettingsOpen, setRoadAuto, flashApp, setAchToast, setAchToastKey, play: () => playSelected(selectedIdOf(profileRef.current)) };
   }
 
+  // the launch is ready: sign-in known and, signed in, the profile and the catalog here (or 10 s: offline)
+  const launchReady = authChecked && (!authUser || (!!profile && creatures.length > 0));
+  useEffect(() => {
+    if (splashDone) return undefined;
+    if (launchReady) {
+      setSplashDone(true);
+      return undefined;
+    }
+    const t = setTimeout(() => setSplashDone(true), 10000);
+    return () => clearTimeout(t);
+  }, [launchReady, splashDone]);
+  // the intro plays on the new design's Menu; with the classic Home (the tutorial) there's none to wait for
+  const introDue = introPending && newDesign && !classicHome && mainTab === 'squish';
+
   let stage = 'splash';
   if (splashDone && authChecked) {
     if (!authUser) stage = 'auth';
     else if (mustVerify) stage = 'verify';
+    // the game intro first (on the Menu): the daily spin and the streak come after it
+    else if (introDue && screen === 'home') stage = 'home';
     else if (spinState === 'show') stage = 'wheel';
     else if (streakIntro) stage = 'streak';
     else if (activeToy) stage = 'toy';
@@ -979,6 +1008,24 @@ export default function App() {
   // the new design's Menu (and house) is on screen: Home's squish tab, or a Crib request
   const gameHome = newDesign && ((!classicHome && mainTab === 'squish') || stage === 'crib');
   const onGame = gameHome && (stage === 'home' || stage === 'crib');
+  // the Menu tells us when the intro starts and ends; if it hasn't started 15 s after the Menu came up (the page failed),
+  // stop waiting for it
+  const onIntro = useCallback((phase) => {
+    if (phase === 'start') introStartedRef.current = true;
+    else if (phase === 'awake') setIntroAwake(true);
+    else if (phase === 'done') setIntroPending(false);
+  }, []);
+  // no music during the intro until its third squish of Mittens (or until it's skipped, ends, or never starts: the 15 s
+  // wait below), nor on the sign-in screens before it
+  const musicHeld = introPending && !introAwake && (introDue || stage === 'auth' || stage === 'verify');
+  const introWaiting = introDue && onGame;
+  useEffect(() => {
+    if (!introWaiting) return undefined;
+    const t = setTimeout(() => {
+      if (!introStartedRef.current) setIntroPending(false);
+    }, 15000);
+    return () => clearTimeout(t);
+  }, [introWaiting]);
   // REDESIGN_V7: the screens already in the new landscape look turn the phone sideways; the rest are still portrait.
   // One place decides (the Menu's own lock and its unlock on leaving used to fight a landscape screen opened from it).
   // (sign-in, sign-up and the email check are always sideways, also for a new account that the tutorial will take: REDESIGN_V8)
@@ -1001,7 +1048,7 @@ export default function App() {
   if (lvSeen < lastLvSeenRef.current) shownLvRef.current = Math.min(shownLvRef.current, lvSeen);
   lastLvSeenRef.current = lvSeen;
   const levelUpDue =
-    !!authUser && hasXp && lvNow > lvSeen && lvNow > shownLvRef.current && stage === 'home' && mainTab === 'squish' && !dailyOpen && !settingsOpen && !levelUp && !tutorialActive(profile);
+    !!authUser && hasXp && lvNow > lvSeen && lvNow > shownLvRef.current && stage === 'home' && mainTab === 'squish' && !dailyOpen && !settingsOpen && !levelUp && !tutorialActive(profile) && !introDue;
   useEffect(() => {
     if (!levelUpDue) return;
     shownLvRef.current = lvNow;
@@ -1089,8 +1136,8 @@ export default function App() {
     if (stage === 'crib' && !onGame) return;
     // The new design's house plays its own sounds. The Menu and its Game Park keep the start's music going
     // (REDESIGN_V8, the user: the music at the beginning of the app continues; the Menu used to go silent).
-    sfx.music(fontsLoaded ? musicFor(stage, onGame) : null);
-  }, [stage, fontsLoaded, onGame]);
+    sfx.music(fontsLoaded && !musicHeld ? musicFor(stage, onGame) : null);
+  }, [stage, fontsLoaded, onGame, musicHeld]);
   const prevStageRef = useRef(stage);
   useEffect(() => {
     // no whoosh as the splash makes way for the first screen (REDESIGN_V8, the user: the "beep" at the start; the
@@ -1121,7 +1168,7 @@ export default function App() {
   }, [customCreatures]);
 
   if (!fontsLoaded) {
-    return <View style={{ flex: 1, backgroundColor: '#b24fe6' }} />;
+    return <View style={{ flex: 1, backgroundColor: LAUNCH_BG }} />;
   }
 
   const ownedIds = profile?.ownedIds ?? [];
@@ -1158,9 +1205,8 @@ export default function App() {
   return (
     <SafeAreaProvider style={styles.app}>
       <StatusBar style={statusBarStyle} hidden={landscape} />
-      {/* the splash moves on once sign-in is known and, signed in, the
-          profile and the catalog are here */}
-      {stage === 'splash' && <SplashScreen onFinish={() => setSplashDone(true)} ready={authChecked && (!authUser || (!!profile && creatures.length > 0))} creatures={creatures} />}
+      {/* until the launch is ready: the launch colour (the game intro plays on the Menu once it's up) */}
+      {stage === 'splash' && <View style={{ flex: 1, backgroundColor: LAUNCH_BG }} />}
       {stage === 'auth' && <AuthScreen />}
       {stage === 'verify' && <VerifyEmailScreen email={authUser?.email} onVerified={() => setVerifiedNow(true)} onLogout={handleLogout} />}
       {onGame &&
@@ -1179,6 +1225,8 @@ export default function App() {
             onSelect={handleGameSelect}
             onClaim={handleGameClaim}
             onAsk={handleGameAsk}
+            intro={introDue}
+            onIntro={onIntro}
           />
         ) : (
           <View style={{ flex: 1, backgroundColor: '#3a2210' }} />
@@ -1276,6 +1324,8 @@ export default function App() {
               adsFree={profile?.adsFree ?? false}
               name={profile?.nickname}
               creatures={creatures}
+              profile={profile}
+              hidden={hidden}
             />
           )}
           {stage === 'streak' && (

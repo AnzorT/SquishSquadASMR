@@ -1,104 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import OutlinedTitle from '../components/candy/OutlinedTitle';
-import { CoinIcon } from '../squad/ui';
-import sfx from '../audio/sfx';
-import { CountUp, PopIn, SlideIn } from '../squishdoku/fx';
-import { Overlay, Split, XpGain, XpPlus } from '../squishdoku/Overlays';
+import { Overlay, Split } from '../squishdoku/Overlays';
 import { BtnLabel, SdButton } from '../squishdoku/ui';
 import { F, INK } from '../squishdoku/theme';
-import { Star } from '../sort/Cards';
-import { PICTURE_FROM, TIER_NAMES } from './levels';
+import { PICTURE_FROM } from './levels';
 
 // Squish Stack's cards over the game: the win (stars popping in one by one,
 // coins counting up), time's up, pause, the hint offer, and how to play.
 
-const TITLES = ['', 'STACKED!', 'NICE STACKING!', 'PERFECT STACK!'];
-const STEP = 480;
+// (the result card is the shared one: squishdoku/Overlays.js ResultCard)
+// its titles here, for 1, 2 and 3 stars
+export const RESULT_TITLES = ['STACKED!', 'NICE STACKING!', 'PERFECT STACK!'];
 
-// res: { stars, coins, xp, before, after, levelUps, moves, par, hinted,
-// unlocked }; `last`: level 50, no NEXT
-export function ResultCard({ visible, res, spec, last, onNext, onReplay, onHub }) {
-  const [key, setKey] = useState(0);
-  useEffect(() => {
-    if (!visible || !res) return undefined;
-    setKey((k) => k + 1);
-    const timers = [0, 1, 2].map((i) => setTimeout(() => sfx.play(i < res.stars ? `sd_star${i + 1}` : 'sd_starEmpty'), 380 + i * STEP));
-    if (res.stars === 3) timers.push(setTimeout(() => sfx.play('sd_perfect'), 380 + 3 * STEP));
-    return () => timers.forEach(clearTimeout);
-  }, [visible, res]);
-  if (!res) return <Overlay visible={false} />;
-  const coinsAt = 380 + 3 * STEP + 200;
-  return (
-    <Overlay visible={visible} column>
-      <PopIn trigger={key} delay={80}>
-        <OutlinedTitle text={TITLES[res.stars]} size={res.stars === 3 ? 27 : 30} fill={res.stars === 3 ? 'gold' : 'pink'} />
-      </PopIn>
-      <Text style={styles.sub}>{`LEVEL ${spec.lv} · ${TIER_NAMES[spec.tier]} · ${res.moves} MOVES · PAR ${res.par}${res.hinted ? ' · HINT' : ''}`}</Text>
-      {res.stars < 3 && !res.hinted ? <Text style={styles.hint}>{`Do it in ${res.par} moves for 3 stars!`}</Text> : null}
-      {res.hinted ? <Text style={styles.hint}>A hint costs one star</Text> : null}
-      <View key={key} style={styles.stars}>
-        {[0, 1, 2].map((i) => (
-          <Star key={i} earned={i < res.stars} delay={380 + i * STEP} big={i === 1} />
-        ))}
-      </View>
-      <Split />
-      <SlideIn trigger={key} delay={coinsAt - 150} dy={20} style={styles.rewardRow}>
-        <CoinIcon size={26} />
-        <CountUp value={res.coins} delay={coinsAt} ms={800} style={styles.coins} prefix="+" onTick={() => sfx.play('sd_coinTick')} />
-        <XpPlus xp={res.xp} />
-      </SlideIn>
-      <XpGain trigger={key} res={res} delay={coinsAt + 500} />
-      {res.unlocked ? (
-        <PopIn trigger={key} delay={coinsAt + 500}>
-          <Text style={styles.unlocked}>{`LEVEL ${spec.lv + 1} UNLOCKED`}</Text>
-        </PopIn>
-      ) : null}
-      <SlideIn trigger={key} delay={380 + 2 * STEP + 300} dy={30} style={styles.btnRow}>
-        <SdButton kind="white" onPress={onHub} sound="sd_select" faceStyle={styles.smallFace}>
-          <BtnLabel kind="white" size={15}>
-            MENU
-          </BtnLabel>
-        </SdButton>
-        <SdButton kind="purple" onPress={onReplay} sound="sd_select" faceStyle={styles.smallFace}>
-          <BtnLabel kind="purple" size={15}>
-            REPLAY
-          </BtnLabel>
-        </SdButton>
-        {!last ? (
-          <SdButton kind="green" onPress={onNext} sound="sd_select" faceStyle={styles.bigFace}>
-            <BtnLabel kind="green" size={18}>
-              NEXT ▶
-            </BtnLabel>
-          </SdButton>
-        ) : null}
-      </SlideIn>
-    </Overlay>
-  );
-}
-
-// (the buttons: RESUME in the app's gold, the others white, as the fail cards: the user, 2026-11-16)
-// (no NEW PUZZLE: the user, 2026-11-16; RESTART is on the level itself)
-export function PauseCard({ visible, onResume, onQuit }) {
-  return (
-    <Overlay visible={visible} column>
-      <OutlinedTitle text="PAUSED" size={30} fill="gold" />
-      <Split />
-      <View style={styles.col}>
-        <SdButton kind="gold" onPress={onResume} sound="sd_resume" faceStyle={styles.wideFace}>
-          <BtnLabel kind="gold" size={18}>
-            RESUME
-          </BtnLabel>
-        </SdButton>
-        <SdButton kind="white" onPress={onQuit} sound="sd_boardOut" faceStyle={styles.wideFace}>
-          <BtnLabel kind="white" size={16}>
-            QUIT
-          </BtnLabel>
-        </SdButton>
-      </View>
-    </Overlay>
-  );
-}
+// (the pause card is Squishdoku's, shared by every mini-game: squishdoku/Overlays.js)
 
 // A hint costs an ad (free with Remove Ads) and one star off this level
 // (the user, 2026-10-24). Asked the first time in a level only.
@@ -177,15 +92,7 @@ export function RulesCard({ visible, onClose }) {
 }
 
 const styles = StyleSheet.create({
-  sub: { fontFamily: F.display, fontSize: 12, letterSpacing: 0.6, color: '#9a6a3a', textAlign: 'center' },
-  hint: { fontFamily: F.heavy, fontSize: 11.5, color: '#b86200', textAlign: 'center' },
-  stars: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 4, marginBottom: 8 },
-  rewardRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  coins: { fontFamily: F.display, fontSize: 28, color: '#b86200', includeFontPadding: false, minWidth: 70 },
-  unlocked: { fontFamily: F.display, fontSize: 13, color: '#16a86a', letterSpacing: 0.8 },
-  btnRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 8, marginTop: 6 },
   col: { alignSelf: 'stretch', gap: 4, marginTop: 6 },
-  smallFace: { paddingHorizontal: 14, paddingVertical: 10 },
   bigFace: { paddingHorizontal: 22, paddingVertical: 12 },
   wideFace: { paddingVertical: 12 },
   body: { fontFamily: F.heavy, fontSize: 14, color: INK, textAlign: 'center', paddingHorizontal: 6 },

@@ -14,7 +14,19 @@ if (!existsSync(join(DESIGN, 'rive-rig.js'))) throw new Error('unpack the design
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 copyFileSync(join(ROOT, 'tools', 'rig', 'host.html'), join(OUT, 'host.html'));
+// Squish Hop's characters (src/hop/RigStage.js): every rig on the board in one page
+copyFileSync(join(ROOT, 'tools', 'rig', 'hop.html'), join(OUT, 'hop.html'));
+// Squish Sort's squishies (src/sort/Game.js, through the same RigStage): every one in play in one page
+copyFileSync(join(ROOT, 'tools', 'rig', 'sort.html'), join(OUT, 'sort.html'));
+// every mini-game's result card: its three characters (src/squishdoku/Trio.js, through the same RigStage)
+copyFileSync(join(ROOT, 'tools', 'rig', 'result.html'), join(OUT, 'result.html'));
+// Squish Stack's selected character on its forest road (src/stack/ForestMap.js): its page, and the Squad House walks it
+// walks with (from the webgame build: node webgame/build.mjs first)
+copyFileSync(join(ROOT, 'tools', 'rig', 'walk.html'), join(OUT, 'walk.html'));
+for (const f of ['house-walk.js', 'house-walk-c.js', 'fruit-house.js', 'pet2-house.js', 'snack2-house.js']) copyFileSync(join(ROOT, 'android', 'app', 'src', 'main', 'assets', 'webgame', f), join(OUT, f));
 for (const f of SCRIPTS) copyFileSync(join(DESIGN, f), join(OUT, f));
+// the border look's outline (shared with the game's pages)
+for (const f of ['look-lines.js', 'rig-look.js']) copyFileSync(join(ROOT, 'webgame', 'app', f), join(OUT, f));
 
 const tripo = join(DESIGN, 'export', 'tripo');
 let n = 0, bytes = 0;

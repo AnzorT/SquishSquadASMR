@@ -1,9 +1,10 @@
-import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { PHASE, SWING, useKeyLoop, usePingPong } from '../components/idleLoop';
 
 // Squishdoku's little effects: particle bursts (dust, sparks, poofs,
-// confetti) on one shared layer, pop-ins, shakes, pulses and counters.
+// confetti) and happy waves on one shared layer, pop-ins, shakes, pulses and
+// counters.
 // Everything runs on the native driver — one Animated value per burst,
 // each particle its own interpolation of it.
 
@@ -12,6 +13,8 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const KINDS = {
   // the puff under a creature landing: soft white blobs sliding sideways
   dust: { count: 7, life: 420, size: [5, 10], dist: [14, 30], up: [-4, 6], colors: ['#ffffff', '#fff6fb'], shape: 'dot', spreadY: 0.25, fall: 0 },
+  // Squish Hop's landing: a bigger puff fanning out low along the cushion, round the squishy's feet
+  puff: { count: 10, life: 460, size: [6, 12], dist: [28, 50], up: [-1, 5], colors: ['#ffffff', '#fdf3ff', '#efe4ff'], shape: 'dot', spreadY: 0.16, fall: 3 },
   // a ring of candy dots popping out round a head that zoomed up right
   pop: { count: 10, life: 420, size: [4, 7], dist: [26, 40], up: [0, 0], colors: ['#ff8fd0', '#ffffff', '#ffe066', '#9ce8ff'], shape: 'dot', spreadY: 1, fall: 0 },
   // sparkles flying off a creature that landed right
@@ -86,22 +89,99 @@ const Burst = memo(function Burst({ x, y, kind, scale = 1, onDone }) {
   );
 });
 
-// The layer bursts play on: `ref.current.burst(kind, x, y, scale)` (x, y in
-// the layer's own coordinates).
+// A happy wave: one spot after another (`d` ms in) lights up, a soft glow on
+// the floor (`glow`: false for a spot with a creature standing on it) and a
+// little star popping up off it and fading. All of it ONE native timing of the
+// wave's own milliseconds, each spot reading its own window of it.
+//   points  [{ x, y, s, d, glow }]: s the spot's size (a cushion's width), flat the glow's height / width
+const WAVE_LIFE = 560;
+const WAVE_STARS = ['#fff3a0', '#ffd1f5', '#c9f5ff', '#ffffff', '#ffe066', '#b8ffd9'];
+const Wave = memo(function Wave({ points, flat = 0.6, onDone }) {
+  const t = useRef(new Animated.Value(0)).current;
+  const end = Math.max(0, ...points.map((p) => p.d)) + WAVE_LIFE;
+  useEffect(() => {
+    const a = Animated.timing(t, { toValue: end, duration: end, easing: Easing.linear, useNativeDriver: true });
+    a.start(() => onDone());
+    return () => a.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const spots = useMemo(
+    () =>
+      points.map((p, i) => {
+        const at = (k) => p.d + k * WAVE_LIFE;
+        const lerp = (ks, out) => t.interpolate({ inputRange: ks.map(at), outputRange: out, extrapolate: 'clamp' });
+        const gw = p.s * 0.72;
+        const st = Math.max(6, p.s * 0.2);
+        const side = (i % 2 ? 1 : -1) * p.s * 0.12;
+        return {
+          glow: p.glow
+            ? {
+                left: p.x - gw / 2,
+                top: p.y - (gw * flat) / 2,
+                width: gw,
+                height: gw * flat,
+                borderRadius: gw,
+                opacity: lerp([0, 0.16, 0.62], [0, 0.5, 0]),
+                transform: [{ scale: lerp([0, 0.16, 0.62], [0.4, 1, 1.15]) }],
+              }
+            : null,
+          star: {
+            left: p.x - st / 2,
+            top: p.y - st / 2,
+            width: st,
+            height: st,
+            borderRadius: st * 0.18,
+            backgroundColor: WAVE_STARS[i % WAVE_STARS.length],
+            opacity: lerp([0.04, 0.18, 0.7, 1], [0, 1, 1, 0]),
+            transform: [
+              { translateX: lerp([0.04, 1], [0, side]) },
+              { translateY: lerp([0.04, 0.5, 1], [-p.s * 0.05, -p.s * 0.55, -p.s * 0.7]) },
+              { rotate: lerp([0.04, 1], ['45deg', '225deg']) },
+              { scale: lerp([0.04, 0.22, 1], [0.2, 1.15, 0.5]) },
+            ],
+          },
+        };
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {spots.map((q, i) => (q.glow ? <Animated.View key={`g${i}`} style={[styles.part, styles.glow, q.glow]} /> : null))}
+      {spots.map((q, i) => (
+        <Animated.View key={`s${i}`} style={[styles.part, styles.waveStar, q.star]} />
+      ))}
+    </View>
+  );
+});
+
+// The layer bursts and waves play on (x, y in the layer's own coordinates):
+//   ref.current.burst(kind, x, y, scale)
+//   ref.current.wave(points, flat)   (Wave above)
 export const FxLayer = memo(
   forwardRef(function FxLayer({ style }, ref) {
     const [bursts, setBursts] = useState([]);
+    const [waves, setWaves] = useState([]);
     const id = useRef(0);
     const remove = useCallback((key) => setBursts((b) => b.filter((x) => x.key !== key)), []);
+    const removeWave = useCallback((key) => setWaves((w) => w.filter((x) => x.key !== key)), []);
     useImperativeHandle(ref, () => ({
       burst(kind, x, y, scale = 1) {
         const key = ++id.current;
         // a busy board never piles up more than a dozen at once
         setBursts((b) => [...b.slice(-11), { key, kind, x, y, scale }]);
       },
+      wave(points, flat) {
+        if (!points.length) return;
+        const key = ++id.current;
+        setWaves((w) => [...w.slice(-2), { key, points, flat }]);
+      },
     }));
     return (
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
+        {waves.map((w) => (
+          <Wave key={w.key} points={w.points} flat={w.flat} onDone={() => removeWave(w.key)} />
+        ))}
         {bursts.map((b) => (
           <Burst key={b.key} kind={b.kind} x={b.x} y={b.y} scale={b.scale} onDone={() => remove(b.key)} />
         ))}
@@ -203,4 +283,6 @@ export function CountUp({ value, ms = 900, delay = 0, style, prefix = '', onTick
 const styles = StyleSheet.create({
   at: { position: 'absolute', width: 0, height: 0 },
   part: { position: 'absolute', left: 0, top: 0 },
+  glow: { backgroundColor: '#fff6cf' },
+  waveStar: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)' },
 });

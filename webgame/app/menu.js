@@ -103,6 +103,8 @@ body .mm-root{--ink:#6b4426;
 body .mm-hback{width:44px;height:44px;background:radial-gradient(circle at 34% 28%,#fff6e2 0 7%,#f2cc94 16%,#dba468 38%,#b47a42 70%,#7f4c24 100%) padding-box,linear-gradient(180deg,#f8dcae 0%,#d9a066 50%,#a86e3a 100%) border-box;
   box-shadow:0 0 0 1.6px #6b4426,0 3px 0 1.6px #6b4426,0 6px 12px rgba(40,16,0,.4);}
 body .mm-hback svg{width:21px;height:21px;filter:drop-shadow(0 1.4px 0 #6b4426);}
+/* 2026-11-17 (the user): not on the house map, which has its own Back (top left) and its hint sits where the orb is */
+body .mm-house:has([data-screen-label="House map"]) .mm-hback{display:none;}
 .mm-root .mm-page2{background:${WOOD_BG};}
 .mm-root .mm-frame{background:#6b4426;}
 /* HUD (REDESIGN_V8): no SQUAD (patched out), the tabs start at the left with room between them; the coin and gem
@@ -269,14 +271,12 @@ body .mm-hback svg{width:21px;height:21px;filter:drop-shadow(0 1.4px 0 #6b4426);
 .sq-it.none{justify-content:center;}
 /* ---- Heading home (REDESIGN_V9): night on the house while it loads ---- */
 .sq-hh-night{position:absolute;inset:0;pointer-events:none;}
-.sq-hh-night .sky{position:absolute;inset:0;background:linear-gradient(180deg,#1c2260 0%,#2a3070 45%,#262a5a 100%);mix-blend-mode:multiply;opacity:0;transition:opacity .9s ease;}
+.sq-hh-night .lay{position:absolute;inset:0;width:100%;height:100%;overflow:visible;}
+.sq-hh-night .sky{mix-blend-mode:multiply;opacity:0;transition:opacity .9s ease;}
 .sq-hh-night .stars{position:absolute;inset:0;opacity:0;transition:opacity 1.2s ease .5s;}
 .sq-hh-night .stars i{position:absolute;width:2px;height:2px;border-radius:50%;background:#fff;box-shadow:0 0 4px 1px rgba(255,255,255,.6);animation:sqTw 2.4s ease-in-out infinite;}
 @keyframes sqTw{0%,100%{opacity:.35;}50%{opacity:1;}}
 .sq-hh-night .moon{position:absolute;right:9%;top:8%;width:52px;height:52px;opacity:0;transform:translateY(10px);transition:opacity 1s ease .4s,transform 1.2s ease .4s;filter:drop-shadow(0 0 10px rgba(255,246,200,.7));}
-.sq-hh-night .lit{position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:screen;}
-.sq-hh-night .lit ellipse{opacity:0;transition:opacity .7s ease;}
-.sq-hh-night .lit ellipse.on{opacity:1;}
 .sq-hh-night.on .sky,.sq-hh-night.on .stars{opacity:1;}
 .sq-hh-night.on .moon{opacity:1;transform:none;}
 .sq-hh-ui{position:absolute;inset:0;z-index:6;pointer-events:none;opacity:0;transition:opacity .6s ease;}
@@ -285,12 +285,6 @@ body .mm-hback svg{width:21px;height:21px;filter:drop-shadow(0 1.4px 0 #6b4426);
 .sq-hh-ui .in{position:absolute;left:0;top:0;transform-origin:0 0;}
 .sq-hh-ui .ttl{position:absolute;left:0;right:0;top:16px;display:flex;justify-content:center;line-height:0;}
 .sq-hh-ui .bot{position:absolute;left:0;right:0;bottom:14px;display:flex;flex-direction:column;align-items:center;gap:7px;}
-.sq-hh-ui .row{display:flex;align-items:center;gap:12px;margin-left:44px;}
-.sq-hh-ui .bar{position:relative;width:440px;height:24px;border-radius:999px;background:linear-gradient(180deg,#8a5a32,#a8703e);box-shadow:0 0 0 3px #6b4426,0 3px 0 3px #4a2c14,inset 0 2px 4px rgba(0,0,0,.35);}
-.sq-hh-ui .bar i{position:absolute;left:3px;top:3px;bottom:3px;width:0;max-width:calc(100% - 6px);border-radius:999px;background:repeating-linear-gradient(-45deg,#fff1b0 0 8px,#ffd24a 8px 16px);box-shadow:inset 0 2px 0 rgba(255,255,255,.55);}
-.sq-hh-ui .bar b{position:absolute;top:50%;left:0;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fffdf2,#fff1d0 60%,#f2d49a);box-shadow:0 0 0 3px #6b4426,0 3px 0 3px #4a2c14;display:flex;align-items:center;justify-content:center;}
-.sq-hh-ui .bar b svg{width:22px;height:22px;}
-.sq-hh-ui .pc{width:52px;margin-left:12px;font:800 16px Nunito,sans-serif;color:#fff6e2;text-shadow:0 1.5px 0 #3a2210;}
 .sq-hh-ui .tip{font:800 12.5px Nunito,sans-serif;color:#fff6e2;text-shadow:0 1.5px 0 #2a1608;transition:opacity .25s ease;max-width:560px;text-align:center;}
 .sq-hh-ui .tip em{font-style:normal;color:#ffd24a;}
 .sq-hh-ui .tip.sw{opacity:0;}
@@ -318,13 +312,7 @@ body .mm-hback svg{width:21px;height:21px;filter:drop-shadow(0 1.4px 0 #6b4426);
 .sq-gs .fc,.sq-gs .bk{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:10px;}
 .sq-gs .bk{transform:rotateY(180deg);}
 .sq-gs .fc .sq-cc{width:100%;cursor:default;filter:drop-shadow(0 4px 0 rgba(74,44,20,.45));}
-.sq-gs .band{position:absolute;left:0;right:0;bottom:0;height:78px;background:linear-gradient(180deg,#6b4426,#4a2c14);box-shadow:0 -3px 0 #3a2210,inset 0 2px 0 rgba(255,236,170,.25);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;}
-.sq-gs .row{display:flex;align-items:center;gap:12px;margin-left:52px;}
-.sq-gs .bar{position:relative;width:440px;height:22px;border-radius:999px;background:linear-gradient(180deg,#8a5a32,#a8703e);box-shadow:0 0 0 3px #3a2210,inset 0 2px 4px rgba(0,0,0,.35);}
-.sq-gs .bar i{position:absolute;left:3px;top:3px;bottom:3px;width:0;max-width:calc(100% - 6px);border-radius:999px;background:repeating-linear-gradient(-45deg,#fff1b0 0 8px,#ffd24a 8px 16px);box-shadow:inset 0 2px 0 rgba(255,255,255,.55);}
-.sq-gs .bar b{position:absolute;top:50%;left:0;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fffdf2,#fff1d0 60%,#f2d49a);box-shadow:0 0 0 3px #3a2210;display:flex;align-items:center;justify-content:center;}
-.sq-gs .bar b svg{width:22px;height:22px;}
-.sq-gs .pc{width:52px;margin-left:12px;font:800 16px Nunito,sans-serif;color:#fff6e2;}
+.sq-gs .band{position:absolute;left:0;right:0;bottom:0;height:46px;background:linear-gradient(180deg,#6b4426,#4a2c14);box-shadow:0 -3px 0 #3a2210,inset 0 2px 0 rgba(255,236,170,.25);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;}
 .sq-gs .tip{font:800 12.5px Nunito,sans-serif;color:#fff6e2;transition:opacity .25s ease;text-align:center;}
 .sq-gs .tip em{font-style:normal;color:#ffd24a;}
 .sq-gs .tip.sw{opacity:0;}
@@ -423,6 +411,7 @@ ${bulbRun()}
 .sq-bird{position:absolute;left:0;top:0;will-change:transform;}
 .sq-away .mm-hud *,.sq-away .mm-hud *::before,.sq-away .mm-hud *::after{animation-play-state:paused !important;}
 .sq-away .sq-wx{display:none;}
+.sq-intro .sq-wx{display:none;}
 @media (prefers-reduced-motion: reduce){.sq-crest .sq-cin,.sq-crest .mm-crest,.sq-wing1,.sq-wing-1,.sq-cstar,.sq-sweep,.sq-rays{animation:none;}}
 `;
     document.head.appendChild(s);
@@ -897,6 +886,7 @@ ${bulbRun()}
     addCss();
     // (the app's start data can arrive after this page's first scripts: app/bridge.js calls this again when it does)
     M._x = x;
+    if (App && App.intro && !App._introDone) { App._introDone = true; if (startIntro(x)) return; App.send('intro', { phase: 'done' }); }
     if (!App || App.screen !== 'park' || App._parkDone) return;
     App._parkDone = true; App.screen = null;
     // (only the layout is waited for: on a cold start the creature's rig can take seconds; it appears in the park when ready)
@@ -904,6 +894,61 @@ ${bulbRun()}
     let n = 0; const go = () => { if (x.geo) enterPark(x, true).then(ok => { if (!ok) x.fade(true); }); else if (n++ < 300) setTimeout(go, 60); else x.fade(true); };
     go();
   };
+  // ---------- the game intro ----------
+  // The designer's "Squish wakes the house" (app/intro.js, window.SquadIntro) replaces the app's old splash screen
+  // (2026-11-16, the user). It was made for the Nov 14 menu, whose startIntro hands it an api; this is that api built from
+  // our (Nov 13) menu's insides:
+  //   - the HUD, the room labels and the nameplate fade out while it plays (back at the end), and the menu stays `busy` so
+  //     its own moves (the idle shuffle, the season redraw, the layout of the creature) leave the scene to it
+  //   - Mittens is its star: shown in the creature's spot for the story (the menu's `preview`), the player's own
+  //     character comes back at the end
+  //   - light(): the Nov 13 rig has no lighting, so the night is a filter on the creature (darker and cooler at first,
+  //     warmer with every room lit; daylight clears it)
+  //   - finish(): the real scene (the player's level and season) is drawn again under the intro's layers as they fade
+  // The app hears { phase: 'start' }, { phase: 'awake' } (the third squish of Mittens: its music starts) and
+  // { phase: 'done' } (App.js holds the daily spin, the streak and the level-up card until it's done). Android back skips it (SquishMenu.introBack, app/bridge.js).
+  let introRun = null;
+  function startIntro(x) {
+    const SI = window.SquadIntro, Sc = x.Sc, Q = x.Q;
+    if (!SI || !Sc || !Q || !x.geo) return false;
+    const mitIdx = Object.keys(Q.ROSTER).find(i => Q.ROSTER[i] && Q.ROSTER[i].key === 'mittens');
+    if (x.sh) x.sh.stop();
+    x.busy = true; x.fade(false); x.frame.classList.add('sq-intro');   // (sq-intro: the menu's weather layer is hidden)
+    if (mitIdx != null) { x.preview = +mitIdx; x.mountRig(); }
+    const lum = c => { const n = parseInt(c.slice(1), 16); return (0.299 * (n >> 16 & 255) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255; };
+    const light = cfg => {
+      if (!cfg || !cfg.tint) { x.stage.style.filter = ''; return; }
+      const L = clamp(lum(cfg.tint) / lum('#efe2d2'), 0, 1), warm = clamp((cfg.rim - 0.08) / 0.36, 0, 1);
+      x.stage.style.filter = 'brightness(' + (0.5 + 0.5 * L).toFixed(3) + ') saturate(' + (0.6 + 0.4 * L).toFixed(3) + ')' + (warm > 0.05 ? ' sepia(' + (0.25 * warm).toFixed(3) + ')' : '');
+    };
+    const api = {
+      frame: x.frame, world: x.world, scene: x.scene, stage: x.stage, Sc,
+      ctrl: () => x.ctrl, geo: () => x.geo,
+      // the intro's house has every room's window open, to light them up (the Nov 13 scene boards up the rooms a level
+      // hasn't reached): the six rooms it lights are opened, the level's look and the yard stay as they are. Drawn still,
+      // as the menu draws its own (stripAnim, section 0: the scene's own animations repainted the whole picture every
+      // frame; the intro has its own rain)
+      sceneSvg: o => { const st = Sc.state(o); ['living', 'kitchen', 'bathroom', 'bedroom', 'dance', 'movie'].forEach(k => { if (k in st.open) st.open[k] = true; }); return stripAnim(Sc.svg(st)); },
+      light, lightFor: () => null,
+      // the third squish of Mittens has lit the house: the app starts its music now (2026-11-17, the user)
+      awake: () => App.send('intro', { phase: 'awake' }),
+      finish: () => {
+        introRun = null;
+        light(null); x.draw();
+        x.preview = null; x.mountRig();
+        x.busy = false; x.layout(); x.fade(true); x.frame.classList.remove('sq-intro');
+        if (x.ctrl) x.ctrl.play('happy');
+        App.send('intro', { phase: 'done' });
+      },
+    };
+    try { introRun = SI.run(api); }
+    catch (e) { console.error('[intro]', e); introRun = null; light(null); x.draw(); x.preview = null; x.mountRig(); x.busy = false; x.layout(); x.fade(true); x.frame.classList.remove('sq-intro'); return false; }
+    App.send('intro', { phase: 'start' });
+    return true;
+  }
+  // Android back during the intro: skip it (true: handled)
+  M.introBack = function () { if (!introRun) return false; introRun.finish(); return true; };
+
   // Android back while in the park walks home (the back orb has data-x, so SquishApp.back finds it)
 
   // ---------- art for prizes and unlocks ----------
@@ -952,52 +997,99 @@ ${bulbRun()}
   // the scene darkens, stars and the moon come out, the open rooms' lights come on one by one as the house loads
   // underneath, the door last; a wooden bar with the house on it and a tip. Once the house has drawn (Main Menu.dc.html
   // calls houseDrawn) and the bar is full, the camera flies in through the door as before and the house fades in.
-  const HOME_TIPS = ['The Backyard unlocks the mini games', 'Your whole squad lives here. Drop by any time to see what they are up to', 'Level up to open more rooms in your house', 'Renovate a room to make your squad\'s home cozier'];
-  const HOUSE_IC = '<svg viewBox="0 0 24 24"><path d="M4 11.5L12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1Z" fill="#6b4426"/></svg>';
+  // 2026-11-17 (the user: "it's not lighting the windows, it's just a weird light on all the room... look how it is on
+  // the intro screen"): the rooms are lit the intro's way (app/intro.js, its night veil, halos and panes): the night has
+  // holes where a lit room's windows are, each window gets a warm pane and a halo of its own. Before, a big soft glow
+  // covered each room's whole area.
+  // The house's windows as main-menu-scene.js win() draws them (the intro's WIN list, plus the small round ones: the
+  // attic, the dormer and the dome's drum), in scene units: each a path, its box, k = how far its hole opens (the dome
+  // stays dimmer, as in the intro) and R = its halo's size when not the box's
+  const hwR = (x, y, w, h) => ({ d: 'M' + x + ' ' + y + 'h' + w + 'v' + h + 'h' + (-w) + 'Z', b: [x, y, w, h] });
+  const hwA = (x, y, w, h) => ({ d: 'M' + x + ' ' + (y + h) + 'V' + (y + w / 2) + 'A' + (w / 2) + ' ' + (w / 2) + ' 0 0 1 ' + (x + w) + ' ' + (y + w / 2) + 'V' + (y + h) + 'Z', b: [x, y, w, h] });
+  const hwC = (cx, cy, r) => ({ d: 'M' + (cx - r) + ' ' + cy + 'a' + r + ' ' + r + ' 0 1 0 ' + (2 * r) + ' 0a' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0Z', b: [cx - r, cy - r, 2 * r, 2 * r] });
+  const HWIN = {
+    living: [hwR(434, 218, 36, 40), hwR(530, 218, 36, 40)],
+    bedroom: [hwA(298, 164, 42, 48), hwR(366, 176, 30, 30), hwC(340, 122, 5.2)],
+    kitchen: [hwR(282, 246, 62, 36), hwC(385, 265, 13)],
+    bathroom: [hwC(629, 185, 17), hwR(668, 164, 46, 44), hwC(652, 122, 4)],
+    movie: [hwR(604, 242, 92, 40), hwR(712, 248, 16, 34)],
+    dance: [{ d: 'M454 170A46 46 0 0 1 546 170Z', b: [454, 124, 92, 46], k: 0.6 }].concat([462, 481, 500, 519, 538].map(x => hwC(x, 178, 4.2))) };
+  // the open doorway (its light is already on: main-menu.js doorOpen) and the two porch lamps
+  const HDOOR = [Object.assign(hwA(488, 247, 24, 53), { R: 34 }), hwC(476, 250.5, 5), hwC(524, 250.5, 5)];
+  const HOME_TIPS =['The Backyard unlocks the mini games', 'Your whole squad lives here. Drop by any time to see what they are up to', 'Level up to open more rooms in your house', 'Renovate a room to make your squad\'s home cozier'];
   let HH = null;
   M.headingHome = function (frame, world, st) {
     addCss(); if (HH) HH.kill();
     const Sc = window.MainMenuScene, x = M._x, k = (x && x.k) || 1, t0 = performance.now(), MIN = 2000;
     // the open rooms, in the order they opened (the living room first), each lit in turn
-    const rooms = Sc && st && st.open ? Object.keys(Sc.ROOMS).filter(r => st.open[r] && Sc.AREAS[r] && r !== 'beach' && r !== 'backyard').sort((a, b) => Sc.ROOMS[a].lv - Sc.ROOMS[b].lv) : [];
-    const door = (Sc && Sc.DOOR) || [500, 282];
+    const rooms = Sc && st && st.open ? Object.keys(Sc.ROOMS).filter(r => st.open[r] && HWIN[r]).sort((a, b) => Sc.ROOMS[a].lv - Sc.ROOMS[b].lv) : [];
     let stars = '';
     for (let i = 0; i < 46; i++) stars += '<i style="left:' + (2 + ((i * 37.7) % 96)).toFixed(1) + '%;top:' + (2 + ((i * 53.3) % 38)).toFixed(1) + '%;animation-delay:' + ((i * 0.37) % 2.4).toFixed(2) + 's;' + (i % 5 ? '' : 'width:3px;height:3px;') + '"></i>';
+    // the lights, in the order they come on: each open room's windows, then the door (last)
+    const groups = rooms.map(r => HWIN[r]).concat([HDOOR]), r1 = v => (Math.round(v * 10) / 10).toString();
+    let holes = '', halos = '', panes = '';
+    groups.forEach((g, i) => g.forEach(w => { const [x, y, ww, hh] = w.b, R = w.R || Math.max(ww, hh), k = w.k || 1;
+      holes += '<path data-h="' + i + '" data-k="' + k + '" d="' + w.d + '" fill="#000" opacity="0"/>';
+      halos += '<ellipse data-g="' + i + '" cx="' + r1(x + ww / 2) + '" cy="' + r1(y + hh / 2) + '" rx="' + r1(R * 1.3) + '" ry="' + r1(R * 1.1) + '" fill="url(#sqhhg)" opacity="0"/>';
+      panes += '<path data-p="' + i + '" data-k="' + k + '" d="' + w.d + '" fill="url(#sqhhp)" opacity="0"/>'; }));
+    const lay = '<svg class="lay" viewBox="0 0 1000 460" preserveAspectRatio="xMidYMax slice">';
     const night = document.createElement('div'); night.className = 'sq-hh-night';
-    night.innerHTML = '<div class="sky"></div><div class="stars">' + stars + '</div>'
+    // the night (multiplied over the house) with holes where the lit windows are; the stars and the moon; then the
+    // windows' halos (screen) and warm panes (soft-light), as in the intro. No layer of their own (will-change): the
+    // blend modes need the house under them.
+    night.innerHTML = lay + '<defs><linearGradient id="sqhhn" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="460"><stop offset="0" stop-color="#1c2260"/><stop offset=".45" stop-color="#2a3070"/><stop offset="1" stop-color="#262a5a"/></linearGradient>'
+      + '<mask id="sqhhv" maskUnits="userSpaceOnUse" x="-300" y="-300" width="1600" height="1100"><rect x="-300" y="-300" width="1600" height="1100" fill="#fff"/>' + holes + '</mask></defs>'
+      + '<rect class="sky" x="-300" y="-300" width="1600" height="1100" fill="url(#sqhhn)" mask="url(#sqhhv)"/></svg>'
+      + '<div class="stars">' + stars + '</div>'
       + '<svg class="moon" viewBox="0 0 40 40"><defs><mask id="sqhhm"><rect width="40" height="40" fill="#fff"/><circle cx="27" cy="15" r="14" fill="#000"/></mask></defs><circle cx="20" cy="20" r="15" fill="#fff6d8" mask="url(#sqhhm)"/></svg>'
-      + '<svg class="lit" viewBox="0 0 1000 460" preserveAspectRatio="xMidYMax slice"><defs><radialGradient id="sqhhg"><stop offset="0" stop-color="#fff2b0" stop-opacity=".95"/><stop offset=".55" stop-color="#ffc861" stop-opacity=".55"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient></defs>'
-      + rooms.map((r, i) => { const a = Sc.AREAS[r]; return '<ellipse data-i="' + i + '" cx="' + (a[0] + a[2] / 2) + '" cy="' + (a[1] + a[3] / 2) + '" rx="' + (a[2] * 0.46) + '" ry="' + (a[3] * 0.46) + '" fill="url(#sqhhg)"/>'; }).join('')
-      + '<ellipse data-door cx="' + door[0] + '" cy="' + (door[1] - 14) + '" rx="26" ry="34" fill="url(#sqhhg)"/></svg>';
+      + lay + '<defs><radialGradient id="sqhhg"><stop offset="0" stop-color="#ffe7a6" stop-opacity="0.8"/><stop offset="0.45" stop-color="#ffc45a" stop-opacity="0.3"/><stop offset="1" stop-color="#ff9a2a" stop-opacity="0"/></radialGradient>'
+      + '<linearGradient id="sqhhp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2c0"/><stop offset="1" stop-color="#ffb347"/></linearGradient></defs>'
+      + '<g style="mix-blend-mode:screen">' + halos + '</g><g style="mix-blend-mode:soft-light">' + panes + '</g></svg>';
     world.appendChild(night);
     const ui = document.createElement('div'); ui.className = 'sq-hh-ui';
     ui.innerHTML = '<div class="in" style="transform:scale(' + k + ');width:' + (frame.clientWidth / k) + 'px;height:' + (frame.clientHeight / k) + 'px">'
       + '<div class="ttl">' + ft('Heading home', 'gold', 34) + '</div>'
-      + '<div class="bot"><div class="row"><div class="bar"><i></i><b>' + HOUSE_IC + '</b></div><span class="pc">0%</span></div><div class="tip"><em>Tip:</em> <span></span></div></div></div>';
+      + '<div class="bot"><div class="tip"><em>Tip:</em> <span></span></div></div></div>';
     frame.appendChild(ui); if (x && x.fitFT) x.fitFT(ui);
-    const fill = ui.querySelector('.bar i'), knob = ui.querySelector('.bar b'), pc = ui.querySelector('.pc'), tip = ui.querySelector('.tip span');
-    const lights = [...night.querySelectorAll('[data-i]')], doorL = night.querySelector('[data-door]');
-    let ti = Math.floor(Math.random() * HOME_TIPS.length); tip.textContent = HOME_TIPS[ti];
+    const tip = ui.querySelector('.tip span');
+    // one light: its windows' holes in the night, halos and panes, set as the intro's setLit does (v = on, f = the flash as
+    // it comes on)
+    const lights = groups.map((g, i) => ({ h: [...night.querySelectorAll('[data-h="' + i + '"]')], g: [...night.querySelectorAll('[data-g="' + i + '"]')], p: [...night.querySelectorAll('[data-p="' + i + '"]')], at: 0, done: false }));
+    const cl = (v, a, b) => Math.max(a, Math.min(b, v));
+    const setLit = (L, v, f) => {
+      L.h.forEach(e => e.setAttribute('opacity', (cl(v * 0.9 + f * 0.1, 0, 1) * +e.dataset.k).toFixed(3)));
+      L.g.forEach(e => e.setAttribute('opacity', cl(v * 0.85 + f * 0.6, 0, 1).toFixed(3)));
+      L.p.forEach(e => e.setAttribute('opacity', (cl(v * 0.75 + f * 0.25, 0, 1) * +e.dataset.k).toFixed(3)));
+    };
+    const easeIO = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    let ti =Math.floor(Math.random() * HOME_TIPS.length); tip.textContent = HOME_TIPS[ti];
     const tipT = setInterval(() => { tip.parentNode.classList.add('sw'); setTimeout(() => { ti = (ti + 1) % HOME_TIPS.length; tip.textContent = HOME_TIPS[ti]; tip.parentNode.classList.remove('sw'); }, 260); }, 3000);
     requestAnimationFrame(() => { night.classList.add('on'); ui.classList.add('on'); });
-    let p = 0, readyAt = 0, show = null, over = false, res; const ready = new Promise(r => { res = r; });
+    let p = 0, readyAt = 0, show = null, over = false, gone = false, res; const ready = new Promise(r => { res = r; });
     const me = {
       ready: () => ready,
       markReady(fn) { show = fn; if (!readyAt) readyAt = performance.now(); },
-      zoom() { ui.classList.add('out'); }, // the camera flies in: the title and the bar go
+      zoom() { ui.classList.add('out'); }, // the camera flies in: the title and the tip go
       end() { const f = show; me.kill(); if (f) f(); },
       cancel() { me.kill(); res('cancel'); },
       kill() { over = true; clearInterval(tipT); night.remove(); ui.remove(); if (HH === me) HH = null; },
     };
     const tick = () => {
       if (over) return; const t = performance.now() - t0;
-      // the bar eases towards 90% while the house loads, then runs to the end
+      // the loading's progress (no bar shows it: the user, 2026-11-16, "remove the progress bars"): it eases towards
+      // 90% while the house loads, then runs to the end; the windows light up as it goes
       const goal = readyAt ? 1 : 0.9 * (1 - Math.exp(-t / 2400));
       p += (goal - p) * (readyAt ? 0.12 : 0.07); if (readyAt && 1 - p < 0.005) p = 1;
-      fill.style.width = (p * 100).toFixed(1) + '%'; knob.style.left = (p * 100).toFixed(1) + '%'; pc.textContent = Math.round(p * 100) + '%';
-      lights.forEach((e, i) => { if (p >= ((i + 1) / (lights.length + 1)) * 0.9) e.classList.add('on'); });
-      if (p >= 0.96) doorL.classList.add('on');
-      if (p >= 1 && t >= MIN) { res('ok'); return; }
+      const now = performance.now(), nR = lights.length - 1;   // (the last light is the door)
+      lights.forEach((L, i) => {
+        if (L.done) return;
+        if (!L.at) { if (i < nR ? p >= ((i + 1) / (nR + 1)) * 0.9 : p >= 0.96) L.at = now; else return; }
+        const u = Math.min(1, (now - L.at) / (i < nR ? 500 : 450));
+        setLit(L, easeIO(u), u < 1 ? Math.sin(u * Math.PI) : 0); if (u >= 1) L.done = true;
+      });
+      // ready: the camera starts flying in (its first moments barely move) while the door finishes lighting up
+      if (p >= 1 && t >= MIN && !gone) { gone = true; res('ok'); }
+      if (gone && lights.every(L => L.done)) return;
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -1035,7 +1127,7 @@ ${bulbRun()}
     for (let j = xp.level + 1; j < L; j++) n += per * (j + 1);
     return n;
   }
-  const UN_TEXT = { room: 'A new room opens in your house', yard: 'The backyard\'s 7 yard games', tier: 'Your house gets its next look' };
+  const UN_TEXT = { room: 'A new room opens in your house', yard: 'The backyard\'s 7 yard games (buy each one\'s toy there to play it)', tier: 'Your house gets its next look' };
   // one reward: its picture, name and line
   function rewardCard(it) {
     let art, title, desc, tag;
@@ -1186,7 +1278,7 @@ ${bulbRun()}
   // ---------- the Characters page's loading screen, "Gathering your squad" (REDESIGN_V9, 2026-11-16: the user's zip,
   // its 3-gathering-your-squad recording; the user: it plays when Characters opens) ----------
   // Over the page while its cards load: five of your creatures' cards dealt from the deck into a fan and turned over,
-  // a wooden bar with a star on it and a tip; once the row's first cards have loaded (and the deal has played), the
+  // and a tip (no progress bar: the user, 2026-11-16); once the row's first cards have loaded (and the deal has played), the
   // cards gather back into the deck, the deck flies off and the page shows.
   const SQUAD_TIPS = ['Rarities: Common, Rare, Epic, Legendary, Rainbow', 'Hold your creature to squeeze it, drag to spin it', 'Tap a card to see a creature, tap USE to put it in front of your house', 'Collect a whole group to earn its Rainbow chest'];
   const STAR_IC = '<svg viewBox="0 0 24 24"><path d="M12 3.2l2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6-4.4-4.2 6-.8Z" fill="#ffd24a" stroke="#6b4426" stroke-width="1.6" stroke-linejoin="round"/></svg>';
@@ -1201,10 +1293,10 @@ ${bulbRun()}
     ov.innerHTML = '<div class="rays"></div><div class="ttl">' + ft('Gathering your squad', 'gold', 32) + '</div><div class="cnt">' + owned + (owned === 1 ? ' creature' : ' creatures') + '</div>'
       + '<div class="table"><div class="deck">' + backHtml + backHtml + backHtml + '</div>'
       + Array.from({ length: n }, (_, i) => '<div class="cw" data-i="' + i + '"><div class="fl"><div class="fc">' + cardsHtml[i] + '</div><div class="bk"><span>' + STAR_IC + '</span></div></div></div>').join('') + '</div>'
-      + '<div class="band"><div class="row"><div class="bar"><i></i><b>' + STAR_IC + '</b></div><span class="pc">0%</span></div><div class="tip"><em>Tip:</em> <span></span></div></div>';
+      + '<div class="band"><div class="tip"><em>Tip:</em> <span></span></div></div>';
     p.querySelector('.mm-pg').appendChild(ov); if (x.fitFT) x.fitFT(ov);
     const cw = [...ov.querySelectorAll('.cw')], deck = ov.querySelector('.deck'), backs = [...deck.querySelectorAll('.back')];
-    const fillB = ov.querySelector('.bar i'), knob = ov.querySelector('.bar b'), pc = ov.querySelector('.pc'), tip = ov.querySelector('.tip span');
+    const tip = ov.querySelector('.tip span');
     let ti = Math.floor(Math.random() * SQUAD_TIPS.length); tip.textContent = SQUAD_TIPS[ti];
     const tipT = setInterval(() => { tip.parentNode.classList.add('sw'); setTimeout(() => { ti = (ti + 1) % SQUAD_TIPS.length; tip.textContent = SQUAD_TIPS[ti]; tip.parentNode.classList.remove('sw'); }, 260); }, 2800);
     // the row: each card's place, a little tilt one way or the other
@@ -1238,9 +1330,9 @@ ${bulbRun()}
       if (over || !ov.isConnected) { clearInterval(tipT); timers.forEach(clearTimeout); return; }
       const now = performance.now(), t = now - t0;
       if (!readyAt && (isReady() || t > 6000)) readyAt = now;
+      // the loading's progress (not shown: no bar), which says when the cards may leave
       const goal = readyAt ? 1 : 0.9 * (1 - Math.exp(-t / 1600));
       p0 += (goal - p0) * (readyAt ? 0.14 : 0.08); if (readyAt && 1 - p0 < 0.005) p0 = 1;
-      fillB.style.width = (p0 * 100).toFixed(1) + '%'; knob.style.left = (p0 * 100).toFixed(1) + '%'; pc.textContent = Math.round(p0 * 100) + '%';
       if (phase === 'hold') {
         if (p0 >= 1 && t >= MIN) { over = true; leave(); return; }
         if (!readyAt && now - heldAt > HOLD && cardsHtml.length > n) again();

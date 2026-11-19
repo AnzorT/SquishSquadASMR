@@ -111,7 +111,7 @@ export function levelSpec(lv) {
 // --- scoring ----------------------------------------------------------------------
 
 // Every win clears every cushion (the ★ only opens then: the user,
-// 2026-11-16), so the stars are for how cleanly: 3 with no UNDO or RESTART,
+// 2026-11-16), so the stars are for how cleanly: 3 with no RESTART or RETRY,
 // 2 with up to 3, 1 with more. A hint (watched for with an ad) takes one off,
 // never the last.
 export const starsFor = (takebacks, hinted) => engineStars(takebacks, hinted);
@@ -151,7 +151,7 @@ export const doneOf = (rec) => rec.lv - 1 + (rec.best[LEVELS] ? 1 : 0);
 
 // The fields to write after a level is won, and what it paid: coins, the
 // player's XP (half on a replay: winXp) and the levels it reached (`before` /
-// `after`: the result's XP bar). result: { takebacks (UNDOs and RESTARTs), hinted }
+// `after`: the result's XP bar). result: { takebacks (RESTARTs and RETRYs), hinted }
 export function afterLevel(profile, spec, result) {
   const rec = record(profile);
   const stars = starsFor(result.takebacks || 0, !!result.hinted);

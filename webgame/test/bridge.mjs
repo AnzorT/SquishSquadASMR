@@ -13,7 +13,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const DIR = path.join(HERE, 'out/webgame');
+const DIR = path.resolve(process.argv[2] || path.join(HERE, 'out/webgame'));
 
 const INIT = {
   screen: 'menu',
@@ -116,6 +116,16 @@ await page.evaluate(() => { window.__sent.length = 0; window.__sh.save && window
 await page.waitForTimeout(2200);
 const houseMsg = await page.evaluate(() => window.__sent.find(m => m.type === 'house'));
 check(houseMsg && typeof houseMsg.payload.data === 'string' && houseMsg.payload.data.length > 100, 'the house layout is sent to the app to save', houseMsg && houseMsg.payload.data && houseMsg.payload.data.length);
+
+// the house map: no back orb (the map has its own Back and its hint sits there); Android back closes the map, not the house
+await page.evaluate(() => window.__sh.openMap());
+await page.waitForTimeout(900);
+const onMap = await page.evaluate(() => { const hb = document.querySelector('.mm-hback'); return { map: !!document.querySelector('[data-screen-label="House map"]'), orb: !!hb && getComputedStyle(hb).display !== 'none' }; });
+check(onMap.map && !onMap.orb, 'the house map hides the back orb', onMap);
+const mapBack = await page.evaluate(() => window.SquishApp.back());
+await page.waitForTimeout(900);
+const offMap = await page.evaluate(() => { const hb = document.querySelector('.mm-hback'); return { map: !!document.querySelector('[data-screen-label="House map"]'), orb: !!hb && getComputedStyle(hb).display !== 'none' }; });
+check(mapBack === true && !offMap.map && offMap.orb, 'Android back on the map goes back to the room, the orb returns', offMap);
 
 // back button: leaves the house
 const back = await page.evaluate(() => window.SquishApp.back());
@@ -221,9 +231,26 @@ await page.click('.sq-yard');
 await page.waitForTimeout(1500);
 const yard = await page.evaluate(() => ({ cards: [...document.querySelectorAll('.mm-gc')].map(e => e.dataset.g), over: document.querySelector('.mm-host').style.zIndex }));
 check(yard.cards.join() === 'hoop,soccer,hop,tramp,slide,corn,pong' && yard.over === '30', 'it opens the 7 yard games, over the house', yard);
+// (2026-11-18, the user: a yard game opens only once its toy is bought in the Backyard; the cards are wide, with the game's poster)
+const locks = await page.evaluate(() => [...document.querySelectorAll('.sq-ygc')].map(e => ({ g: e.dataset.g, lock: e.classList.contains('lock'), need: (e.querySelector('.need') || {}).textContent || '', poster: !!e.querySelector('.win svg .ygp-cr') })));
+check(locks.length === 7 && locks.every(l => l.lock && l.poster) && /^Buy .*Hoop.* in the Backyard catalog \(440 coins\)/.test(locks[0].need), 'with no toys bought every yard game is locked, says what to buy, and shows its poster', locks.slice(0, 2));
+// buy the hoop (as the house's catalog does: owned['R:<id>']), and the page opens Hoop Shot
+await page.evaluate(() => { window.__sh.H.owned['R:YRD-102'] = 1; document.querySelector('.mm-pg [data-x]').click(); });
+await page.waitForTimeout(800);
+await page.click('.sq-yard');
+await page.waitForTimeout(1500);
+const open1 = await page.evaluate(() => [...document.querySelectorAll('.sq-ygc:not(.lock)')].map(e => e.dataset.g));
+check(open1.join() === 'hoop', 'buying the Driveway Basketball Hoop opens Hoop Shot (only)', open1);
+// (2026-11-18, the user: the toys are bought once and never placed)
+const toy = await page.evaluate(() => { const s = window.__sh, c0 = window.SquishSquad.coins(), a = s.buyR('YRD-101'), c1 = window.SquishSquad.coins(), b = s.buyR('YRD-101'), c2 = window.SquishSquad.coins(), r0 = s.rTab; s.rTab = () => 'furn'; const tray = s.trayVals({}).map(x => x.id); s.rTab = r0; return { a, b, first: c0 - c1, second: c1 - c2, n: s.H.owned['R:YRD-101'], tray, placed: (s.H.rooms.backyard || []).some(i => i.t === 'R:YRD-101') }; });
+check(toy.a && !toy.b && toy.first === 110 && toy.second === 0 && toy.n === 1 && !toy.placed && !toy.tray.includes('R:YRD-101'), 'the toy of a yard game is bought once and is never offered for placing', toy);
 await page.click('.mm-gc[data-g="hoop"] .go');
 await page.waitForTimeout(2000);
-await page.click('.mm-gp [data-x]');
+// (2026-11-18, the yard zip: a landscape game fills the page, so the page's side column and its back orb are hidden;
+// the back button is the game intro's own ‹)
+const land = await page.evaluate(() => ({ land: !!document.querySelector('.mm-gp.land'), poster: !!document.querySelector('.mm-gp .yg-iback'), frame: (() => { const f = document.querySelector('.mm-gp .yg-frame'); if (!f) return null; const r = f.getBoundingClientRect(); return Math.round(r.width / r.height * 100) / 100; })() }));
+check(land.land && land.poster && land.frame > 2 && land.frame < 2.3, 'a yard game plays sideways across the page (780 x 360) and opens on its intro poster', land);
+await page.click('.mm-gp .yg-iback');
 await page.waitForTimeout(1000);
 await page.click('.mm-pg [data-x]');
 await page.waitForTimeout(800);

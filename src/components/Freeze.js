@@ -1,4 +1,5 @@
 import React, { Suspense, memo, useRef } from 'react';
+import { useFrozen } from './freezeSync';
 
 // Keeps a mounted subtree alive but asleep: while `freeze` is on, it isn't
 // drawn (Suspense hides it with display: none) and doesn't re-render, but
@@ -27,10 +28,13 @@ function Suspender({ freeze, children }) {
   return children;
 }
 
+// (on the web the switch to asleep is a synchronous update, or concurrent React held every commit back from then on:
+//  freezeSync.web.js)
 export default function Freeze({ freeze, children }) {
+  const on = useFrozen(freeze);
   return (
     <Suspense fallback={null}>
-      <Suspender freeze={freeze}>{children}</Suspender>
+      <Suspender freeze={on}>{children}</Suspender>
     </Suspense>
   );
 }

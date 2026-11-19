@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TutTarget from '../tutorial/Target';
 import { report as tutReport } from '../tutorial/store';
 import { BY_ID, RAR_LOOK } from '../squad/data';
+import { rigLookOf } from '../squad/looks';
 import sfx from '../audio/sfx';
 import { pageFps, useFpsActive } from './fpsMeter';
 
@@ -22,19 +23,26 @@ import { pageFps, useFpsActive } from './fpsMeter';
 const HOST = Platform.select({ android: 'file:///android_asset/chest/host.html', web: '/android_asset/chest/host.html', default: null });
 const SIZE_NAMES = { common: 'common', rare: 'rare', epic: 'epic', legendary: 'legendary', set: 'set' };
 
-// What the page's reveal card shows for the server's result.
+// What the page's reveal card shows for the server's result. The card is the Characters screen's (cards v6: `key` finds
+// the name lettering, `set` the group background); the picture is the creature's still in its Firebase look (the
+// page's ../looks/, as the menu's cards), or its old front art when it has no look pictures.
 function rewardOf(r, catalog) {
   const c = r.id != null ? BY_ID[String(r.id)] : null;
   const R = c ? RAR_LOOK[c.rar] : null;
   const doc = c ? catalog[c.id] : null;
+  const look = c ? rigLookOf(c.key) : 0;
   return {
     name: c ? c.name : '',
+    key: c ? c.key : '',
+    set: c ? c.set : '',
     rar: c ? c.rar : 0,
     rarLabel: R ? R.label : '',
     rarBg: R ? R.bg : '#ffffff',
     rarInk: R ? R.ink : '#45107a',
     concept: (doc && doc.description) || '',
-    img: c ? `../rig/export/tripo/${c.key}/${c.key}-front.svg` : '',
+    img: !c ? '' : look ? `../looks/${look}/${c.key}.webp` : `../rig/export/tripo/${c.key}/${c.key}-front.svg`,
+    // (the border look again, for the live creature the page brings out when this copy unlocks it: rig-look.js)
+    look,
     isNew: !!r.isNew,
     // copies found of it so far and how many unlock it (none: it came whole)
     copies: r.copies || 0,

@@ -8,7 +8,7 @@ import { menuLooks } from '../squad/looks';
 import { levelsConfig, roadView, xpView } from '../playerXp';
 import { selectedId } from '../squad/lobby';
 import { LEVELS as SDK_LEVELS, record as sdkRecord } from '../squishdoku/levels';
-import { record as sortRecord } from '../sort/levels';
+import { LEVELS as SORT_LEVELS, record as sortRecord } from '../sort/levels';
 import { LEVELS as STACK_LEVELS, record as stackRecord, starsOf as stackStars } from '../stack/levels';
 import { LEVELS as HOP_LEVELS, record as hopRecord, starsOf as hopStars } from '../hop/levels';
 
@@ -22,7 +22,7 @@ export function menuGames(profile) {
   const stars = (n) => (n ? ` · ★ ${n}` : '');
   return [
     { id: 'squishdoku', name: 'Squishdoku', item: `${SDK_LEVELS} puzzle levels`, best: `Level ${Math.min(sdk.lv, SDK_LEVELS)} / ${SDK_LEVELS}`, color: '#3fc4ec' },
-    { id: 'sort', name: 'Squish Sort', item: 'Fridge & cupboard', best: `Fridge ${srt.fridge.lv} · Cupboard ${srt.cupboard.lv}`, color: '#ff9a3c' },
+    { id: 'sort', name: 'Squish Sort', item: 'Fridge memory', best: `Level ${srt.fridge.lv} / ${SORT_LEVELS}`, color: '#ff9a3c' },
     { id: 'stack', name: 'Squish Stack', item: 'Tower puzzles', best: `Level ${stk.lv} / ${STACK_LEVELS}${stars(stackStars(stk))}`, color: '#9b6bff' },
     { id: 'hop', name: 'Squish Hop', item: 'Cushion hopping', best: `Level ${hop.lv} / ${HOP_LEVELS}${stars(hopStars(hop))}`, color: '#2fc6a8' },
   ];

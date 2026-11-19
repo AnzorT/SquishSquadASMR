@@ -7,9 +7,12 @@
 //   look   1 shading only · 2 thin ink line · 3 bold ink line · 4 bold colour line (the default) · 0 the old pictures
 //   looks  { <creature id or key>: n } — one creature in another look than the rest
 // A change shows the next time a screen draws: no app update.
+// The live, animated creatures get the look's outline too (2026-11-16, the user): src/components/RigCreature.js asks
+// useRigLook, and the game's pages read state.looks (menuLooks); both draw it with webgame/app/rig-look.js.
 //
 // The pictures ship in the app (android/app/src/main/assets/looks/<n>/<key>.webp, tools/looks/encode.py). Prickle and
 // Wisecrack have none in the zip and keep their old pictures.
+import { useEffect, useReducer } from 'react';
 import { Platform } from 'react-native';
 import LOOK_KEYS from './lookKeys';
 import { BY_ID } from './data';
@@ -54,4 +57,29 @@ export function menuLooks(cfg) {
     });
   }
   return { n, over, keys: LOOK_KEYS };
+}
+
+// --- the live rigs ------------------------------------------------------------------------------------------------
+// App.js hands config/roster over as it changes (setLookConfig); a RigCreature on screen redraws with the new look.
+let rigCfg = null;
+const rigSubs = new Set();
+const BY_KEY = {};
+Object.values(BY_ID).forEach((c) => { BY_KEY[c.key] = c; });
+export function setLookConfig(cfg) {
+  if (cfg === rigCfg) return;
+  rigCfg = cfg;
+  rigSubs.forEach((f) => f());
+}
+// the look a live rig of the creature `key` is drawn in (0: it has no look pictures, so no outline either)
+export function rigLookOf(key) {
+  const r = BY_KEY[key];
+  return r && HAS.has(key) ? lookOf(rigCfg, r) : 0;
+}
+export function useRigLook(key) {
+  const [, redraw] = useReducer((x) => x + 1, 0);
+  useEffect(() => {
+    rigSubs.add(redraw);
+    return () => rigSubs.delete(redraw);
+  }, []);
+  return rigLookOf(key);
 }

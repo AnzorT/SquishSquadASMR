@@ -11,7 +11,8 @@ import { CribButton, PhasePill, RoomTitle } from '../crib/Hud';
 import { PH } from '../crib/data';
 import Buddy from './Buddy';
 import { ScoreRow, TimerBar } from './Hud';
-import { PauseCard, ResultCard, TimeUpCard } from './Overlays';
+import { PauseCard, ResultCard, SD_RESULT_TITLES, TimeUpCard } from './Overlays';
+import { keyOfUri } from './roster';
 import { FxLayer, PopIn } from './fx';
 import { makeHaptics, pickCreatures, prefetchImages, PLAY_SOUNDS, RESULT_SOUNDS, useClock } from './game';
 import { afterLevel, clock, HEARTS_FROM, LEVELS, levelSpec, stageOf, starsFor, starsLeft } from './levels';
@@ -165,22 +166,33 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, game]);
 
+  // a lost level's card, once the creatures have drooped (board sadAll: `ms`)
+  const cardAfter = (card, ms) =>
+    setTimeout(() => {
+      if (phaseRef.current === 'out') setPhase(card);
+    }, ms);
+
+  // the clock ran out: the board locks, everyone on it turns sad and droops one
+  // after another, then the card
   const timeUp = () => {
     if (phaseRef.current !== 'play') return;
     clk.pause();
-    setPhase('timeup');
+    setPhase('out');
     setWarn(false);
     sfx.play('sd_timeUp');
     buddy.current?.react('timeup');
     haptics.wrong();
     board.current?.shake();
+    const sad = board.current?.sadAll() || 0;
+    cardAfter('timeup', Math.max(500, sad + 250));
     const r = afterLevel(profileRef.current, game.spec, { solved: false });
     if (uid) saveSquishdoku(uid, r.update, 0);
   };
 
   // the last heart: the board locks at once (no more taps, the clock stops),
-  // the wrong creature's shake plays out, then the card
-  const outOfHearts = () => {
+  // the wrong creature's shake plays out while everyone else droops, nearest
+  // it first, then the card
+  const outOfHearts = (cell) => {
     clk.pause();
     setPhase('out');
     setWarn(false);
@@ -191,8 +203,9 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
       buddy.current?.react('timeup');
       haptics.wrong();
       board.current?.shake();
+      const sad = board.current?.sadAll(cell) || 0;
+      cardAfter('nohearts', Math.max(550, sad + 250));
     }, 450);
-    setTimeout(() => setPhase('nohearts'), 1000);
   };
 
   // --- touches -------------------------------------------------------------------------
@@ -240,7 +253,7 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
         haptics.place();
         g.combo++;
         g.placed++;
-        if (g.placed === n) solved();
+        if (g.placed === n) solved(cell);
       } else {
         board.current?.wrong(cell);
         sfx.play('sd_wrong');
@@ -254,7 +267,7 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
           setHeartsLost(g.mistakes);
           setTimeout(() => sfx.play('fs_heart'), 160);
           if (g.mistakes >= game.spec.hearts) {
-            outOfHearts();
+            outOfHearts(cell);
             return;
           }
         }
@@ -270,6 +283,19 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [game, xTool],
   );
+
+  // web, development only: the browser tests play a board without finding the cushions on screen (src/web/README.md)
+  if (__DEV__ && typeof window !== 'undefined' && window.document) {
+    window.__sdk = {
+      phase: () => phaseRef.current,
+      // the answer's cells, row by row (each row's creature), and a cell that isn't one
+      answer: () => (game ? game.puzzle.solution.map((c, r) => r * game.puzzle.n + c) : []),
+      miss: () => (game ? game.puzzle.solution.findIndex((c) => c !== 0) * game.puzzle.n : -1),
+      tap: (cell) => onTap(cell),
+      // the clock running out now
+      timeUp: () => timeUp(),
+    };
+  }
   const onTapPiece = useCallback((cell) => {
     board.current?.wiggle(cell);
     sfx.play('sd_squeak', { rate: 0.85 + Math.random() * 0.35 });
@@ -277,7 +303,8 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
   }, [haptics]);
 
   // --- solved ----------------------------------------------------------------------
-  const solved = () => {
+  // `cell`: the last creature, where the win's ripple starts
+  const solved = (cell) => {
     const ms = clk.elapsed();
     clk.pause();
     setPhase('solved');
@@ -288,12 +315,13 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
     const out = afterLevel(profileRef.current, game.spec, res);
     if (uid) saveSquishdoku(uid, out.update, out.coins, out.xp, profileRef.current);
     if (out.unlocked) unlockedRef.current = game.spec.lv + 1;
+    // every creature turns happy and the bounce ripples out from the last one (it starts as that one lands)
+    const beats = board.current?.hopAll(cell) || [];
+    beats.forEach((at, i) => sfx.play('sd_hop', { delay: at, rate: 0.9 + i * 0.06 }));
     setTimeout(() => {
       sfx.play('sd_solve');
       buddy.current?.react('solve');
       haptics.win();
-      board.current?.hopAll();
-      for (let r = 0; r < game.spec.n; r++) sfx.play('sd_hop', { delay: r * 75, rate: 0.9 + r * 0.06 });
     }, 420);
     setTimeout(() => {
       sfx.play('sd_confetti');
@@ -512,15 +540,19 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
       )}
 
       <FxLayer ref={fx} />
-      <PauseCard visible={phase === 'paused'} onResume={resume} onRestart={() => setAttempt((a) => a + 1)} onQuit={exit} />
+      <PauseCard visible={phase === 'paused'} onResume={resume} onQuit={exit} />
       <TimeUpCard visible={phase === 'timeup' || phase === 'nohearts'} hearts={phase === 'nohearts' ? spec.hearts : 0} uri={game?.score[0]} onRetry={() => setAttempt((a) => a + 1)} onMap={exit} />
       <ResultCard
         visible={phase === 'result'}
         res={result}
-        spec={spec}
+        titles={SD_RESULT_TITLES}
+        perfectTitle="PERFECT SQUISH!"
         uris={game ? game.score : []}
+        keys={game ? game.score.map(keyOfUri) : null}
+        coins={result ? result.levelCoins : 0}
         last={lv >= LEVELS}
-        onMap={exit}
+        backLabel="MAP"
+        onBack={exit}
         onReplay={() => setAttempt((a) => a + 1)}
         onNext={() => {
           setLv((l) => Math.min(LEVELS, l + 1));

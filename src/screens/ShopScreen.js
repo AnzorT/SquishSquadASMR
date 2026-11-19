@@ -126,8 +126,11 @@ const R_TABS = [
   ['daily', 'Daily', 'M4 6h16v14H4Z M4 10h16 M8 3v4 M16 3v4 M9 15l2 2 4-4'],
   ['chests', 'Chests', 'M4 10h16v9H4Z M4 10l2-5h12l2 5 M12 10v4'],
   ['deals', 'Deals', 'M3 12V4h8l10 10-8 8Z M7.5 7.5h.01'],
+  // (2026-11-16, the user: the bundles moved here out of Deals)
+  ['special', 'Special offers', 'M4 11h16v10H4Z M3 7h18v4H3Z M12 7v14 M12 7C10 3 6 3 6 5.5S12 7 12 7 M12 7c2-4 6-4 6-1.5S12 7 12 7'],
   ['gems', 'Gems', 'M6 3h12l4 6-10 12L2 9Z M2 9h20 M9 3l3 6 3-6'],
 ];
+const R_ORDER = R_TABS.map(([k]) => k);
 
 // The segmented tab switch (Chests / Squishies / Gems here).
 // `onPick(k)`: called on the tap itself (before onTab), for a caller that
@@ -304,7 +307,7 @@ function Sheet({ sheet, profile, catalog, artIds, setRewards, rainbow, wallet: w
       <View style={[StyleSheet.absoluteFill, styles.rSheetWrap]}>
         <Pressable silent style={styles.scrim} onPress={onClose} />
         <Animated.View style={{ opacity: up, transform: [{ scale: up.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }}>
-          <Plaque variant="pearl" radius={24} rim={3.5} ring={2} lip={4} style={[styles.rSheet, sheet.type === 'gchest' && styles.rSheetWide]}>
+          <Plaque variant="pearl" radius={24} rim={3.5} ring={2} lip={4} style={[styles.rSheet, sheet.type === 'gchest' && styles.rSheetWide, sheet.type === 'broke' && styles.rSheetNarrow]}>
             <ScrollView style={styles.rSheetScroll} contentContainerStyle={{ paddingBottom: 6, gap: 10 }} showsVerticalScrollIndicator={false}>
               {sheet.type === 'gchest' ? <ChestSheetBody wide gk={sheet.gk} size={sheet.size} profile={profile} artIds={artIds} setRewards={setRewards} rainbow={rainbow} catalog={catalog} wallet={w} onBuy={onBuyGroup} /> : body}
             </ScrollView>
@@ -637,17 +640,60 @@ function ShopScreen({ profile, creatures, offers = null, hidden = HIDDEN, setRew
     },
     [run, w, flash],
   );
-  const goTab = useCallback((k) => {
-    setTab(k);
-    setSheet(null);
-  }, []);
+  // The new look's tab switch slides (2026-11-17, the user): to a tab right of this one, the items on show leave to
+  // the left and the new ones come in from the right; to one on the left, the other way. Both pages ride one native
+  // timing (`tabSwap.t`), started once the new page has been drawn at its start (render before animating: a timing
+  // started in the render that builds the page waits on that build on Android). Opening the Shop on a tab (openKey)
+  // just shows it.
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+  const [tabSwap, setTabSwap] = useState(null); // { from, to, dir: 1 rightwards | -1, t }
+  const goTab = useCallback(
+    (k) => {
+      const from = tabRef.current;
+      if (royal && k !== from) {
+        const dir = R_ORDER.indexOf(k) > R_ORDER.indexOf(from) ? 1 : -1;
+        setTabSwap({ from, to: k, dir, t: new Animated.Value(0) });
+      }
+      setTab(k);
+      setSheet(null);
+    },
+    [royal],
+  );
+  useEffect(() => {
+    if (!tabSwap) return undefined;
+    let second = null;
+    let anim = null;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => {
+        anim = Animated.timing(tabSwap.t, { toValue: 1, duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: true });
+        anim.start(({ finished }) => finished && setTabSwap((s) => (s === tabSwap ? null : s)));
+      });
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      if (second != null) cancelAnimationFrame(second);
+      if (anim) anim.stop();
+    };
+  }, [tabSwap]);
 
   // Chests | Squishies | Gems are three pages side by side, like the
   // Squishies screen's: a switch is a native slide started on the tap (Seg's
   // onPick), towards the left going right in the list and back the other
   // way. Every tab is built once (the one shown first, then the others in
   // the background a moment later), so switching never waits on a build.
-  const { width: pageW } = useWindowDimensions();
+  const { width: pageW, height: pageH } = useWindowDimensions();
+  // the new look's switch (goTab): the two pages' slides, a whole page width (the Stage's, in its units) each way
+  const stageW = (Math.max(pageW, pageH) * 393) / Math.min(pageW, pageH);
+  const slide = useMemo(() => {
+    if (!tabSwap || tabSwap.to !== tab) return null;
+    const { t, dir, from } = tabSwap;
+    return {
+      from,
+      outX: t.interpolate({ inputRange: [0, 1], outputRange: [0, -dir * stageW] }),
+      inX: t.interpolate({ inputRange: [0, 1], outputRange: [dir * stageW, 0] }),
+    };
+  }, [tabSwap, tab, stageW]);
   const order = SEGS.map(([k]) => k);
   const pageX = useRef(new Animated.Value(Math.max(0, order.indexOf(startTab)))).current;
   const pageAt = useRef(Math.max(0, order.indexOf(startTab)));
@@ -734,22 +780,36 @@ function ShopScreen({ profile, creatures, offers = null, hidden = HIDDEN, setRew
                 })}
               </View>
               <View style={styles.rBody}>
-                {built && tab === 'daily' ? (
-                  <ShopDailyRoyal profile={profile} day={day} hidden={hidden} onFree={freeGroup} onAd={adGroup} onDeal={dealGroup} onOdds={openOdds} />
-                ) : null}
-                {built && tab === 'chests' ? (
-                  <ShopChestsRoyal profile={profile} day={day} artIds={artIds} hidden={hidden} setRewards={setRewards} rainbow={rainbow} onFree={freeGroup} onAd={adGroup} onDeal={dealGroup} onOpenSheet={openGroupSheet} onBuy={buyGroup} onOdds={openOdds} />
-                ) : null}
-                {built && tab === 'deals' ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.rShelf, styles.rCentre]}>
-                    <DealsTab wide config={offers} profile={profile} day={day} hidden={hidden} priceOf={priceOf} onBuyOffer={buyOffer} onClaimStreak={claimStreak} onClaimPass={claimPass} onNoAds={buyNoAds} onSeen={seeOffer} toast={flash} />
-                  </ScrollView>
-                ) : null}
-                {built && tab === 'gems' ? (
-                  <View style={styles.rGems}>
-                    <GemsTabV6 wide config={offers} profile={profile} priceOf={priceOf} onPack={buyPack} onSwap={swap} />
-                  </View>
-                ) : null}
+                {/* the page on show, and while a switch slides, the one leaving (each on its own layer, by its key, so
+                    the page coming in stays the same page once the slide is over) */}
+                {built
+                  ? (slide ? [slide.from, tab] : [tab]).map((k) => {
+                      const out = !!slide && k === slide.from;
+                      return (
+                        <Animated.View key={k} pointerEvents={out ? 'none' : 'auto'} style={[StyleSheet.absoluteFill, slide && { transform: [{ translateX: out ? slide.outX : slide.inX }] }]}>
+                          {k === 'daily' ? <ShopDailyRoyal profile={profile} day={day} hidden={hidden} onFree={freeGroup} onAd={adGroup} onDeal={dealGroup} /> : null}
+                          {k === 'chests' ? (
+                            <ShopChestsRoyal profile={profile} day={day} artIds={artIds} hidden={hidden} setRewards={setRewards} rainbow={rainbow} onFree={freeGroup} onAd={adGroup} onDeal={dealGroup} onOpenSheet={openGroupSheet} onBuy={buyGroup} onOdds={openOdds} />
+                          ) : null}
+                          {k === 'deals' ? (
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.rShelf, styles.rCentre]}>
+                              <DealsTab wide part="deals" config={offers} profile={profile} day={day} hidden={hidden} priceOf={priceOf} onBuyOffer={buyOffer} onClaimStreak={claimStreak} onClaimPass={claimPass} onNoAds={buyNoAds} onSeen={seeOffer} toast={flash} />
+                            </ScrollView>
+                          ) : null}
+                          {k === 'special' ? (
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.rShelf, styles.rCentre]}>
+                              <DealsTab wide part="special" config={offers} profile={profile} day={day} hidden={hidden} priceOf={priceOf} onBuyOffer={buyOffer} onClaimStreak={claimStreak} onClaimPass={claimPass} onNoAds={buyNoAds} onSeen={seeOffer} toast={flash} />
+                            </ScrollView>
+                          ) : null}
+                          {k === 'gems' ? (
+                            <View style={styles.rGems}>
+                              <GemsTabV6 wide config={offers} profile={profile} priceOf={priceOf} onPack={buyPack} onSwap={swap} />
+                            </View>
+                          ) : null}
+                        </Animated.View>
+                      );
+                    })
+                  : null}
               </View>
               <Sheet royal sheet={sheet} profile={profile} catalog={catalog} artIds={artIds} setRewards={setRewards} rainbow={rainbow} wallet={w} onBuyGroup={buyGroup} onClose={() => setSheet(null)} onBroke={() => goTab('gems')} />
             </Stage>
@@ -880,8 +940,9 @@ const styles = StyleSheet.create({
   rPillIcon: { position: 'absolute', left: -15, top: -6, width: 44, height: 44 },
   rPillImg: { width: 44, height: 44, resizeMode: 'contain' },
   // the tabs across the top, centred under the title (REDESIGN_V8; were a column down the left)
-  rTabs: { position: 'absolute', left: 0, right: 0, top: 62, height: 40, flexDirection: 'row', justifyContent: 'center', gap: 14 },
-  rTab: { height: 36, width: 124, flexDirection: 'row', gap: 7, paddingHorizontal: 12 },
+  // (five since Special offers, 2026-11-16: a little narrower, Special offers as wide as its name, to fit a 16:9 phone)
+  rTabs: { position: 'absolute', left: 0, right: 0, top: 62, height: 40, flexDirection: 'row', justifyContent: 'center', gap: 12 },
+  rTab: { height: 36, minWidth: 112, flexDirection: 'row', gap: 7, paddingHorizontal: 12 },
   rTabOn: { fontFamily: RFONT.display, fontSize: 16, color: RINK, includeFontPadding: false },
   rBadge: { position: 'absolute', right: -8, top: -8, minWidth: 20, height: 20, paddingHorizontal: 5, borderRadius: 10, backgroundColor: '#ff5a2a', borderWidth: 2, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
   rBadgeT: { fontFamily: RFONT.bodyBlack, fontSize: 10, color: '#ffffff', includeFontPadding: false },
@@ -893,6 +954,8 @@ const styles = StyleSheet.create({
   rSheet: { width: 540, maxHeight: 340, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 14 },
   // a chest's sheet: the chest beside its details (REDESIGN_V8)
   rSheetWide: { width: 700, maxHeight: 352 },
+  // "Not enough gems / coins": a short card, so a narrow panel
+  rSheetNarrow: { width: 340 },
   rSheetScroll: { alignSelf: 'stretch' },
   rSheetX: { position: 'absolute', right: -12, top: -12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 10 },

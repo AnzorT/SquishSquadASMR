@@ -242,5 +242,10 @@ something that matches the map screen UI design". My reading:
   (level 30), not the player's level.
 - `MapBackdrop` shows it behind each game's level map only (landscape), fading in with the map's slide. The hub and
   the levels themselves keep the warm page.
+- **Replaced 2026-11-17** (the user): Squish Stack's map is a forest that scrolls with its road and has the selected
+  character walking it (SQUISH_STACK.md "Forest road map"); Squishdoku's and Squish Hop's stand in the room their levels
+  are played in, Squish Sort's in the kitchen (`RoomBackdrop` in `src/royal/WorldBg.js`; the rooms scroll with the
+  list, SQUISH_HOP.md "Scrolling with the list"). The world pictures,
+  `levels-bg.mjs` and `MapBackdrop` were deleted (they're in git history, 2ab1004).
 
 **Checked** in the web version (all four maps) and both bundles compile. Not checked on a phone.

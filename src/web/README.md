@@ -61,15 +61,45 @@ The game pages come from `android/app/src/main/assets`. Run `node webgame/build.
 - **`/?phone=1&preview=1`** (`Preview.js`) shows the games' popups on their own, with made-up numbers, plus the
   email check screen a signed-in test account can't reach. `window.__preview('sd-result')` switches between them;
   `window.__previewNames` lists them. `&card=…` opens one at load.
+  - The result cards (`sd-result`, `sd-perfect`, `sort-result`, `stack-result`, `hop-result`) draw their three live
+    characters (`src/squishdoku/Trio.js`): `&keys=a,b,c` picks them (`&keys=none`: the stills), `&stars=n` how many
+    are earned. In the result page's frame, `resultStage._state()` says who's drawn and what each is doing.
   - Squish Stack and Squish Hop are there whole, played by the bundled cut-outs with no account (nothing is saved and
-    ads are free; don't tap a gem save, it calls the server): `stack-hub`, `hop-hub`, `stack-blitz`, `hop-blitz`
+    ads are free; don't tap a gem save, it calls the server): `stack-forest` (Squish Stack's forest map with a walker:
+    tap REGULAR, then `window.__stackWin()` beats the next level), `stack-hub`, `hop-hub`, `stack-blitz`, `hop-blitz`
     (`&top=0`: no best run yet, so the first one is a NEW BEST), `stack-level&lv=5`, `hop-level&lv=8`.
   - **`window.__stack`** (in a Squish Stack level or Blitz): `best()` is the next best move `[r, from, to]`,
-    `move(from, to)` lifts the top squishy off cushion `from` and puts it on `to`, `state()` gives the phase and where
-    everyone is.
+    `move(from, to)` lifts the top squishy off cushion `from` and puts it on `to`, `pick(from)` and `drop(to)` do
+    the two halves on their own, `state()` gives the phase and where everyone is.
+  - Squishdoku whole, the same way: `sd-level&lv=12` (`&head=1`: HEAD START) and `sd-blitz` (`&top=…`), its creatures
+    the ones with faces (squishdoku/bodies.js). **`window.__sdk`** plays them: `answer()` is the answer's cells row by
+    row, `miss()` a wrong cell, `tap(cell)` taps one, `timeUp()` runs the clock out, `save()` (Blitz) takes the save
+    card's free save.
+  - `spin`: the Daily Spin with a made-up server (`&i=…`: the slice it lands on; 3, the Mystery Box, by default).
+  - `shop`: the sideways Shop with a made-up wallet, to see its tabs slide (`&tab=…`: the tab it opens on). Only switch
+    tabs: its buttons call the server.
+  - `vault`: *To the treasure vault* on its own (`&ms=…`: when the page counts as painted). `smash`: the real chest
+    smash under it, as a Shop chest runs it (the smash up on the tapped chest, a made-up answer after `&ans=…` ms, a
+    sibling frozen with Freeze); nothing reaches the server. `window.__smashLog` says when each step happened.
+    `&id=33`: the creature it holds (Mittens by default); `&copies=7&need=12`: a copy toward unlocking it (+1 COPY and
+    the copies bar on the reveal; the unlocking copy when they're equal).
+  - Squish Sort whole: `sort-level&lv=6` and `sort-blitz` (the fridge only since 2026-11-17), played by the bundled
+    cast. **`window.__sort`** (in a level or Blitz): `state()` gives the phase, whether the rigs play the deal
+    (`rigLive`) and each squishy's home and spot; `drop(k, i)` lets squishy `k` go on spot `i` (`-1`: the tray);
+    `grab(k)` / `drag(k, x, y)` pick it up and carry it (the play area's dp); `tap(k)` chooses it or lets go;
+    `solve(leave)` puts every squishy home but `leave`.
   - **`window.__hop`** (in a Squish Hop level or Blitz): `sol` is the board's full clear (directions 0 up, 1 right,
     2 down, 3 left), `hop(d)` hops that way, `state()` gives the phase, hops, take-backs and whether a full clear is
     still possible.
+
+## Freeze on the web
+
+The web renders with `createRoot` (concurrent React), the phone in legacy mode. Concurrent React holds a commit back
+when a Suspense boundary that's already showing would suspend in an ordinary update, and each new update restarts the
+wait; on the web every frame of an `Animated` animation is a React update. So a `Freeze` going to sleep while anything
+animated was running elsewhere stopped every commit for good (2026-11-16: *To the treasure vault* stuck part way, over
+the Shop frozen under the chest smash). `src/components/freezeSync.web.js` makes the switch to asleep a `flushSync`
+update, which React always commits. Anything else built on Suspense needs the same care here.
 
 ## The demo build (a link with no account)
 
@@ -103,3 +133,5 @@ static page with no login: e.g. a private claude.ai artifact (`page.html` is the
      gcloud storage buckets update gs://squishy-app-61445.firebasestorage.app --cors-file=cors.json
      ```
 - **Purchases** can't work in a browser through Google Play.
+- `sort-fridges`: Squish Sort's seven fridges side by side at their biggest shelves (`&open=0`: shut; `&m=0…6`: one of
+  them; `&w=…`: the area each is laid out in), to look at the drawing (src/sort/Container.js).

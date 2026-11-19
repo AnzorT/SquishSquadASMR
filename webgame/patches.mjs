@@ -62,9 +62,9 @@ export const PATCHES = [
   },
   {
     file: 'main-menu.js',
-    why: 'an app game is open unless the app says it isn\'t (the yard games keep the Backyard rule)',
+    why: 'an app game is open unless the app says it isn\'t; a yard game needs the Backyard and (2026-11-18, the user) its toy bought there (app/games.js yardLocked)',
     find: "const open = G => G.id === 'squish' || !!(st && st.open.backyard);",
-    replace: "const open = G => G.app ? G.open !== false : (G.id === 'squish' || !!(st && st.open.backyard));",
+    replace: "const open = G => G.app ? G.open !== false : (G.id === 'squish' || (!!(st && st.open.backyard) && !(window.SquishApp && window.SquishApp.yardLocked && window.SquishApp.yardLocked(G.id))));",
   },
   {
     file: 'main-menu.js',
@@ -119,6 +119,148 @@ export const PATCHES = [
     why: 'and so does finishing one',
     find: "if (page && page.contains(mid)) openGames(); }, 0);",
     replace: "if (page && page.contains(mid)) openGames(opts._yard ? 'yard' : undefined); }, 0);",
+  },
+  // ---- the yard games' zip (2026-11-18, yard-mini-games.zip, laid over the prototype by build.mjs): the games went
+  // landscape (yard-games v6) and got intro posters (yg-intros.js). These bring the designer's main-menu v14 parts
+  // they need into our Nov 13 menu. ----
+  {
+    file: 'Main Menu.dc.html',
+    why: 'the yard games\' intro posters (yg-intros.js: the zip\'s load order, after yard-games.js, before the games)',
+    find: '<script src="yard-games.js?v=1"></script>',
+    replace: '<script src="yard-games.js?v=6"></script>\n<script src="yg-intros.js?v=7"></script>',
+  },
+  {
+    file: 'main-menu.js',
+    why: 'a landscape yard game (G.land) plays across the whole page: no side columns (its own top bar and intro sheet carry back and how to play; main-menu v14)',
+    find: '.mm-gp .bst{padding:4px 12px;border-radius:999px;font-size:12px;}',
+    replace: '.mm-gp .bst{padding:4px 12px;border-radius:999px;font-size:12px;}\n.mm-gp.land .side{display:none;}\n.mm-gp.land .mid{flex:1;aspect-ratio:auto;padding:6px;display:flex;align-items:center;justify-content:center;}',
+  },
+  {
+    file: 'rive-rig.js',
+    why: 'no built-in look line (the app turns it off: app/rig-look.js draws the Firebase look): the creature\'s shapes aren\'t measured for one (it sampled every shape with isPointInFill as each creature appeared)',
+    find: '  function outline(I) {\n    if (I.generic && !I.ready) return;\n',
+    replace: '  function outline(I) {\n    if (I.generic && !I.ready) return;\n    if (!I.olEls && !(I.curL && I.curL.line)) { I.olDirty = 0; return; }\n',
+  },
+  {
+    file: 'rive-rig.js',
+    why: 'isPointInFill with a point older WebViews take (they want an SVGPoint, not a DOMPoint: "parameter 1 is not of type SVGPoint")',
+    find: 'under[k].e.isPointInFill(new DOMPoint(lp.x, lp.y))',
+    replace: 'under[k].e.isPointInFill(sqSvgPt(under[k].e, lp.x, lp.y))',
+  },
+  {
+    file: 'rive-rig.js',
+    why: '(its helper: createSVGPoint gives the type every WebView takes)',
+    find: '  function outlineEls(I) {',
+    replace: '  function sqSvgPt(e, x, y) { const s = e.ownerSVGElement; if (!s || !s.createSVGPoint) return new DOMPoint(x, y); const q = s.createSVGPoint(); q.x = x; q.y = y; return q; }\n  function outlineEls(I) {',
+  },
+  {
+    file: 'main-menu.js',
+    why: 'the gold ring round a yard game: its outer edge in the wood\'s brown, not purple (REDESIGN_V8\'s rule; now that the game fills the page it shows all round it)',
+    find: '.mm-gp .mid .yg-frame{height:100%;width:auto;max-width:none;box-shadow:0 0 0 4px #ffd76a,0 0 0 6px #3d1268,',
+    replace: '.mm-gp .mid .yg-frame{height:100%;width:auto;max-width:none;box-shadow:0 0 0 4px #ffd76a,0 0 0 6px #6b4426,',
+  },
+  {
+    file: 'main-menu.js',
+    why: 'the game page is .land for a landscape game (main-menu v14)',
+    find: "const p = pageOpen('<div class=\"mm-gp\"><div class=\"side\">",
+    replace: "const p = pageOpen('<div class=\"mm-gp' + (g.land ? ' land' : '') + '\"><div class=\"side\">",
+  },
+  // ---- 2026-11-18, the user on the Yard Games: wide cards with each game's poster, a list you drag sideways, and a
+  // game opens only once its toy is bought in the Backyard (app/games.js yardCard / yardPage / yardLocked / yardNeed) ----
+  {
+    file: 'main-menu.js',
+    why: 'a yard game\'s card on the Yard Games page: wide, with the game\'s poster (app/games.js yardCard)',
+    find: "      const card = g => { const op = open(g), col = g.color || '#ff8a3d', feat = g.id === 'squish';",
+    replace: "      const card = g => { if (opts._yard && window.SquishApp && window.SquishApp.yardCard) return window.SquishApp.yardCard(g, { open: open(g), best: B[g.id], backyard: !!(st && st.open.backyard), lv: Sc.ROOMS.backyard.lv, ft, esc, shade });\n        const op = open(g), col = g.color || '#ff8a3d', feat = g.id === 'squish';",
+  },
+  {
+    file: 'main-menu.js',
+    why: 'tapping a yard game whose toy isn\'t bought says which one to buy',
+    find: "if (!open(g)) { toast(g.name + ' opens with the Backyard at level ' + Sc.ROOMS.backyard.lv); return; }",
+    replace: "if (!open(g)) { toast((st && st.open.backyard && window.SquishApp && window.SquishApp.yardNeed && window.SquishApp.yardNeed(g.id)) || g.name + ' opens with the Backyard at level ' + Sc.ROOMS.backyard.lv); return; }",
+  },
+  {
+    file: 'main-menu.js',
+    why: 'the Yard Games page: the posters drawn in, and the list dragged sideways with a finger or the mouse (app/games.js yardPage)',
+    find: "const gr = p.querySelector('.mm-gr'); gr.addEventListener('wheel', e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { gr.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });",
+    replace: "const gr = p.querySelector('.mm-gr'); gr.addEventListener('wheel', e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { gr.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });\n      if (opts._yard && window.SquishApp && window.SquishApp.yardPage) window.SquishApp.yardPage(p, gr, G, cre());",
+  },
+  {
+    file: 'main-menu.js',
+    why: 'no coins pill on the Yard Games page (the user, 2026-11-18)',
+    find: "+ '<div class=\"mm-pill mm-p tip v-vel\"><img alt=\"\" src=\"' + ((window.SquishCoin && window.SquishCoin.coin(0)) || BL) + '\"><span class=\"tx-w\">' + fmt(Q ? Q.wallet().coins : 0) + '</span></div></div>'",
+    replace: "+ (opts._yard ? '' : '<div class=\"mm-pill mm-p tip v-vel\"><img alt=\"\" src=\"' + ((window.SquishCoin && window.SquishCoin.coin(0)) || BL) + '\"><span class=\"tx-w\">' + fmt(Q ? Q.wallet().coins : 0) + '</span></div>') + '</div>'",
+  },
+  // ---- 2026-11-18, the user: "change the popups of the yard mini games to match the ones in the app" (the look is
+  // app/games.js YPOP: the app's cream card, outlined titles, gold / cream buttons, numbered rules, orange back) ----
+  {
+    file: 'yard-games.js',
+    why: 'the results card, once built, gets the app\'s title lettering and coin (app/games.js yardPopup)',
+    find: 'if (inst && inst.celebrate) try { inst.celebrate(st); } catch (e) {} }',
+    replace: 'if (window.SquishApp && window.SquishApp.yardPopup) try { window.SquishApp.yardPopup(card, \'result\', st); } catch (e) { console.warn(\'[yard popup]\', e); }\n      if (inst && inst.celebrate) try { inst.celebrate(st); } catch (e) {} }',
+  },
+  {
+    file: 'yard-games.js',
+    why: 'and so does the intro\'s how-to sheet',
+    find: "D('div', { cls: 'yg-best' }, sh, SAVE.best[G.id] ? 'Best ' + SAVE.best[G.id] : 'No best yet'); return; }",
+    replace: "D('div', { cls: 'yg-best' }, sh, SAVE.best[G.id] ? 'Best ' + SAVE.best[G.id] : 'No best yet'); if (window.SquishApp && window.SquishApp.yardPopup) try { window.SquishApp.yardPopup(sh, 'intro'); } catch (e) { console.warn('[yard popup]', e); } return; }",
+  },
+  {
+    file: 'yard-games.js',
+    why: 'the results card\'s buttons in the app\'s words: YARD GAMES (cream) and PLAY AGAIN (gold)',
+    find: "D('button', { cls: 'yg-btn yg-ghost', onclick: () => app.hub() }, row, 'Yard'); D('button', { cls: 'yg-btn', onclick: () => app.play(G) }, row, 'Play again');",
+    replace: "D('button', { cls: 'yg-btn yg-ghost', onclick: () => app.hub() }, row, window.SquishApp ? 'Yard games' : 'Yard'); D('button', { cls: 'yg-btn', onclick: () => app.play(G) }, row, 'Play again');",
+  },
+  // ---- 2026-11-18, the user on Hoop Shot: "the character is too far away from the widest white line and that makes
+  // us holding the balls not long enough because i then exit the screen", "each time i score i want to add 10 seconds
+  // to the timer", "the ball is too much in the air and not in the characters hands" ----
+  {
+    file: 'yard-games.js',
+    why: 'a game can add time to its clock (Hoop Shot: +10 s a basket)',
+    find: 'setScore(n) { score = n; scP.textContent = score; }, timer(txt) {',
+    replace: "setScore(n) { score = n; scP.textContent = score; }, addTime(s) { if (G.dur && playing) { left += s; tmP.classList.remove('yg-hurry'); } }, timer(txt) {",
+  },
+  {
+    file: 'yg-hoop.js',
+    why: 'you stand at the three-point arc (FZ m forward: feet at z 1.2, the arc at ~1.4), so you\'re higher on the screen, and right in front of the hoop (PX 0, was 0.5 m to its left; the user: "mittens is not in the middle / front of the hoop"); a full pull is 95 (was 150), so the scoring pulls (about half) end well inside the screen',
+    find: 'const PX = -0.5, TH = 62 * Math.PI / 180, HOLD = [PX, 1.0, 0.36], REL = [PX, 1.34, 0.44], THROW = 120, PULL = 150, DT = 1 / 240, LIFE = 3.2;',
+    replace: 'const FZ = 0.95, PX = 0, TH = 62 * Math.PI / 180, HOLD = [PX, 1.0, 0.36 + FZ], REL = [PX, 1.34, 0.44 + FZ], THROW = 120, PULL = 95, DT = 1 / 240, LIFE = 3.2;',
+  },
+  {
+    file: 'yg-hoop.js',
+    why: '(the creature stands there, facing the hoop: its turn is the design\'s own, straight on now that PX is 0)',
+    find: 'const me = ctx.creature(ctx.playerKey, { yaw: 180 }); const f0 = P(PX, 0, 0.25); me.set(f0[0], f0[1], 1.12 * f0[2]);',
+    replace: 'const me = ctx.creature(ctx.playerKey, { yaw: 180 }); const f0 = P(PX, 0, 0.25 + FZ); me.set(f0[0], f0[1], 1.12 * f0[2]);',
+  },
+  {
+    file: 'yg-hoop.js',
+    why: '(its shadow, sized to it)',
+    find: 'const meSh = YG.shadow(shG, f0[0] + 10, f0[1] - 2, 46, 0.2);',
+    replace: 'const meSh = YG.shadow(shG, f0[0] + 10 * f0[2] / 101.4, f0[1] - 2, 46 * f0[2] / 101.4, 0.2);',
+  },
+  {
+    file: 'yg-hoop.js',
+    why: 'the held ball sits between its two paws, in the middle (it follows them through the wind-up); seen from behind the body hides most of it (the user: "its ok if we dont see it too much"), and the throw lifts it into view over the head',
+    find: 'else { const kk = held.kk || 0; held.x = HOLD[0]; held.y = HOLD[1] - 0.22 * kk + Math.sin(t / 400) * 0.012 * (1 - kk); held.z = HOLD[2] - 0.05 * kk; held.fire = fire > 0 ? 1 : 0; } }',
+    replace: 'else { const kk = held.kk || 0, pw = pawsAt(); if (pw) { held.x = pw[0]; held.y = pw[1]; held.z = pw[2]; } else { held.x = HOLD[0]; held.y = HOLD[1] - 0.22 * kk + Math.sin(t / 400) * 0.012 * (1 - kk); held.z = HOLD[2] - 0.05 * kk; } held.fire = fire > 0 ? 1 : 0; } }',
+  },
+  {
+    file: 'yg-hoop.js',
+    why: '(between the paws: rig units -> the stage -> the world at the ball\'s depth)',
+    find: '      // ---------- input + loop ----------',
+    replace: "      // (app, 2026-11-18) the held ball: half way between the creature's paws, a touch up (they hold it from below)\n      function pawsAt() { const I = me.I, L = I && I.W && I.W.pawL, R = I && I.W && I.W.pawR; if (!L || !R || !isFinite(L[0] + L[1] + R[0] + R[1])) return null; const sz = me.size, sx = me.x - sz / 2 + (L[0] + R[0]) / 200 * sz, sy = me.y - sz * 0.93 + (L[1] + R[1]) / 200 * sz, z = HOLD[2], p0 = P(0, 0, z);\n        return [(sx - p0[0]) / p0[2], (p0[1] - sy) / p0[2] + BR * 0.3, z]; }\n      // ---------- input + loop ----------",
+  },
+  {
+    file: 'yg-hoop.js',
+    why: 'every basket adds 10 seconds to the clock',
+    find: "ctx.burst(c[0], c[1] + 8, 'confetti', 14, { v: 120, life: 0.9 }); netSw = 1; netAt = tNow; cheerT = tNow; SFX.swish(); setTimeout(SFX.score, 80); }",
+    replace: "ctx.burst(c[0], c[1] + 8, 'confetti', 14, { v: 120, life: 0.9 }); netSw = 1; netAt = tNow; cheerT = tNow; SFX.swish(); setTimeout(SFX.score, 80);\n        if (ctx.addTime && ctx.playing) { ctx.addTime(10); ctx.toast('+10s', W - 64, 78, '#9dffb0'); } }",
+  },
+  {
+    file: 'yg-hoop.js',
+    why: '(and the how-to says so)',
+    find: "'Swish 3, rim or bank 2. Three in a row = on fire! At 20 points the hoop starts to move.'",
+    replace: "'Swish 3, rim or bank 2. Every basket adds 10 seconds! Three in a row = on fire. At 20 points the hoop starts to move.'",
   },
   // ---- REDESIGN_V8 (2026-11-14): the wood look; the lettering's purple outline and lavender white turn brown and cream ----
   {
@@ -346,11 +488,129 @@ export const PATCHES = [
     find: '  leaveHouse = () => { clearInterval(this._poll); this.setState({ hop: 0 });',
     replace: '  leaveHouse = () => { clearInterval(this._poll); if (window.SquishMenu && window.SquishMenu.houseLeft) window.SquishMenu.houseLeft(); this.setState({ hop: 0 });',
   },
+  // 2026-11-17 (the user: "when exiting crib back to main home page, the character exits with his back and not his
+  // front"): the design walks the creature out of the door still turned round from the walk in (spinOff 180) and only
+  // turns it to face us once it is back on its spot. It now comes out facing us: turned while it is still unseen
+  // (the walk in ends at opacity 0 and the walk out starts there), and no turn at the end.
+  {
+    file: 'main-menu.js',
+    why: 'back from the house: the creature walks out of the door facing us, not with its back to us',
+    find: "if (!inside || busy) return; busy = true; inside = false; veil.style.pointerEvents = 'none'; const I = ctrl && ctrl._I;",
+    replace: "if (!inside || busy) return; busy = true; inside = false; veil.style.pointerEvents = 'none'; const I = ctrl && ctrl._I; if (I) { I.spinTw = null; I.spinOff = 0; }",
+  },
+  {
+    file: 'main-menu.js',
+    why: 'back from the house: no turn round on the spot (it already faces us)',
+    find: '      const s0 = I ? I.spinOff || 0 : 0; await tween(430, e => { if (I) I.spinOff = s0 + 180 * e; }); if (I) I.spinOff = 0;\n',
+    replace: '',
+  },
   {
     file: 'Squad House v6.dc.html',
     why: "the Dance Room's speakers play the room's own built-in beat, not the design's song (music/rubber-band-hustle.mp3, which the build no longer ships: the user kept only Velvet Map Study, 2026-11-16)",
     find: "const want = !this.dead && this.state.cur === 'dance' && !!(this.jams && this.jams.size), MN = window.MovieNight;",
     replace: 'const want = false, MN = window.MovieNight;',
+  },
+  // ---- 2026-11-18, the user: "in the yard, the games, they will not be placable, they will be purchasable and each game
+  // that is purchased will unlock in the yard games icon on the top right corner". A yard game's toy (the hoop, the
+  // goal, the hopscotch court, the trampolines, the slides, the cornhole boards, the ping-pong table:
+  // SquishApp.yardGameOf, app/games.js) is bought once, never placed, and buying it unlocks its game behind the
+  // backyard's YARD GAMES button (which shows a NEW badge). ----
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'a yard game\'s toy is bought once, and any one of its toys (three slides, two trampolines) unlocks the game, so the others are not for sale after it (the catalog, buyR)',
+    find: 'const D = this.rnDraw(r, 0) || {}, surf = !!D.surf; if (surf && this.H.rOwn[id]) return true;',
+    replace: "const D = this.rnDraw(r, 0) || {}, surf = !!D.surf; if (surf && this.H.rOwn[id]) return true;\n    const YGb = window.SquishApp && window.SquishApp.yardGameOf && window.SquishApp.yardGameOf('R:' + id, r); if (YGb && YGb.open) { this.toast(YGb.name + ' is already unlocked: play it in YARD GAMES'); return false; }",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'buying it unlocks its game: says so, and the YARD GAMES button gets its NEW badge',
+    find: "this.save(); this.setState({ coins: this.coinCount() }); this.toast(SN(r) + ' is yours!'); return true;",
+    replace: "this.save(); this.setState({ coins: this.coinCount() }); if (YGb) { this.toast(YGb.name + ' unlocked! Play it in YARD GAMES'); if (window.SquishApp.yardNew) window.SquishApp.yardNew(YGb.id); } else this.toast(SN(r) + ' is yours!'); return true;",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: '(the catalog\'s item card: is it a yard game\'s toy)',
+    find: 'const can = free || coinsN >= r.cost, on = surf && own && this.rnIsOn(r);\n    const tg = this.rnTag(r, D);',
+    replace: "const can = free || coinsN >= r.cost, on = surf && own && this.rnIsOn(r), YGd = window.SquishApp && window.SquishApp.yardGameOf && window.SquishApp.yardGameOf('R:' + r.id, r);\n    const tg = YGd ? {} : this.rnTag(r, D);   // (no \"Tap to start the game, needs 3 friends in the room\": it never stands in the room)",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: '(no "x1" on it, and no price once its game is unlocked: UNLOCKED needs the room)',
+    find: "hasCnt: !surf && own > 0, cnt: 'x' + own, op: lk ? 0.55 : 1,",
+    replace: "hasCnt: !surf && own > 0 && !YGo, pD: YGo && YGo.open ? 'none' : 'flex', cnt: 'x' + own, op: lk ? 0.55 : 1,",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: '(the price on the tile can be hidden: both pages of the catalog book)',
+    count: 2,
+    find: `<div style="display:flex; align-items:center; gap:3px; font-family:'Fredoka',sans-serif; font-weight:700; font-size:11.5px; color:#5b3418;">{{ c.price }}`,
+    replace: `<div style="display:{{ c.pD }}; align-items:center; gap:3px; font-family:'Fredoka',sans-serif; font-weight:700; font-size:11.5px; color:#5b3418;">{{ c.price }}`,
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'a bought one says UNLOCKED',
+    find: "bTxt: lk ? 'LV ' + r.lv : st === 'own' ? (on ? 'IN USE' : 'OWNED') : 'BUY',",
+    replace: "bTxt: lk ? 'LV ' + r.lv : st === 'own' ? (YGo ? 'UNLOCKED' : on ? 'IN USE' : 'OWNED') : 'BUY',",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'its card says it is unlocked, not how many you own',
+    find: "own: surf ? (own ? (on ? 'Up in the ' + RLAB[hr] : 'You own this') : '') : (own ? 'You own ' + own : ''),",
+    replace: "own: YGd ? (YGd.open ? 'Unlocked! Play ' + YGd.name + ' in YARD GAMES' : '') : surf ? (own ? (on ? 'Up in the ' + RLAB[hr] : 'You own this') : '') : (own ? 'You own ' + own : ''),",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'its card says what buying it does',
+    find: 'desc: NT(r), hasDesc: !!NT(r),',
+    replace: "desc: YGd ? 'A yard game: buying it unlocks ' + YGd.name + ' in YARD GAMES (the button top right in the Backyard). It isn\\'t placed in the yard.' : NT(r), hasDesc: !!(YGd || NT(r)),",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'no second copy',
+    find: 'canBuy: !lk && !(surf && own), price: String(r.cost),',
+    replace: 'canBuy: !lk && !(surf && own) && !(YGd && YGd.open), price: String(r.cost),',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'and no Place it',
+    find: "hasPlace: !lk && own > 0 && !on, placeTxt: surf ? 'Put it up' : 'Place it',",
+    replace: "hasPlace: !lk && own > 0 && !on && !YGd, placeTxt: surf ? 'Put it up' : 'Place it',",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'the catalog\'s tile shows a bought one as owned (one copy), not for sale again',
+    find: "st = lk ? 'lock' : surf && own ? 'own' : 'buy';",
+    replace: "YGo = window.SquishApp && window.SquishApp.yardGameOf && window.SquishApp.yardGameOf('R:' + r.id, r), st = lk ? 'lock' : (surf && own) || (YGo && YGo.open) ? 'own' : 'buy';",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'Renovate\'s tray of things to place leaves the yard games\' toys out',
+    find: "if (tab === 'furn') return Object.keys(H.owned).filter(t => X.CAT[t] && X.CAT[t].reno && X.CAT[t].room === rk && this.freeCount(t) > 0)",
+    replace: "if (tab === 'furn') return Object.keys(H.owned).filter(t => X.CAT[t] && X.CAT[t].reno && X.CAT[t].room === rk && this.freeCount(t) > 0 && !(window.SquishApp && window.SquishApp.yardGameOf && window.SquishApp.yardGameOf(t)))",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'one already standing in the yard (placed before) is taken out; it stays bought, so its game stays unlocked',
+    find: 'this.H = { owned: s.owned || {}, rooms: s.rooms || {},',
+    replace: 'this.H = { owned: s.owned || {}, rooms: window.SquishApp && window.SquishApp.yardStrip ? window.SquishApp.yardStrip(s.rooms || {}) : (s.rooms || {}),',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: '(the house\'s other catalog, the same rules: bought once, never placed)',
+    find: 'if (M.surf && this.H.sOwn[id]) return;',
+    replace: "if (M.surf && this.H.sOwn[id]) return; const YGa = window.SquishApp && window.SquishApp.yardGameOf && window.SquishApp.yardGameOf(id, M); if (YGa && YGa.open) { this.toast(YGa.name + ' is already unlocked: play it in YARD GAMES'); return; }",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: '(its buying says so too)',
+    find: "this.save(); this.setState({ coins: this.coinCount() }); this.toast(M.n + ' is yours!');",
+    replace: "this.save(); this.setState({ coins: this.coinCount() }); if (YGa) { this.toast(YGa.name + ' unlocked! Play it in YARD GAMES'); if (window.SquishApp.yardNew) window.SquishApp.yardNew(YGa.id); } else this.toast(M.n + ' is yours!');",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: '(and its card has no Place it for them)',
+    find: 'hasPlace: !locked && (M.surf ? own && !useHere : this.freeCount(M.id) > 0),',
+    replace: 'hasPlace: !locked && !(window.SquishApp && window.SquishApp.yardGameOf && window.SquishApp.yardGameOf(M.id, M)) && (M.surf ? own && !useHere : this.freeCount(M.id) > 0),',
   },
 ];
 
@@ -358,8 +618,9 @@ export function applyPatches(rel, text) {
   for (const p of PATCHES) {
     if (p.file !== rel) continue;
     const n = text.split(p.find).length - 1;
-    if (n !== 1) throw new Error(`patch for ${p.file} (${p.why}): expected the code once, found it ${n} times. The prototype changed here; update webgame/patches.mjs.`);
-    text = text.replace(p.find, () => p.replace);
+    const want = p.count || 1;
+    if (n !== want) throw new Error(`patch for ${p.file} (${p.why}): expected the code ${want} time(s), found it ${n} times. The prototype changed here; update webgame/patches.mjs.`);
+    text = text.split(p.find).join(p.replace);
   }
   return text;
 }

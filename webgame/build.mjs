@@ -12,9 +12,10 @@
 //     scripts in the listed order, the link to the app, the Firebase config)
 //   - webgame/patches.mjs: one call into app/config.js at each spot where the engines pick an animation or price an item
 //   - adds the app layer: app/*.js (bridge to the React Native app, remote config) and App.dc.html (the app's root page)
+//   - the yard games' zip (YARD_ZIP, lib/prototype.mjs) is laid over the prototype: its newer files win
 import fs from 'node:fs';
 import path from 'node:path';
-import { extractPrototype, WEBGAME, REPO, PROTOTYPE_ZIP } from './lib/prototype.mjs';
+import { extractPrototype, extractYard, WEBGAME, REPO, PROTOTYPE_ZIP } from './lib/prototype.mjs';
 import { applyPatches, PATCHES } from './patches.mjs';
 
 const args = process.argv.slice(2);
@@ -50,7 +51,10 @@ const REACT_SWAP = [
 ];
 
 // loaded by every page, in this order, before support.js (roster.js is written by the build from webgame/data)
-const APP_SCRIPTS = ['perf.js', 'boot.js', 'roster.js', 'bridge.js', 'config.js', 'games.js', 'menu.js'];
+// (look-lines.js + rig-look.js: the border look's outline on every live rig, 2026-11-16; after bridge.js, before the
+// page's own scripts bring RiveRig)
+// (intro.js: the game intro, the designer's squad-intro.js, 2026-11-16; app/menu.js starts it)
+const APP_SCRIPTS = ['perf.js', 'boot.js', 'roster.js', 'bridge.js', 'look-lines.js', 'rig-look.js', 'config.js', 'games.js', 'intro.js', 'menu.js'];
 
 const clean = s => s.split('?')[0].split('#')[0].replace(/^\.\//, '');
 
@@ -96,9 +100,10 @@ function swapAll(text, pairs, file, required) {
 }
 
 export async function build(out = OUT) {
-  const proto = await extractPrototype();
+  const proto = await extractPrototype(), yard = await extractYard();
   const fonts = Object.entries(JSON.parse(fs.readFileSync(path.join(VENDOR, 'fonts.json'), 'utf8')));
-  const src = rel => fs.existsSync(path.join(APP_DIR, rel)) ? path.join(APP_DIR, rel) : path.join(proto, rel);
+  // where a file comes from: the app layer, else the yard games' zip (newer than the prototype), else the prototype
+  const src = rel => fs.existsSync(path.join(APP_DIR, rel)) ? path.join(APP_DIR, rel) : yard && fs.existsSync(path.join(yard, rel)) ? path.join(yard, rel) : path.join(proto, rel);
 
   // 1. pages + scripts, following <helmet> scripts and <dc-import>s
   const files = new Set(['support.js']), queue = [...ENTRY_PAGES];
@@ -108,10 +113,11 @@ export async function build(out = OUT) {
     const f = src(rel);
     if (!fs.existsSync(f)) throw new Error('missing ' + rel + ' (needed by a shipped page)');
     files.add(rel);
-    if (rel.endsWith('.html')) for (const d of pageDeps(fs.readFileSync(f, 'utf8'))) if (!files.has(d)) queue.push(d);
+    // (the patched page: a patch can add a script, e.g. the yard games' yg-intros.js)
+    if (rel.endsWith('.html')) for (const d of pageDeps(applyPatches(rel, fs.readFileSync(f, 'utf8')))) if (!files.has(d)) queue.push(d);
   }
   // 2. assets the engines load by path
-  for (const g of ASSETS) for (const rel of glob(proto, g)) if (!EXCLUDE.some(re => re.test(rel))) files.add(rel);
+  for (const g of ASSETS) for (const root of yard ? [proto, yard] : [proto]) for (const rel of glob(root, g)) if (!EXCLUDE.some(re => re.test(rel))) files.add(rel);
 
   // 3. write
   fs.rmSync(out, { recursive: true, force: true });

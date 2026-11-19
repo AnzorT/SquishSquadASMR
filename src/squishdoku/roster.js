@@ -22,5 +22,8 @@ export function rosterOf(creatures, profile, hidden = HIDDEN) {
 // then draws its rig still).
 export const headOf = (uri) => HEADS[KEY_OF.get(uri)] || null;
 
+// A roster creature's rig key (the result card's live characters), or null.
+export const keyOfUri = (uri) => KEY_OF.get(uri) || null;
+
 // A key that changes only when what the player owns does (for memos).
 export const ownedKey = (profile) => `${(profile?.ownedIds || []).join()}|${Object.keys(profile?.col || {}).join()}`;

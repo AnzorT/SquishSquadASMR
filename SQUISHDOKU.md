@@ -115,6 +115,7 @@ The user asked for a Squishdoku remodel done "the same method" as Squish Hop (SQ
   - A wrong one drops on with the cell glowing red, shakes its head, and shrinks away in a poof. The board shakes, and the cell gets its ✕.
   - A placed creature breathes, peeks about, and now and then does a hop or a wiggle.
   - Since the heads are gone, the board shows no happy or sad faces. The score creatures, the clock, the result cards and the Buddy are unchanged.
+    (Since 2026-11-17 the standing creatures have happy and sad faces again: see "Reactions on the room board" at the end.)
 - **The screen:**
   - The Crib's top bar: pause (or back), the room's title, LEVEL n · size, the tier and HEAD START chips, and the time-of-day pill.
   - The score creatures and the clock on the Crib's brown glass.
@@ -140,7 +141,7 @@ The user's rulings:
 This replaces "Regular mode: 50 levels" above (its random boards, the tier per level, and the skill score). Blitz is unchanged: it still deals fresh boards each run, with its own `bSkill`.
 
 **Every level is one board, the same for everyone, every time.**
-- REPLAY, RETRY (time's up) and the pause card's RESTART (was NEW BOARD) all play it again.
+- REPLAY and RETRY (time's up) play it again. (The pause card's RESTART, was NEW BOARD, is gone since 2026-11-17: the user.)
 - `src/squishdoku/levelData.js` holds all 600 (75 KB).
 - `tools/squishdoku/levels600.mjs` makes them on the PC with the game's own engine, in 8 seeded jobs with fixed counts, so a run gives the same levels on any machine: about 95 s on 8 cores. Its steps:
   1. Make boards of every size.
@@ -340,3 +341,66 @@ The user's list, from a screenshot of the hub.
   - The clock running out showed TIME'S UP.
   - END RUN showed GAME OVER with NEW BEST and +30 coins / +40 XP.
   - The gem save wasn't tried: it spends real gems on the test account, and the move needs a functions deploy.
+
+## Reactions on the room board (2026-11-17)
+The user's list: a right creature pops in with a squash, turns happy, hops and sparkles, and a happy wave ripples along
+the row, column or box it completes; a wrong one shakes "no", turns sad, flashes red and drops away; a win turns every
+creature happy with a bounce rippling out from the last one placed; a loss turns every creature sad, drooping and
+sinking one after another. In both Regular and Blitz.
+
+- **Faces on the whole bodies.** The list said the tiles are heads (heads.js), but since the room remodel (2026-11-07)
+  the board's creatures stand on their cushions, body and all, with no faces. I kept the bodies and gave them faces
+  (my reading: the user's own remodel stands, and the faces were the point).
+  - `tools/squishdoku/faces.mjs` renders each board creature (every one with a Squish Stack cut-out, minus the Masked
+    and Elemental Heroes) from its rig in three faces: idle, happy and sad. The face poses are heads.mjs's (face
+    channels only, no body motion), so the three line up.
+  - The board draws these renders, not the Stack cut-outs. The cut-outs were made from older rigs and eye glances, a
+    few pixels off, so a face faded in over them would jump.
+  - Output: `assets/squishdoku/bodies/<key>-<face>.webp` (256 px longest side; 79 creatures, 2.5 MB) and
+    `src/squishdoku/bodies.js` (key -> idle, happy, sad, ar). Re-run it after a new roster creature. A creature with
+    no render falls back to its cut-out, without faces.
+  - `Piece` (src/hop/Pieces.js) draws a creature with `c.faces` as the idle picture with the happy and sad ones faded
+    over it (the idle one goes once a face is fully in, so a sad ear doesn't show twice), plus a red-tinted copy for
+    the red flash.
+- **Moves:** the creatures now use Squish Hop's juicy poses (`freshPose({ juicy: true })`), which already have the
+  head shake "no" (a turn), the droop and the springy landing.
+- **Right** (`RoomBoard.place`): it pops up out of its cushion from small, feet planted, with an overshoot (0.2 s),
+  then lands with a squash. It turns happy for about a second, does a hop for joy, and sparkles twice.
+  - Every right creature completes its row, its column and its patch, since each holds exactly one. So every right
+    creature sends the happy wave out along all three, 55 ms a cell: each cushion bobs, a soft glow comes up on it,
+    and a little star pops up off it (`fx.js` `wave`, one native timing for the whole wave).
+  - The creatures already placed cheer with a hop and a short happy face.
+- **Wrong** (`RoomBoard.wrong`): it pops up the same, turns sad as it lands, flashes red twice (the creature itself;
+  the cell's red glow as before), shakes its head "no", then drops away (falls, shrinks, tips and fades) in a poof,
+  about 1.3 s in all. The others flinch with a worried face.
+- **Win** (`hopAll(from)`): every creature turns happy and stays so. A bounce ripples out from the last one placed:
+  the cushions bob, each creature jumps when it's reached (twice in Regular, once in Blitz, where the next board is
+  waiting), and stars rise off half the cells (not every cell: a 9×9's would mount ~150 views at once). It starts as
+  the last creature lands. The games play their hop sound at each jump.
+- **Lose** (`sadAll(from)`): one creature after another, the nearest the mistake first (otherwise back to front),
+  turns sad, droops (squashed down, tipped toward you, leaning a little) and sinks a little. They stay so.
+  - Regular: the clock running out, and the last heart. The card now waits for the droop (Regular's time-up card
+    used to show at once; there is a locked 'out' phase first now).
+  - Blitz: a mistake or the board's clock. Its droop is quicker (100 ms apart), and the save card comes up as the
+    last one sinks. A save (`cheerUp`) brings everyone back with a hop.
+  - Blitz now waits as long as the win's ripple needs before the next board (0.65 s or more).
+- **Checked in the web version** (headless Chrome with a slowed clock, `sd-level` / `sd-blitz` in the preview, played
+  by `window.__sdk`): a right creature and its wave, a wrong one, the win on a 5×5 and a 9×9, the time-up droop and
+  its card, and in Blitz a cleared board, a mistake with the droop and the save card, and the save.
+- **Not checked yet:** a phone. Each creature is now four pictures and the juicy poses' 3D turns, and the waves add
+  views, so the A15 (release build) is the thing to watch.
+
+## The map in its room (2026-11-17)
+
+The user: "in the squishdoku, the rooms change so there each background will be tailored to the room that the levels
+are played in". Sideways the level map stands in the chapter's room (`RoomBackdrop` in `src/royal/WorldBg.js`, the
+whole room as `src/hop/Room.js` draws it with `full`, in daylight); turning the chapter fades to the next room
+(`LevelMap` `onChapter`). The row runs along the floor (`rowAt` = `ROW_ON_FLOOR`, 0.75 of the map's height), the
+chapter's name and arrows level with it (its room picture left out: the room is behind it), LEVELS on a wooden plaque.
+Web-checked only.
+
+**Scrolling with the list (2026-11-17).** The user: the background "not being scrolled" when the list is. The room is
+now the chapter's page long, its picture repeated side by side, and moves with the levels: `LevelMap` reports it
+(`onSpans`, which replaced `onChapter`) and drives the screen's `scrollX` with the page's scroll on the UI thread
+(SQUISH_HOP.md "Scrolling with the list" has the details). Turning the chapter still fades to the next room. Web-checked
+only.

@@ -9,7 +9,8 @@ import { FxLayer } from '../squishdoku/fx';
 import { makeHaptics, useClock } from '../squishdoku/game';
 import { Countdown } from '../squishdoku/BlitzGame';
 import { TimerBar } from '../squishdoku/Hud';
-import { BlitzOverCard, BlitzSaveCard, PauseCard as BlitzPauseCard } from '../squishdoku/Overlays';
+import { BlitzOverCard, BlitzSaveCard, PauseCard, ResultCard } from '../squishdoku/Overlays';
+import { trioOf } from '../squishdoku/Trio';
 import { blitzSaveGems, clock } from '../squishdoku/levels';
 import * as squad from '../squad/api';
 import { BtnLabel, Chip, Head, SdButton } from '../squishdoku/ui';
@@ -23,10 +24,11 @@ import { DIRS, leftOf, moves as movesOf, newState, search, tryMove } from './eng
 import { LEVELS, ROOMS, TIER_COLORS, TIER_NAMES, TWISTS, afterBlitz, afterLevel, afterStuck, levelSpec, record, stageOf, starsFor } from './levels';
 import { blitzSpec } from './blitz';
 import { DEPTH, cellAt, layout, standOn } from './board';
-import { BEAT_COL, BEAT_NAMES, Bubble, FlatCushion, GoalStar, HintGlow, OrderChip, PILE_TOP, Piece, Star, Tile, Under, freshPose, poseAt } from './Pieces';
+import { BEAT_COL, Bubble, CROUCH, FlatCushion, GoalStar, HAP_GO, HintGlow, LEAN_X, OrderChip, PILE_TOP, Piece, SPRING, Star, Tile, Under, freshPose, poseAt, restPose } from './Pieces';
 import Room, { roomGeometry } from './Room';
 import { friendsOf, headOf, hopperOf } from './roster';
-import { HintCard, PauseCard, ResultCard, StuckCard } from './Cards';
+import { HintCard, RESULT_TITLES, StuckCard } from './Cards';
+import RigStage from './RigStage';
 
 // One level of Squish Hop (SQUISH_HOP.md), and the next ones after it. The
 // squishy hops across cushions on the floor of one of the Crib's rooms; the
@@ -48,43 +50,36 @@ import { HintCard, PauseCard, ResultCard, StuckCard } from './Cards';
 // starts again. Or it's GAME OVER, and the boards cleared pay out
 // (levels.js afterBlitz). No UNDO, RESTART or hints in Blitz.
 
-const LOAD_SOUNDS = ['st_lift', 'st_land', 'st_undo', 'st_hint', 'st_news', 'fs_pop', 'tap', 'bonk', 'sd_squeak', 'sd_unlock', 'sd_wrong', 'sd_solve', 'sd_confetti', 'sd_boardIn', 'swoosh'];
+const LOAD_SOUNDS = ['st_lift', 'st_land', 'st_hint', 'st_news', 'fs_pop', 'tap', 'bonk', 'sd_squeak', 'sd_unlock', 'sd_wrong', 'sd_solve', 'sd_confetti', 'sd_boardIn', 'swoosh'];
 const BLITZ_SOUNDS = ['sd_count', 'sd_go', 'sd_pip', 'sd_blitzNext', 'sd_blitzFail', 'sd_blitzWin', 'sd_drain', 'sd_revive', 'sd_timeUp', 'sd_tick', 'sd_pause'];
 // Blitz: the last seconds of a board's clock tick
 const HURRY_MS = 5000;
 
-// why a hop bumped, said in the tip line
-const WHY = {
-  arrow: 'Arrow cushions only let you hop off the way they point.',
-  bounce: 'That bubble has nowhere to bounce you.',
-  order: 'Pick up the friends in order: 1, 2, 3…',
-  beat: "That tile isn't lit on this hop. Wait for its beat!",
-};
-// the ★ bumped while it's still shut
-const lockedTip = (room) => `Clear every other ${room.dance ? 'tile' : 'cushion'} first. Then the ★ opens!`;
+// (No tip line since 2026-11-17, the user: "too much text in instructions, make it simple with UI not text". A bump
+// shakes the goal card (the ★ shut, a friend out of order) or the beat pill instead; a board that can't be cleared any
+// more makes RESTART pulse; a new twist still gets its banner, and HOW TO PLAY has the rules.)
 
 const RUG = require('../../assets/crib/fixtures/living-rug.webp');
 const PLAYER_W = 0.86; // the hopper's body, in tiles
 const FRIEND_W = 0.72;
 
-// The line under the stars: what to do, or that the board can't be cleared
-// from here any more.
-function tipFor(spec, s, room) {
-  const what = room.dance ? 'tile' : 'cushion';
-  const all = spec.board.all;
-  if (spec.blitz) return `Clear every ${what}, then the ★. A hop that strands a ${what} ends the run!`;
-  if (!s.feasible) return `You can't clear every ${what} from here. UNDO and try another way!`;
-  if (spec.lv === 1 && s.hops === 0) return 'Swipe, or tap a cushion next to you, to hop.';
-  if (spec.lv === 1) return 'Cushions puff away behind you. Clear them all, then hop onto the ★!';
-  if (spec.news === 'friends' && s.got !== all) return 'Pick up the friend on your way. The ★ opens once every cushion is cleared.';
-  if (spec.news === 'arrows') return 'Arrow cushions: you can only hop off them the way they point.';
-  if (spec.news === 'bubbles') return 'Hop onto a bubble and it bounces you one cushion further.';
-  if (spec.news === 'piles') return 'A pile of two cushions takes two hops to clear.';
-  if (spec.news === 'ordered') return 'Pick up the friends in number order: 1, then 2, then 3.';
-  if (spec.beats) return `Coloured tiles are lit on their beat only. Next hop: the ${BEAT_NAMES[(s.hops + 1) % 3]} ones.`;
-  if (spec.board.friends.length && s.got !== all) return `Pick up every friend${spec.twists.includes('ordered') ? ' in order' : ''}, clear every ${what}, then the ★.`;
-  return `Clear every ${what}, then hop onto the ★.`;
-}
+// How long each of the squishies' moves takes (Pieces.js freshPose has their shapes). A hop is 190 ms (170 onto a
+// bubble) as before, and still the only time a hop holds the next one back; the rest play on while the next one goes.
+const LAND_MS = 360; // the landing's squash and wobble
+const NO_MS = 560; // a bump's shake of the head
+const HAP_MS = 760; // a friend's happy hop and flight to the goal card
+const JOY_MS = 1150; // the win's three jumps (Blitz: BLITZ_JOY_MS, before the next board drops in)
+const BLITZ_JOY_MS = 900;
+const LOOK_MS = 850; // stuck: the look left and right (then the sad sway, Piece's SAD_SWAY_AT)
+const STUCK_CARD_MS = 1400; // stuck: when the STUCK card comes up, once the sway has begun
+const CHEER_MS = 1050; // the friends cheering in the goal card
+// eased travel that waits while the squishy crouches (or squashes on a bubble), then goes
+const holdEase = (hold, ease = Easing.inOut(Easing.quad)) => (t) => (t <= hold ? 0 : ease((t - hold) / (1 - hold)));
+const AFTER_CROUCH = holdEase(CROUCH * 0.8);
+const AFTER_SPRING = holdEase(SPRING * 0.8);
+const FLY = holdEase(HAP_GO);
+const FLY_FADE = holdEase(HAP_GO, Easing.in(Easing.quad));
+const SHADOW_GO = holdEase(0.7, Easing.linear);
 
 const STAR_D = 'M12 2.2 L14.9 8.6 L21.8 9.3 L16.6 14 L18.1 20.9 L12 17.4 L5.9 20.9 L7.4 14 L2.2 9.3 L9.1 8.6 Z';
 // the stars still possible
@@ -100,24 +95,94 @@ const Meter = memo(function Meter({ stars }) {
   );
 });
 
-// the next three beats: the next hop's colour first, big
-const BeatPill = memo(function BeatPill({ next }) {
+// the next three beats: the next hop's colour first, big (it shakes when a hop bumps an unlit tile)
+const BeatPill = memo(function BeatPill({ next, shakeX }) {
   return (
-    <View style={[styles.pill, styles.beatPill]}>
+    <Animated.View style={[styles.pill, styles.beatPill, { transform: [{ translateX: shakeX }] }]}>
       <Text style={[styles.pillText, { color: '#8a3a0e' }]}>BEAT</Text>
       {[0, 1, 2].map((k) => (
         <View key={k} style={[styles.beatDot, { backgroundColor: BEAT_COL[(next + k) % 3] }, k === 0 && styles.beatNow]} />
+      ))}
+    </Animated.View>
+  );
+});
+
+// The arrow keys, bottom left (the user, 2026-11-17): a hop each press, as soon as the finger lands, the same as a
+// swipe that way (queued like one while a hop plays). The hint's way lights up gold.
+const KEY_W = 50; // a key, lip and all
+const KEY_H = 46;
+const PAD = [
+  { d: 0, x: 1, y: 0 },
+  { d: 3, x: 0, y: 1 },
+  { d: 1, x: 2, y: 1 },
+  { d: 2, x: 1, y: 2 },
+];
+const ARROW_ROT = ['0deg', '90deg', '180deg', '270deg'];
+const DPad = memo(function DPad({ onDir, lit }) {
+  return (
+    <View style={styles.pad}>
+      {PAD.map(({ d, x, y }) => (
+        <SdButton
+          key={d}
+          kind={lit === d ? 'gold' : 'white'}
+          onDown={() => onDir(d)}
+          sound={null}
+          radius={14}
+          lip={4}
+          faceStyle={styles.keyFace}
+          style={[styles.key, { left: x * (KEY_W - 2), top: y * (KEY_H - 6) }]}
+        >
+          <Svg width={22} height={22} viewBox="0 0 24 24" style={{ transform: [{ rotate: ARROW_ROT[d] }] }}>
+            <Path d="M5 15.5 L12 8.5 L19 15.5" fill="none" stroke={lit === d ? '#9c4d06' : '#6b4426'} strokeWidth={4.2} strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
+        </SdButton>
       ))}
     </View>
   );
 });
 
+// a gentle throb while `on` (RESTART, once the board can't be cleared from here)
+function Pulse({ on, children, style }) {
+  const t = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!on) {
+      t.stopAnimation();
+      t.setValue(0);
+      return undefined;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(t, { toValue: 1, duration: 420, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(t, { toValue: 0, duration: 520, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [on, t]);
+  const scale = t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] });
+  return <Animated.View style={[style, { transform: [{ scale }] }]}>{children}</Animated.View>;
+}
+
 // A friend in the goal card: its head, dim until it's picked up (and a pop
-// when it lands there), with its number on in-order levels.
-const Slot = memo(function Slot({ c, size, got, n, pop, onRef }) {
+// when it lands there), with its number on in-order levels. On a win the
+// friends cheer: `cheer` 0 → 1 is three jumps with a wiggle, the last a spin,
+// each friend a little after the one before (`idx`).
+const Slot = memo(function Slot({ c, size, got, n, pop, cheer, idx, onRef }) {
   const head = headOf(c);
+  const style = useMemo(() => {
+    const s = Math.min(0.12, idx * 0.04);
+    const at = [0, s + 0.02, s + 0.12, s + 0.24, s + 0.34, s + 0.46, s + 0.6, s + 0.74, 1];
+    const J = size * 0.5;
+    return {
+      transform: [
+        { translateY: cheer.interpolate({ inputRange: at, outputRange: [0, 0, -J, 0, -J, 0, -J * 1.3, 0, 0] }) },
+        { rotate: cheer.interpolate({ inputRange: at, outputRange: ['0deg', '0deg', '14deg', '0deg', '-14deg', '0deg', '180deg', '360deg', '360deg'] }) },
+        { scale: Animated.multiply(pop, cheer.interpolate({ inputRange: at, outputRange: [1, 1, 1.18, 0.92, 1.18, 0.92, 1.25, 1, 1] })) },
+      ],
+    };
+  }, [cheer, idx, size, pop]);
   return (
-    <Animated.View ref={onRef} collapsable={false} style={{ transform: [{ scale: pop }] }}>
+    <Animated.View ref={onRef} collapsable={false} style={style}>
       {head ? (
         <View style={[styles.sticker, { width: size, height: size, borderRadius: size / 2 }, !got && styles.stickerDim]}>
           <View style={[styles.stickerIn, !got && { backgroundColor: 'rgba(255,255,255,0.35)' }]}>
@@ -202,8 +267,8 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
     setRoot((r) => (r && r.w === width && r.h === height ? r : { w: width, h: height }));
   }, []);
   const onArea = useCallback((e) => {
-    const { width, height, y } = e.nativeEvent.layout;
-    setArea((a) => (a && a.w === width && a.h === height && a.y === y ? a : { w: width, h: height, y }));
+    const { width, height, x, y } = e.nativeEvent.layout;
+    setArea((a) => (a && a.w === width && a.h === height && a.y === y && a.x === x ? a : { w: width, h: height, x, y }));
   }, []);
   const floorY = root ? roomGeometry(spec.room, root.w, root.h).floorY : 0;
   const B = useMemo(() => (area && root ? layout(board.w, board.h, area.w, area.h, floorY - area.y) : null), [area, root, board, floorY]);
@@ -212,12 +277,25 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
   // --- animated values: the cushions, bubbles, ★, squishies ------------------------------
   const cellA = useMemo(() => board.life.map((x) => (x ? { a0: new Animated.Value(0), a1: new Animated.Value(0) } : null)), [board]);
   const bubbleA = useMemo(() => board.bubble.map((b) => (b ? new Animated.Value(0) : null)), [board]);
-  const player = useMemo(freshPose, []);
-  const friendA = useMemo(() => board.friends.map(() => freshPose()), [board]);
+  const player = useMemo(() => freshPose({ juicy: true }), []);
+  const friendA = useMemo(() => board.friends.map(() => freshPose({ juicy: true })), [board]);
   const slotPop = useMemo(() => board.friends.map(() => new Animated.Value(1)), [board]);
+  const slotCheer = useMemo(() => new Animated.Value(0), [board]);
+  const [mood, setMood] = useState(null); // 'sad': the hopper is stuck (Piece)
+  // The characters as the design's live rigs (RigStage.js): the page draws them once this board's cast is drawn
+  // (rigTag), and until then (or if a rig's art won't load) the cut-outs stand in.
+  const stage = useRef(null);
+  const [rigTag, setRigTag] = useState(null);
+  const castTag = useMemo(() => [hopper && hopper.key, ...friends.map((f) => f && f.key)].join(','), [hopper, friends]);
+  // the result card's three: the hopper in the middle, the friends either side
+  const trio = useMemo(() => trioOf([friends[0] && friends[0].key, hopper && hopper.key, friends[1] && friends[1].key], (cast || []).map((c) => c.key)), [hopper, friends, cast]);
+  const rigsOn = rigTag === castTag;
+  const rigsOnRef = useRef(false);
+  rigsOnRef.current = rigsOn;
   const starPop = useMemo(() => new Animated.Value(0), [board]);
   const starGone = useMemo(() => new Animated.Value(0), [board]);
-  const shake = useRef(new Animated.Value(0)).current;
+  const shake = useRef(new Animated.Value(0)).current; // the goal card's
+  const beatShake = useRef(new Animated.Value(0)).current;
   const flash = useRef(new Animated.Value(0)).current;
   const fx = useRef(null);
   const fxTop = useRef(null); // over the cards: a new best's confetti
@@ -239,14 +317,13 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
   );
 
   // --- the game's state (refs: the touch handlers and timers read it) ---------------------
-  // takebacks: the UNDOs and RESTARTs on this level (the stars); okAt[k]: whether a full clear was still possible after k
+  // takebacks: the RESTARTs and RETRYs on this level (the stars; no UNDO since 2026-11-17, the user); okAt[k]: whether a full clear was still possible after k
   // hops (Blitz's save goes back to the last one that was)
   const G = useRef({ st: newState(board), hist: [], moves: [], hinted: false, takebacks: 0, okAt: [true], busy: false, queue: [], over: false, won: false, feasible: true, shown: 0, life: [], lastSecond: -1 }).current;
   const [view, setView] = useState({ hops: 0, moves: 0, left: 0, got: 0, cur: board.start, feasible: true, hinted: false, takebacks: 0 });
   const [shown, setShown] = useState(0); // the friends that have landed in the goal card
   const [playerZ, setPlayerZ] = useState(10);
   const [phase, setPhase] = useState('load'); // load | intro (Blitz: before a board's clock) | play | won | stuck | held (Blitz: stopped)
-  const [tip, setTip] = useState(null); // a passing tip (why a hop bumped)
   const [glow, setGlow] = useState(-1); // the hint's cell
   const [banner, setBanner] = useState(null);
   const [result, setResult] = useState(null);
@@ -294,6 +371,25 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
     a.y.setValue(p.y);
     a.k.setValue(p.k);
   };
+  // the rig stage (RigStage.js): a move for one of its characters ('p' the hopper, 'f<k>' friend k), and where a
+  // character stands on `cell` (on top of a pile if `life` is 2): its feet in the board area, scale and z
+  const rig = (fn, ...args) => stage.current && stage.current[fn](...args);
+  const rigAt = (cell, k, life) => {
+    const q = standOn(B, cell, life === 2 ? PILE_TOP : 0);
+    return { x: q.x, y: q.y, s: q.s / B.T, z: zOf(cell, k) };
+  };
+  // everyone where they are now (a new board, the page ready, the board moved)
+  function sendCast() {
+    if (!B || !hopper || !area) return;
+    const life = G.st.life;
+    const list = [{ id: 'p', key: hopper.key, W: pw, ...rigAt(G.st.cur, 2, life[G.st.cur]) }];
+    board.friends.forEach((cell, k) => {
+      const c = friends[k];
+      if (c) list.push({ id: `f${k}`, key: c.key, W: fw, ...rigAt(cell, 1, board.life[cell]), o: G.st.got & board.fbit[cell] ? 0 : 1 });
+    });
+    rig('origin', area.x || 0, area.y || 0);
+    rig('cast', list, castTag);
+  }
 
   // --- the cushions -------------------------------------------------------------------------
 
@@ -318,7 +414,8 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
         const q = standOn(B, i);
         if (bub) {
           timing(bub, 0, 220, Easing.out(Easing.quad)).start();
-          fx.current?.burst('poof', q.x, q.y - q.s * 0.45, q.s / 60);
+          // (a rig pops it with its own bubbles round its feet: this layer is over the rig's face)
+          if (!rigsOnRef.current) fx.current?.burst('poof', q.x, q.y - q.s * 0.45, q.s / 60);
           sfx.play('tap');
         } else {
           fx.current?.burst('pop', q.x, q.y - q.s * 0.1, q.s / 60);
@@ -336,29 +433,67 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
 
   // --- moving the squishies -------------------------------------------------------------------
 
-  // hop squishy `a` (w × h) onto `cell` in `ms`, `hopH` tiles high
-  function moveTo(a, w, h, cell, ms, life, hopH = 0.5) {
+  // Hop squishy `a` (w × h) onto `cell` in `ms`, `hopH` tiles high: it crouches (and doesn't travel yet), stretches
+  // up and over, and lands with a squash that wobbles back while the next hop may already be going (Pieces.js
+  // freshPose). `how.d`: the way it's going, so it leans into the hop (sideways, or away from / toward the camera
+  // going up / down the board) and faces left or right. `how.boing`: it springs off a bubble (its squash on the
+  // bubble is the take-off). `how.land: false`: it lands on a bubble, whose boing is its landing.
+  function moveTo(a, w, h, cell, ms, life, hopH = 0.5, how = {}) {
     const p = poseOn(cell, w, h, life);
     if (a === player) setPlayerZ(zOf(cell, 2));
-    a.hp.setValue(0);
+    const phase = how.boing ? a.bp : a.hp;
+    const [ux, uy] = how.d == null ? [0, 0] : DIRS[how.d];
+    a.lx.setValue(ux);
+    a.lzDeg.setValue(-uy * LEAN_X);
+    phase.setValue(0);
     a.liftH.setValue(B.T * hopH);
+    const ease = how.boing ? AFTER_SPRING : AFTER_CROUCH;
+    const anims = [timing(a.x, p.x, ms, ease), timing(a.y, p.y, ms, ease), timing(a.k, p.k, ms, ease), timing(phase, 1, ms, Easing.linear)];
+    // as drawn going right, mirrored going left: a quick paper turn in the crouch
+    if (ux && a.facing !== ux) {
+      a.facing = ux;
+      anims.push(timing(a.face, ux, Math.min(130, ms * 0.7)));
+    }
     return new Promise((done) =>
-      Animated.parallel([timing(a.x, p.x, ms), timing(a.y, p.y, ms), timing(a.k, p.k, ms), timing(a.hp, 1, ms, Easing.linear)]).start(() => {
-        a.land.setValue(0);
-        timing(a.land, 1, 220, Easing.out(Easing.quad)).start();
+      Animated.parallel(anims).start(() => {
+        if (how.land !== false) {
+          a.land.setValue(0);
+          timing(a.land, 1, LAND_MS, Easing.linear).start();
+        }
         done();
       }),
     );
   }
-  // a bump toward d (`by` tiles), or a little nudge
-  function nudge(d, by, ms = 200, delay = 0) {
-    player.dx.setValue(DIRS[d][0] * B.T * by);
-    player.dy.setValue(DIRS[d][1] * B.T * by * 0.6);
+  // a bump toward d (`by` tiles), squished against the way it can't go if `squish`; or a little nudge
+  function nudge(d, by, ms = 200, delay = 0, squish = false) {
+    const [ux, uy] = DIRS[d];
+    player.dx.setValue(ux * B.T * by);
+    player.dy.setValue(uy * B.T * by * 0.6);
+    player.ex.setValue(squish ? (ux ? -0.24 : 0.14) : 0);
+    player.ey.setValue(squish ? (ux ? 0.12 : -0.2) : 0);
     player.bump.setValue(0);
     return new Promise((done) => timing(player.bump, 1, ms, Easing.out(Easing.quad), delay).start(done));
   }
-  function wobble(seq, ms) {
-    Animated.sequence(seq.map((v) => timing(player.rot, v, ms / seq.length))).start();
+  // one go of a phase 0 → 1 (Pieces.js freshPose reads it through its keyframes)
+  function play(v, ms) {
+    v.setValue(0);
+    timing(v, 1, ms, Easing.linear).start();
+  }
+  // Stuck (or a Blitz run stopped): the hopper droops, looks left and right, sweats and then sways sadly (Piece's
+  // 'sad' mood), until a hint, a save or a new go snaps it back (cheerUp).
+  function sadden() {
+    setMood('sad');
+    rig('stuck', 'p');
+    player.droop.setValue(0);
+    timing(player.droop, 1, 420, Easing.out(Easing.quad)).start();
+    play(player.look, LOOK_MS);
+  }
+  function cheerUp() {
+    setMood(null);
+    rig('unstuck', 'p');
+    player.look.stopAnimation();
+    player.look.setValue(0);
+    timing(player.droop, 0, 160, Easing.out(Easing.back(2))).start();
   }
 
   function tryDir(d) {
@@ -373,21 +508,20 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
     sfx.play('bonk');
     haptics.tap();
     G.busy = true;
-    nudge(d, 0.14).then(() => {
+    // squished against the edge, then a shake of the head (which plays on after the next hop may start)
+    rig('bump', 'p', DIRS[d][0] * B.T * 0.16, DIRS[d][1] * B.T * 0.1, true);
+    nudge(d, 0.16, 200, 0, true).then(() => {
       G.busy = false;
       drain();
     });
-    if (m.why === 'locked') {
-      shake.setValue(0);
-      timing(shake, 1, 320, Easing.linear).start();
+    play(player.no, NO_MS);
+    // what said no shakes (it was a line of text before, 2026-11-17): the goal card for the ★ still shut or a friend
+    // out of order, the beat pill for an unlit tile
+    const s = m.why === 'locked' || m.why === 'order' ? shake : m.why === 'beat' ? beatShake : null;
+    if (s) {
+      s.setValue(0);
+      timing(s, 1, 320, Easing.linear).start();
     }
-    if (m.why === 'locked') flashTip(lockedTip(room));
-    else if (WHY[m.why]) flashTip(WHY[m.why]);
-  }
-  function flashTip(text) {
-    setTip(text);
-    clearTimeout(G.tipT);
-    G.tipT = setTimeout(() => alive.current && setTip(null), 2400);
   }
 
   async function hop(d, m) {
@@ -401,16 +535,27 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
     sfx.play('st_lift');
     haptics.tap();
     setCell(prev.cur, nxt.life[prev.cur]);
-    // onto each cell in turn; a bubble pops as it bounces you on
+    rig(
+      'hop',
+      'p',
+      m.cells.map((c, k) => {
+        const last = k === m.cells.length - 1;
+        return { ...rigAt(c, 2, last ? nxt.life[c] : 1), ms: last ? 190 : 170, h: B.T * (k ? 0.8 : 0.5) * (standOn(B, c).s / B.T), boing: k > 0 };
+      }),
+      d,
+    );
+    // onto each cell in turn; a bubble pops as it boings you on
     for (let k = 0; k < m.cells.length; k++) {
       const c = m.cells[k];
       const last = k === m.cells.length - 1;
-      await moveTo(player, pw, ph, c, last ? 190 : 170, last ? nxt.life[c] : 1, k ? 0.8 : 0.5);
+      if (k) sfx.play('st_lift', { rate: 1.5 });
+      await moveTo(player, pw, ph, c, last ? 190 : 170, last ? nxt.life[c] : 1, k ? 0.8 : 0.5, { d, boing: k > 0, land: last });
       if (!alive.current || G.st !== nxt) return;
       if (!last) setCell(c, nxt.life[c]);
     }
-    const q = standOn(B, nxt.cur);
-    fx.current?.burst('dust', q.x, q.y, q.s / 60);
+    // a puff of dust off the cushion it lands on (a rig puffs its own, round its feet: this layer is over it)
+    const q = standOn(B, nxt.cur, nxt.life[nxt.cur] === 2 ? PILE_TOP : 0);
+    if (!rigsOnRef.current) fx.current?.burst('puff', q.x, q.y, q.s / 60);
     m.cells.forEach((c) => {
       if (nxt.got & board.fbit[c] && !(prev.got & board.fbit[c])) collect(c);
     });
@@ -469,15 +614,18 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
     sfx.play('sd_squeak');
     const fh = bodyH(c, fw);
     const to = slotAt.current[k];
-    a.shadow.setValue(0);
-    a.hp.setValue(0);
-    a.liftH.setValue(B.T * 0.9);
-    const anims = [timing(a.hp, 1, 640, Easing.linear)];
+    // a happy little hop (popping up behind the hopper) with a wiggle, then off to the goal card in a spin
+    const q = standOn(B, cell, board.life[cell] === 2 ? PILE_TOP : 0);
+    fx.current?.burst('pop', q.x, q.y - fh * (q.s / B.T) * 0.9, q.s / 60);
+    a.hap.setValue(0);
+    a.liftH.setValue(B.T * 0.5);
+    rig('pickup', `f${k}`, to ? to.x : q.x, to ? to.y + to.size / 2 : q.y - B.T * 2, HAP_MS);
+    const anims = [timing(a.hap, 1, HAP_MS, Easing.linear), timing(a.shadow, 0, HAP_MS * 0.45, SHADOW_GO)];
     if (to) {
       const p = poseAt(fw, fh, to.x, to.y + to.size / 2, to.size / fw);
-      anims.push(timing(a.x, p.x, 640), timing(a.y, p.y, 640), timing(a.k, p.k, 640));
+      anims.push(timing(a.x, p.x, HAP_MS, FLY), timing(a.y, p.y, HAP_MS, FLY), timing(a.k, p.k, HAP_MS, FLY));
     }
-    anims.push(timing(a.o, 0.5, 640, Easing.in(Easing.quad)));
+    anims.push(timing(a.o, 0.5, HAP_MS, FLY_FADE));
     Animated.parallel(anims).start(() => {
       a.o.setValue(0);
       if (!alive.current || !(G.st.got & board.fbit[cell])) return;
@@ -502,45 +650,19 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
       a.y.stopAnimation();
       a.k.stopAnimation();
       a.o.stopAnimation();
+      a.shadow.stopAnimation();
+      restPose(a);
       const p = poseOn(cell, fw, bodyH(c, fw), board.life[cell]);
       place(a, { ...p, k: p.k * 0.3 });
       a.shadow.setValue(1);
-      a.hp.setValue(0);
       if (G.shown & board.fbit[cell]) a.o.setValue(0);
       Animated.parallel([timing(a.k, p.k, 300, Easing.out(Easing.back(1.6))), timing(a.y, p.y, 300, Easing.out(Easing.back(1.6))), timing(a.o, 1, 200)]).start();
+      rig('restore', `f${k}`, rigAt(cell, 1, board.life[cell]));
     });
     G.shown &= target.got;
     setShown(G.shown);
+    rig('hop', 'p', [{ ...rigAt(target.cur, 2, target.life[target.cur]), ms, h: B.T * 0.5 * (standOn(B, target.cur).s / B.T) }], -1);
     return moveTo(player, pw, ph, target.cur, ms, target.life[target.cur]);
-  }
-
-  function undo() {
-    if (!G.hist.length || G.won || phaseRef.current === 'load') return;
-    // mid-hop: after it lands
-    if (G.busy && !G.over) {
-      if (G.queue.length < 2) G.queue.push(undo);
-      return;
-    }
-    setGlow(-1);
-    G.takebacks += 1;
-    const prev = G.hist.pop();
-    G.moves.pop();
-    G.okAt.length = G.moves.length + 1;
-    if (G.over) {
-      G.over = false;
-      setStuck(false);
-      setPhase('play');
-      player.rot.stopAnimation();
-      player.rot.setValue(0);
-    }
-    sfx.play('st_undo');
-    G.busy = true;
-    restoreTo(prev, 190).then(() => {
-      G.busy = false;
-      drain();
-    });
-    check();
-    sync();
   }
 
   // the same board again from the start (the hint and the take-backs stay)
@@ -604,7 +726,7 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
       G.over = false;
       setStuck(false);
       setPhase('play');
-      player.rot.setValue(0);
+      cheerUp();
     }
     G.hinted = true;
     let back = 0;
@@ -634,7 +756,7 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
     setGlow(m.cells[0]);
     later(3200, () => setGlow(-1));
     nudge(d, 0.1, 360, back ? 320 : 0);
-    if (back) flashTip(`Went back ${back} hop${back === 1 ? '' : 's'}. Try the glowing one!`);
+    later(back ? 320 : 0, () => rig('bump', 'p', DIRS[d][0] * B.T * 0.1, DIRS[d][1] * B.T * 0.06, false));
   }
 
   // --- the end of a level ------------------------------------------------------------------------
@@ -656,10 +778,17 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
       if (!blitz) sfx.play('sd_confetti');
       haptics.win();
       if (!blitz) fx.current?.burst('confetti', q.x, q.y - B.T * 0.6, 1);
-      // two happy hops on the ★
-      player.hp.setValue(0);
+      // three happy jumps on the ★, the last one higher with a spin round, sparkles as each lands; the friends
+      // cheer in the goal card (all of it over before the result card, at 1.3 s)
+      const ms = blitz ? BLITZ_JOY_MS : JOY_MS;
       player.liftH.setValue(B.T * 0.55);
-      Animated.sequence([timing(player.hp, 1, 340, Easing.linear), Animated.timing(player.hp, { toValue: 0, duration: 0, useNativeDriver: true }), timing(player.hp, 1, 340, Easing.linear)]).start();
+      play(player.joy, ms);
+      rig('win', 'p', ms);
+      later(ms * 0.26, () => fx.current?.burst('spark', q.x, q.y - B.T * 0.15, q.s / 60));
+      later(ms * 0.57, () => fx.current?.burst('spark', q.x, q.y - B.T * 0.15, q.s / 60));
+      later(ms * 0.8, () => fx.current?.burst('gold', q.x, q.y - ph * (q.s / B.T) * 0.6 - B.T * 0.77, q.s / 60));
+      later(ms * 0.96, () => fx.current?.burst('spark', q.x, q.y - B.T * 0.15, (q.s / 60) * 1.3));
+      if (n) play(slotCheer, CHEER_MS);
     });
     if (blitz) {
       // one more cleared; on to the next board
@@ -687,8 +816,8 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
     setPhase('stuck');
     sfx.play('sd_wrong');
     haptics.wrong();
-    wobble([-0.8, 0.8, -0.5, 0], 800);
-    later(1000, () => {
+    sadden();
+    later(STUCK_CARD_MS, () => {
       if (G.over && !G.won) setStuck(true);
     });
   }
@@ -703,7 +832,7 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
     setWarn(false);
     sfx.play('sd_wrong');
     haptics.wrong();
-    wobble([-0.8, 0.8, -0.5, 0], 800);
+    sadden();
     later(1000, () => offerSave(why));
   }
   // the board's clock ran out (not mid-hop: a hop under way still counts)
@@ -715,7 +844,7 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
     setWarn(false);
     sfx.play('sd_timeUp');
     haptics.wrong();
-    wobble([-0.6, 0.6, 0], 500);
+    sadden();
     later(900, () => offerSave('time'));
   }
   function offerSave(reason) {
@@ -731,8 +860,7 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
     sfx.play('sd_revive');
     G.lastSecond = -1;
     setWarn(false);
-    player.rot.stopAnimation();
-    player.rot.setValue(0);
+    cheerUp();
     G.over = false;
     G.queue = [];
     if (failReason !== 'time') {
@@ -866,7 +994,6 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
     setPaused(false);
     setHintAsk(false);
     setGlow(-1);
-    setTip(null);
     // everything hidden, ready to come in
     cells.forEach((i) => {
       cellA[i].a0.setValue(0);
@@ -889,11 +1016,8 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
       });
       const p = poseOn(board.start, pw, ph, board.life[board.start]);
       setPlayerZ(zOf(board.start, 2));
-      [player.rot, player.bump, player.hp].forEach((v) => {
-        v.stopAnimation();
-        v.setValue(0);
-      });
-      player.land.setValue(1);
+      restPose(player);
+      setMood(null);
       player.shadow.setValue(1);
       place(player, { ...p, y: p.y - B.T * 1.2 });
       player.o.setValue(0);
@@ -905,13 +1029,17 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
         const q = poseOn(cell, fw, bodyH(c, fw), board.life[cell]);
         place(a, { ...q, k: q.k * 0.3 });
         a.o.setValue(0);
+        a.shadow.stopAnimation();
         a.shadow.setValue(1);
-        a.hp.setValue(0);
-        a.land.setValue(1);
+        restPose(a);
         Animated.parallel([timing(a.k, q.k, 320, Easing.out(Easing.back(1.6)), 320 + k * 90), timing(a.y, q.y, 320, Easing.out(Easing.back(1.6)), 320 + k * 90), timing(a.o, 1, 160, Easing.linear, 320 + k * 90)]).start();
         slotPop[k].setValue(1);
       });
       sfx.play('sd_boardIn');
+      // the rigs: everyone in place, then the hopper drops in and the friends pop up as the cut-outs do
+      sendCast();
+      rig('enter', 'p', rigAt(board.start, 2, board.life[board.start]), 260, false);
+      board.friends.forEach((cell, k) => friends[k] && rig('enter', `f${k}`, rigAt(cell, 1, board.life[cell]), 320 + k * 90, true));
     };
     if (blitz) {
       // Blitz: no hops until the board's clock starts; the run's first board drops in on GO
@@ -990,6 +1118,7 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
       const c = friends[k];
       if (c && !(G.st.got & board.fbit[cell])) place(friendA[k], poseOn(cell, fw, bodyH(c, fw), life[cell]));
     });
+    sendCast();
     later(100, measureSlots);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [B]);
@@ -1055,8 +1184,18 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
     setRound((r) => r + 1);
   }
 
+  // the rig page is up (send it the board), or it has drawn a cast (or couldn't: its art didn't load)
+  const onRigReady = useCallback(() => acts.current.sendCast(), []);
+  const onRigCast = useCallback((m) => {
+    if (m.ok) setRigTag(m.tag);
+    else console.warn('[hop rig] no rig for', m.key, '- cut-outs instead');
+  }, []);
   const acts = useRef({});
-  acts.current = { tryDir, input, undo, restart, askHint, watchHint, giveHint, pause, resume, leave, retry, timeUp, goOn, saveByAd, saveByGems, endRun, again, wiggle: () => wobble([-0.6, 0.6, 0], 360) };
+  acts.current = { sendCast, tryDir, input, restart, askHint, watchHint, giveHint, pause, resume, leave, retry, timeUp, goOn, saveByAd, saveByGems, endRun, again, wiggle: () => {
+      play(player.wig, 380);
+      rig('giggle', 'p');
+    },
+  };
   // web, development only: the browser tests hop without finding the cushions on screen (src/web/README.md)
   if (__DEV__ && typeof window !== 'undefined' && window.document) {
     window.__hop = { sol: spec.sol, hop: (d) => acts.current.input(() => acts.current.tryDir(d)), state: () => ({ phase: phaseRef.current, moves: G.moves.length, feasible: G.feasible, takebacks: G.takebacks }) };
@@ -1151,7 +1290,7 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
   const n = board.friends.length;
   // the cushions still to clear before the ★ opens (the one underfoot clears as it's hopped off)
   const toOpen = Math.max(0, view.left - 1);
-  // the stars still possible: off a full clear, it takes at least one more UNDO
+  // the stars still possible: off a full clear, it takes at least one more RESTART
   const can = starsFor(view.takebacks + (view.feasible ? 0 : 1), view.hinted);
   // Blitz: the best run so far, and whether this one has beaten it
   const bestRun = record(profile).blitz.top;
@@ -1160,12 +1299,17 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
   const nextBeat = (view.hops + 1) % 3;
   const slotSize = n > 4 ? 19 : n > 2 ? 21 : n > 1 ? 24 : 27;
   const playing = phase === 'play' && !paused;
-  const shakeX = shake.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, -6, 6, -3, 0] });
+  const shakeX = useMemo(() => shake.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, -6, 6, -3, 0] }), [shake]);
+  const beatShakeX = useMemo(() => beatShake.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, -6, 6, -3, 0] }), [beatShake]);
+  // the arrow keys hop as a swipe would; the one the hint points (its glowing cushion is next to the squishy) is gold
+  const onDir = useCallback((d) => acts.current.input(() => acts.current.tryDir(d)), []);
+  const hintDir = glow >= 0 ? DIRS.findIndex(([dx, dy]) => view.cur + dx + dy * board.w === glow) : -1;
+  // no full clear left from here: RESTART throbs
+  const stranded = !blitz && !view.feasible && phase === 'play';
   const ph0 = PH[spec.phase] || PH.day;
-  const nextRoom = lv < LEVELS ? ROOMS[stageOf(lv + 1).room].name : null;
 
-  // landscape (REDESIGN_V8, the games sideways): the top bar and the goal strip in a column on the left, the board in
-  // the middle on the room's floor, UNDO / RESTART / HINT down the right
+  // landscape (REDESIGN_V8, the games sideways): the top bar and the goal strip in a column on the left with the arrow
+  // keys at its bottom, the board in the middle on the room's floor, RESTART / HINT at the bottom right (2026-11-17)
   const hudEl = (
     <>
       {/* the Crib's top bar: back, the room's title, the time of day */}
@@ -1178,14 +1322,14 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
         />
         <View style={styles.titleBox}>
           <RoomTitle title={blitz ? 'Blitz Mode' : room.name} />
-          <View style={styles.subRow}>
-            <Text style={styles.sub} numberOfLines={1}>{blitz ? `SQUISH HOP · BOARD ${spec.lv}` : `SQUISH HOP · LEVEL ${lv}`}</Text>
-            {blitz ? null : (
+          {/* (no "SQUISH HOP · LEVEL n" line: the user, 2026-11-17; the level's number shows in its banner as it starts) */}
+          {blitz ? null : (
+            <View style={styles.subRow}>
               <View style={[styles.tier, { backgroundColor: TIER_COLORS[spec.tier] }]}>
                 <Text style={styles.tierText}>{TIER_NAMES[spec.tier]}</Text>
               </View>
-            )}
-          </View>
+            </View>
+          )}
         </View>
         {room.dance || wide ? null : <PhasePill sun={ph0.sun} label={ph0.label} />}
       </View>
@@ -1214,10 +1358,12 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
                 ))}
               <GoalStar key={`s${tag}`} B={B} i={board.goal} left={toOpen} pop={starPop} gone={starGone} z={zOf(board.goal, 0)} />
               {board.friends.map((cell, k) =>
-                friends[k] ? <Piece key={`f${tag}:${k}`} c={friends[k]} w={fw} h={bodyH(friends[k], fw)} a={friendA[k]} z={zOf(cell, 1)} shade={room.dance ? 'rgba(255,255,255,0.3)' : 'rgba(69,16,122,0.28)'} friend delay={k * 900} /> : null,
+                friends[k] && !rigsOn ? <Piece key={`f${tag}:${k}`} c={friends[k]} w={fw} h={bodyH(friends[k], fw)} a={friendA[k]} z={zOf(cell, 1)} shade={room.dance ? 'rgba(255,255,255,0.3)' : 'rgba(69,16,122,0.28)'} friend delay={k * 900} /> : null,
               )}
-              <Piece c={hopper} w={pw} h={ph} a={player} z={playerZ} shade={room.dance ? 'rgba(255,255,255,0.3)' : 'rgba(69,16,122,0.28)'} />
+              {rigsOn ? null : <Piece c={hopper} w={pw} h={ph} a={player} z={playerZ} shade={room.dance ? 'rgba(255,255,255,0.3)' : 'rgba(69,16,122,0.28)'} mood={mood} />}
             </View>
+            {/* the characters as live rigs, over the board and as big as the screen (a friend flies to the goal card) */}
+            {root ? <RigStage ref={stage} style={{ position: 'absolute', left: -(area.x || 0), top: -area.y, width: root.w, height: root.h }} paused={paused} onReady={onRigReady} onCast={onRigCast} /> : null}
             {/* numbered friends' chips, over everything so the order can be read */}
             {board.friends.map((cell, k) => {
               if (!board.order[cell] || G.st.got & board.fbit[cell] || !friends[k]) return null;
@@ -1235,15 +1381,23 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
   );
   const stripEl = (
     <>
-      {/* the goal, the stars still possible, what's left, and a tip */}
+      {/* the goal as pictures (the user, 2026-11-17: "make it simple with UI not text"): the cushions still to clear
+          with their count (a tick once they're all gone), the friends to pick up, then the ★; under it the stars still
+          possible (Blitz: the boards cleared and the best run) */}
       <View style={[styles.strip, wide && styles.wStrip]}>
         <Animated.View style={[styles.goalCard, { transform: [{ translateX: shakeX }] }]}>
           <Text style={styles.goalLabel}>GOAL</Text>
           <View style={styles.goalRow}>
+            <View style={styles.miniGoal}>
+              {room.dance ? <View style={[styles.miniTile, styles.miniTileLeft]} /> : <FlatCushion size={34} col="lilac" id="hopLeft" />}
+              <View style={[styles.leftBadge, toOpen === 0 && styles.leftDone]}>
+                <Text style={styles.leftBadgeText}>{toOpen === 0 ? '✓' : toOpen}</Text>
+              </View>
+            </View>
             {slotOrder.map((k) =>
-              friends[k] ? <Slot key={`${tag}:${k}`} c={friends[k]} size={slotSize} got={!!(shown & board.fbit[board.friends[k]])} n={board.order[board.friends[k]] || 0} pop={slotPop[k]} onRef={(r) => (slotRefs.current[k] = r)} /> : null,
+              friends[k] ? <Slot key={`${tag}:${k}`} c={friends[k]} size={slotSize} got={!!(shown & board.fbit[board.friends[k]])} n={board.order[board.friends[k]] || 0} pop={slotPop[k]} cheer={slotCheer} idx={k} onRef={(r) => (slotRefs.current[k] = r)} /> : null,
             )}
-            {n ? <Text style={styles.goalArrow}>›</Text> : null}
+            <Text style={styles.goalArrow}>›</Text>
             <View style={styles.miniGoal}>
               {room.dance ? <View style={styles.miniTile} /> : <FlatCushion size={34} col="peach" id="hopMini" />}
               <View style={styles.miniStar}>
@@ -1262,33 +1416,23 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
               <View style={[styles.pill, styles.hopsPill, beat && styles.bestPill]}>
                 <Text style={[styles.pillText, { color: beat ? '#ffffff' : '#5b3a29' }]}>{`${beat ? 'NEW BEST' : 'BEST'} ${Math.max(bestRun, cleared)}`}</Text>
               </View>
-              <View style={[styles.pill, styles.hopsPill]}>
-                <Text style={[styles.pillText, { color: '#5b3a29' }]}>{`LEFT ${toOpen}`}</Text>
-              </View>
+              {spec.beats ? <BeatPill next={nextBeat} shakeX={beatShakeX} /> : null}
             </View>
           ) : (
-          <View style={styles.meterRow}>
-            <Meter stars={can} />
-            <View style={styles.pill}>
-              <Text style={styles.pillText}>{`LEFT ${toOpen}`}</Text>
+            <View style={styles.meterRow}>
+              <Meter stars={can} />
+              {spec.beats ? <BeatPill next={nextBeat} shakeX={beatShakeX} /> : null}
             </View>
-            <View style={[styles.pill, styles.hopsPill]}>
-              <Text style={[styles.pillText, { color: '#5b3a29' }]}>{`HOPS ${view.moves}`}</Text>
-            </View>
-            {spec.beats ? <BeatPill next={nextBeat} /> : null}
-          </View>
           )}
-          <Text style={[styles.tip, !blitz && !view.feasible && phase !== 'won' && styles.tipWarn]} numberOfLines={3}>
-            {tip || tipFor(spec, view, room)}
-          </Text>
         </View>
       </View>
     </>
   );
+  const padEl = <DPad onDir={onDir} lit={hintDir} />;
   const ctrlEl = blitz ? (
     <>
       {/* Blitz: the rule and the board's clock, on the Crib's glass */}
-      <View style={[styles.glass, wide ? styles.wGlass : { marginBottom: Math.max(insets.bottom, 6) + 6 }]}>
+      <View style={[styles.glass, wide && styles.wGlass]}>
         <Chip bg="#e01e4a" color="#ffffff">
           1 MISTAKE = GAME OVER
         </Chip>
@@ -1297,19 +1441,17 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
     </>
   ) : (
     <>
-      {/* undo, restart, hint */}
-      <View style={[styles.controls, wide ? styles.wControls : { paddingBottom: Math.max(insets.bottom, 6) + 6 }]}>
-        <SdButton kind="white" onPress={() => acts.current.undo()} disabled={!(playing || phase === 'stuck') || view.hops === 0} sound={null} faceStyle={styles.ctrlFace} style={styles.ctrl}>
-          <BtnLabel kind="white" size={15}>
-            UNDO
-          </BtnLabel>
-        </SdButton>
-        <SdButton kind="purple" onPress={() => acts.current.restart()} disabled={!(playing || phase === 'stuck') || view.hops === 0} sound="sd_select" faceStyle={styles.ctrlFace} style={styles.ctrl}>
-          <BtnLabel kind="purple" size={15}>
-            RESTART
-          </BtnLabel>
-        </SdButton>
-        <SdButton kind="gold" onPress={() => acts.current.askHint()} disabled={!playing || (view.hinted && !adsFree && !ad.ready)} sound="sd_select" faceStyle={styles.ctrlFace} style={styles.ctrl}>
+      {/* restart, hint (no UNDO: the user, 2026-11-17), at the bottom (the user, 2026-11-17); RESTART throbs once the
+          board can't be cleared from here (it was a line of text) */}
+      <View style={styles.controls}>
+        <Pulse on={stranded}>
+          <SdButton kind="purple" onPress={() => acts.current.restart()} disabled={!(playing || phase === 'stuck') || view.hops === 0} sound="sd_select" faceStyle={styles.ctrlFace}>
+            <BtnLabel kind="purple" size={15}>
+              RESTART
+            </BtnLabel>
+          </SdButton>
+        </Pulse>
+        <SdButton kind="gold" onPress={() => acts.current.askHint()} disabled={!playing || (view.hinted && !adsFree && !ad.ready)} sound="sd_select" faceStyle={styles.ctrlFace}>
           <BtnLabel kind="gold" size={15}>
             {adsFree ? 'HINT' : '▶ HINT'}
           </BtnLabel>
@@ -1325,22 +1467,28 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
           <View style={styles.wLeft}>
             {hudEl}
             {stripEl}
+            <View style={styles.fill} />
+            {padEl}
           </View>
           {areaEl}
-          <View style={styles.wRight}>{ctrlEl}</View>
+          <View style={[styles.wRight, !blitz && styles.wRightLow]}>{ctrlEl}</View>
         </View>
       ) : (
         <>
           {hudEl}
           {areaEl}
           {stripEl}
-          {ctrlEl}
+          {/* upright: the arrow keys bottom left, the buttons (Blitz: the rule and the clock) beside them */}
+          <View style={[styles.pRow, { paddingBottom: Math.max(insets.bottom, 6) + 6 }]}>
+            {padEl}
+            <View style={styles.fill}>{ctrlEl}</View>
+          </View>
         </>
       )}
 
       {blitz ? (
         <>
-          <BlitzPauseCard blitz visible={paused} onResume={() => acts.current.resume()} onRestart={() => acts.current.again()} onQuit={() => acts.current.leave()} />
+          <PauseCard visible={paused} onResume={() => acts.current.resume()} onQuit={() => acts.current.leave()} />
           <BlitzSaveCard
             visible={blitzCard === 'save'}
             reason={failReason}
@@ -1363,29 +1511,14 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
         </>
       ) : (
         <>
-          <ResultCard visible={!!result} res={result} spec={spec} nextRoom={nextRoom} onNext={() => goTo(lv + 1)} onReplay={() => goTo(lv)} onHub={() => acts.current.leave()} />
+          <ResultCard visible={!!result} res={result} titles={RESULT_TITLES} keys={trio} last={lv >= LEVELS} onNext={() => goTo(lv + 1)} onReplay={() => goTo(lv)} onBack={() => acts.current.leave()} />
           <StuckCard
             visible={stuck}
-            head={headOf(hopper, 'sad')}
-            uri={hopper?.uri}
+            who={hopper}
             shut={board.nbrs[view.cur].includes(board.goal) && toOpen > 0}
-            onUndo={() => {
-              setStuck(false);
-              acts.current.undo();
-            }}
             onRetry={() => acts.current.retry()}
           />
-          <PauseCard
-            visible={paused}
-            onResume={() => setPaused(false)}
-            onRestart={() => {
-              setPaused(false);
-              if (G.st.hops > 0) G.takebacks += 1;
-              fresh.current = false;
-              setRound((r) => r + 1);
-            }}
-            onQuit={() => acts.current.leave()}
-          />
+          <PauseCard visible={paused} onResume={() => setPaused(false)} onQuit={() => acts.current.leave()} />
           <HintCard visible={hintAsk} adReady={ad.ready} adsFree={adsFree} onWatch={() => acts.current.watchHint()} onClose={() => setHintAsk(false)} />
         </>
       )}
@@ -1401,16 +1534,15 @@ const GLASS = 'rgba(91,58,41,0.75)';
 const styles = StyleSheet.create({
   // landscape (REDESIGN_V8)
   wRow: { flex: 1, flexDirection: 'row' },
-  wLeft: { width: 250, paddingTop: 8, paddingLeft: 10, gap: 8, zIndex: 3 },
+  wLeft: { width: 250, paddingTop: 8, paddingLeft: 10, paddingBottom: 8, gap: 8, zIndex: 3 },
   wRight: { width: 150, justifyContent: 'center', zIndex: 3 },
+  wRightLow: { justifyContent: 'flex-end', paddingBottom: 10 },
   wHud: { paddingHorizontal: 0 },
-  wStrip: { flexDirection: 'column', alignItems: 'stretch' },
-  wControls: { flexDirection: 'column', alignItems: 'stretch', paddingHorizontal: 14, gap: 10 },
+  wStrip: { flexDirection: 'column', alignItems: 'stretch', marginHorizontal: 0 },
   fill: { flex: 1 },
   hud: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, zIndex: 3 },
   titleBox: { flex: 1, minWidth: 0 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -2 },
-  sub: { flexShrink: 1, fontFamily: F.heavy, fontSize: 11, color: '#ffffff', letterSpacing: 0.6, textShadowColor: '#5b3a29', textShadowRadius: 1.5, textShadowOffset: { width: 0, height: 1 } },
   tier: { paddingHorizontal: 6, borderRadius: 999, borderWidth: 2, borderColor: '#ffffff' },
   tierText: { fontFamily: F.display, fontSize: 9.5, letterSpacing: 0.6, color: '#ffffff' },
   area: { flex: 1, zIndex: 2 },
@@ -1421,7 +1553,12 @@ const styles = StyleSheet.create({
   goalArrow: { fontFamily: F.display, fontSize: 14, color: '#b9a6cc', includeFontPadding: false },
   miniGoal: { width: 36, height: 38, alignItems: 'center', justifyContent: 'center' },
   miniTile: { width: 30, height: 30, borderRadius: 5, backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#140818' },
+  miniTileLeft: { backgroundColor: '#5cf2c8' },
   miniStar: { position: 'absolute', left: 8.5, top: 7 },
+  // the cushions still to clear, on the goal card's first cushion (a tick once they're gone)
+  leftBadge: { position: 'absolute', right: -4, top: -3, minWidth: 20, height: 20, paddingHorizontal: 3, borderRadius: 10, backgroundColor: '#6b3fa0', borderWidth: 2, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
+  leftDone: { backgroundColor: '#16a86a' },
+  leftBadgeText: { fontFamily: F.display, fontSize: 11, color: '#ffffff', includeFontPadding: false, fontVariant: ['tabular-nums'] },
   sticker: { backgroundColor: '#ffffff', padding: 2 },
   stickerDim: { backgroundColor: 'rgba(255,255,255,0.55)' },
   stickerIn: { flex: 1, borderRadius: 999, backgroundColor: '#f6efff', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
@@ -1437,12 +1574,15 @@ const styles = StyleSheet.create({
   beatPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderColor: '#ff5c8a' },
   beatDot: { width: 9, height: 9, borderRadius: 3, opacity: 0.5 },
   beatNow: { width: 13, height: 13, opacity: 1, borderWidth: 2, borderColor: '#ffffff' },
-  // three lines always, so a longer tip never moves the board
-  tip: { fontFamily: F.heavy, fontSize: 12, lineHeight: 15, color: '#ffffff', height: 45 },
-  tipWarn: { color: '#ffd0d6' },
-  controls: { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 8, zIndex: 1 },
-  ctrl: { flex: 1, maxWidth: 130 },
+  // RESTART over HINT
+  controls: { alignItems: 'stretch', gap: 10, paddingHorizontal: 14, zIndex: 1 },
   ctrlFace: { paddingHorizontal: 6, paddingVertical: 10 },
+  // the arrow keys: a cross of four, each key KEY_W × KEY_H with its lip (the rows overlap by the lip's shadow)
+  pad: { width: KEY_W * 3 - 4, height: KEY_H * 3 - 12, zIndex: 3 },
+  key: { position: 'absolute', width: KEY_W },
+  keyFace: { height: 32, paddingHorizontal: 0, paddingVertical: 0 },
+  // upright: the arrow keys and the buttons in a row at the bottom
+  pRow: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 12, paddingTop: 8, zIndex: 1 },
   // Blitz: the rule and the clock on the glass, and the best pill once it's beaten
   glass: { alignSelf: 'center', alignItems: 'center', gap: 8, marginTop: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
   wGlass: { alignSelf: 'stretch', marginHorizontal: 10 },

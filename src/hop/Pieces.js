@@ -1,7 +1,7 @@
 import React, { memo, useMemo } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, Ellipse, Path, RadialGradient, Stop } from 'react-native-svg';
-import { usePingPong, useKeyLoop } from '../components/idleLoop';
+import { PHASE, SWING, usePingPong, useKeyLoop } from '../components/idleLoop';
 import { Squishy } from '../stack/Pieces';
 import { F } from '../squishdoku/theme';
 import { cellBox, chevron, polyPath, project, roundRect } from './board';
@@ -339,33 +339,186 @@ export const poseAt = (w, h, x, y, k) => ({ x: x - w / 2, y: y - (h / 2) * (1 + 
 // (poseAt), hopping up by `a.lift`, nudged by `a.bx` / `a.by`, squashed by
 // `a.sx` / `a.sy` and rocked by `a.rot` (from its feet), breathing all the
 // while. Friends peek about now and then.
-export const Piece = memo(function Piece({ c, w, h, a, z, shade, friend = false, delay = 0 }) {
+// Squish Hop's squishies (`a.juicy`, freshPose) also lean (`a.rz` sideways,
+// `a.rx` toward or away from the camera, from the feet), turn their heads
+// (`a.yaw`, about the middle) and face the way they hop (`a.face`, mirrored
+// going left). `mood` 'sad' (stuck): a sweat drop runs down, and it sways
+// slowly from side to side until the mood goes.
+// A squishy with faces (`c.faces`: Squishdoku's board, src/squishdoku/bodies.js)
+// shows its happy or sad one by `a.happy` / `a.sad` (0 … 1) and flashes red by
+// `a.red` (a phase 0 → 1); see FacedSquishy.
+// (Every interpolation is made once here: a re-render, the hopper's z on
+// every hop, must not build new animated nodes. PERFORMANCE.md.)
+export const Piece = memo(function Piece({ c, w, h, a, z, shade, friend = false, delay = 0, mood = null }) {
   const breathe = usePingPong(friend ? 2200 : 2600, { delay });
   const peek = useKeyLoop(6000, { at: PEEK_AT, values: PEEK_DEG, delay, on: friend });
-  const feet = (s) => [{ translateY: h / 2 }, ...s, { translateY: -h / 2 }];
+  const sad = mood === 'sad';
+  const sway = useKeyLoop(2400, { at: PHASE, values: SWING, delay: SAD_SWAY_AT, on: sad });
+  const J = !!a.juicy;
+  const t = useMemo(() => {
+    const feet = (s) => [{ translateY: h / 2 }, ...s, { translateY: -h / 2 }];
+    const deg = (v, r = 10) => v.interpolate({ inputRange: [-1, 1], outputRange: [`${-r}deg`, `${r}deg`] });
+    return {
+      shadow: [{ scale: a.shadowK }],
+      lift: [{ translateY: a.lift }, { translateX: a.bx }, { translateY: a.by }],
+      // (the web draws a 3D turn flat without a perspective; Android has a default one)
+      squash: J ? [...WEB_DEPTH(w), ...feet([{ rotateX: deg(a.rx, 1) }, { rotate: deg(Animated.add(a.rz, Animated.multiply(sway, 0.45))) }, { scaleX: a.sx }, { scaleY: a.sy }])] : feet([{ scaleX: a.sx }, { scaleY: a.sy }, { rotate: deg(a.rot) }]),
+      yaw: J ? [{ perspective: w * 5 }, { rotateY: deg(a.yaw, 1) }] : null,
+      face: J ? [{ scaleX: a.face }] : null,
+      breathe: feet([
+        { scaleX: breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] }) },
+        { scaleY: breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 0.97] }) },
+        { rotate: peek.interpolate({ inputRange: [-9, 9], outputRange: ['-9deg', '9deg'] }) },
+      ]),
+    };
+  }, [a, J, w, h, breathe, peek, sway]);
+  const pic = c.faces && a.happy ? <FacedSquishy c={c} w={w} a={a} /> : <Squishy c={c} w={w} />;
+  const body = J ? <Animated.View style={{ transform: t.face }}>{pic}</Animated.View> : pic;
+  const breathing = <Animated.View style={{ transform: t.breathe }}>{body}</Animated.View>;
   return (
     <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, width: w, height: h, zIndex: z, opacity: a.o, transform: [{ translateX: a.x }, { translateY: a.y }, { scale: a.k }] }}>
-      <Animated.View style={[styles.shadow, { backgroundColor: shade, opacity: a.shadow, transform: [{ scale: a.arc.interpolate({ inputRange: [-1, 0], outputRange: [0.6, 1] }) }] }]} />
-      <Animated.View style={{ transform: [{ translateY: a.lift }, { translateX: a.bx }, { translateY: a.by }] }}>
-        <Animated.View style={{ transform: feet([{ scaleX: a.sx }, { scaleY: a.sy }, { rotate: a.rot.interpolate({ inputRange: [-1, 1], outputRange: ['-10deg', '10deg'] }) }]) }}>
-          <Animated.View
-            style={{
-              transform: feet([
-                { scaleX: breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] }) },
-                { scaleY: breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 0.97] }) },
-                { rotate: peek.interpolate({ inputRange: [-9, 9], outputRange: ['-9deg', '9deg'] }) },
-              ]),
-            }}
-          >
-            <Squishy c={c} w={w} />
-          </Animated.View>
+      <Animated.View style={[styles.shadow, { backgroundColor: shade, opacity: a.shadow, transform: t.shadow }]} />
+      <Animated.View style={{ transform: t.lift }}>
+        <Animated.View style={{ transform: t.squash }}>
+          {J ? <Animated.View style={{ transform: t.yaw }}>{breathing}</Animated.View> : breathing}
+          {sad ? <SweatDrop w={w} h={h} /> : null}
         </Animated.View>
       </Animated.View>
     </Animated.View>
   );
 });
+// A squishy in three faces (src/squishdoku/bodies.js: one render each, cropped
+// alike, so they lie right over each other): the happy and sad ones fade in
+// over the idle one, which goes once a face is all the way in (or a sad ear
+// would show twice, down and up), and a red copy of its shape flashes over it
+// all (`a.red` 0 → 1: two flashes, ~0.6 strong).
+const FacedSquishy = memo(function FacedSquishy({ c, w, a }) {
+  const h = w * c.ar;
+  const st = useMemo(
+    () => ({
+      box: { width: w, height: h },
+      idle: { opacity: Animated.add(a.happy, a.sad).interpolate({ inputRange: [0, 0.97, 1], outputRange: [1, 1, 0], extrapolate: 'clamp' }) },
+      happy: { opacity: a.happy },
+      sad: { opacity: a.sad },
+      red: { opacity: a.red.interpolate({ inputRange: [0, 0.12, 0.32, 0.46, 1], outputRange: [0, 0.62, 0.12, 0.62, 0], extrapolate: 'clamp' }) },
+    }),
+    [a, w, h],
+  );
+  return (
+    <View style={st.box}>
+      <Animated.Image source={c.faces.idle} fadeDuration={0} style={[styles.fill, st.idle]} />
+      <Animated.Image source={c.faces.happy} fadeDuration={0} style={[styles.fill, st.happy]} />
+      <Animated.Image source={c.faces.sad} fadeDuration={0} style={[styles.fill, st.sad]} />
+      <Animated.Image source={c.faces.idle} fadeDuration={0} style={[styles.fill, styles.redTint, st.red]} />
+    </View>
+  );
+});
 const PEEK_AT = [0, 0.84, 0.88, 0.92, 0.96, 1];
 const PEEK_DEG = [0, 0, -9, 8, -3, 0];
+// stuck: the slow sad sway starts after the droop and the look (Game.js LOOK_MS)
+export const SAD_SWAY_AT = 850;
+const WEB_DEPTH = (w) => (Platform.OS === 'web' ? [{ perspective: w * 6 }] : []);
+const UNIT = [0, 1];
+
+// A sweat drop running down the side of a stuck squishy's head, again and
+// again (one native loop; idleLoop.js).
+const SweatDrop = memo(function SweatDrop({ w, h }) {
+  const p = useKeyLoop(1400, { at: UNIT, values: UNIT, delay: 380 });
+  const s = Math.max(10, w * 0.2);
+  const style = useMemo(
+    () => ({
+      position: 'absolute',
+      left: w * 0.82,
+      top: h * 0.08,
+      width: s,
+      height: s * 1.25,
+      opacity: p.interpolate({ inputRange: [0, 0.08, 0.72, 1], outputRange: [0, 1, 1, 0] }),
+      transform: [{ translateY: p.interpolate({ inputRange: [0, 0.16, 1], outputRange: [0, 0, h * 0.3] }) }, { scale: p.interpolate({ inputRange: [0, 0.12, 1], outputRange: [0.2, 1, 0.8] }) }],
+    }),
+    [p, w, h, s],
+  );
+  return (
+    <Animated.View pointerEvents="none" style={style}>
+      <Svg width={s} height={s * 1.25} viewBox="0 0 40 50">
+        <Path d="M20 3 C20 3 36 22 36 32 A16 16 0 0 1 4 32 C4 22 20 3 20 3 Z" fill="#a8e4ff" stroke="#2f8fd8" strokeWidth={3} strokeLinejoin="round" />
+        <Ellipse cx={14} cy={31} rx={4} ry={6.5} fill="#ffffff" opacity={0.9} />
+      </Svg>
+    </Animated.View>
+  );
+});
+
+// --- how Squish Hop's squishies move (freshPose({ juicy: true })) --------------------------
+// Each is a phase 0 → 1, run as ONE linear native timing and read through
+// keyframes; every keyframe list starts and ends at rest, so a phase can be
+// left at 0 or 1.
+// Of a hop: the crouch before take-off (it doesn't travel yet; Game.js holds
+// the travel this long), and of a boing off a bubble, the squash on it.
+export const CROUCH = 0.24;
+export const SPRING = 0.2;
+// A parabola 0 → -1 → 0 from `t0` to 1 (`peak` high), as keyframes.
+function arcFrom(t0, peak = 1) {
+  const u = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1];
+  return { at: [...(t0 > 0 ? [0] : []), ...u.map((x) => t0 + x * (1 - t0))], out: [...(t0 > 0 ? [0] : []), ...u.map((x) => -4 * x * (1 - x) * peak)] };
+}
+const HOP = {
+  arc: arcFrom(CROUCH),
+  // squashed down in the crouch, stretched tall as it takes off and while it falls
+  s: { at: [0, 0.2, 0.32, 0.48, 0.66, 0.86, 1], x: [1, 1.2, 0.84, 0.92, 1, 0.93, 1], y: [1, 0.76, 1.24, 1.1, 1, 1.09, 1] },
+  // leans back in the crouch, then into the hop (1 = 10°)
+  lean: { at: [0, 0.2, 0.36, 0.62, 0.9, 1], v: [0, -0.45, 1.1, 0.5, 0.1, 0] },
+};
+const BOING = {
+  arc: arcFrom(SPRING, 1.15),
+  // squashed flat on the bubble, sprung up tall, a jelly wobble in the air
+  s: { at: [0, 0.07, SPRING, SPRING + 0.08, 0.45, 0.6, 0.75, 0.9, 1], x: [1, 1.38, 1.3, 0.78, 0.88, 1.09, 0.95, 1.04, 1], y: [1, 0.62, 0.68, 1.38, 1.16, 0.93, 1.06, 0.97, 1] },
+  lean: { at: [0, SPRING, SPRING + 0.12, 0.6, 1], v: [0, -0.2, 1.2, 0.4, 0] },
+};
+// the landing: squashed flat, a springy wobble back up, and the top carried
+// on into the hop and back
+const LAND = {
+  s: { at: [0, 0.08, 0.2, 0.38, 0.56, 0.74, 0.88, 1], x: [1, 1.3, 1.26, 0.9, 1.06, 0.97, 1.01, 1], y: [1, 0.7, 0.74, 1.12, 0.95, 1.03, 0.99, 1] },
+  lean: { at: [0, 0.15, 0.42, 0.66, 1], v: [0, 0.6, -0.28, 0.1, 0] },
+};
+// a win: three happy jumps on the ★ (tilting right, then left), the last one
+// higher with a spin round
+const JOY = {
+  arc: {
+    at: [0, 0.05, 0.0975, 0.145, 0.1925, 0.24, 0.34, 0.395, 0.45, 0.505, 0.56, 0.64, 0.7175, 0.795, 0.8725, 0.95, 1],
+    out: [0, 0, -0.6, -0.8, -0.6, 0, 0, -0.7, -0.95, -0.7, 0, 0, -1.05, -1.4, -1.05, 0, 0],
+  },
+  s: {
+    at: [0, 0.03, 0.07, 0.145, 0.22, 0.26, 0.31, 0.37, 0.45, 0.53, 0.57, 0.615, 0.67, 0.8, 0.92, 0.96, 0.985, 1],
+    x: [1, 1.16, 0.86, 1, 0.94, 1.22, 1.16, 0.86, 1, 0.94, 1.22, 1.26, 0.82, 1, 0.94, 1.24, 0.97, 1],
+    y: [1, 0.8, 1.18, 1, 1.08, 0.78, 0.8, 1.2, 1, 1.08, 0.78, 0.72, 1.26, 1, 1.08, 0.76, 1.03, 1],
+  },
+  lean: { at: [0, 0.07, 0.145, 0.24, 0.37, 0.45, 0.56, 1], v: [0, 0.3, 0.8, 0, -0.3, -0.8, 0, 0] },
+  spin: { at: [0, 0.66, 0.92, 1], v: [0, 0, 360, 360] },
+};
+// a friend picked up: a happy little hop with a wiggle, then off to the goal
+// card in a spin (Game.js holds its flight until HAP_GO)
+export const HAP_GO = 0.32;
+const HAP = {
+  arc: { at: [0, 0.03, 0.08, 0.15, 0.22, 0.28, HAP_GO, 0.47, 0.64, 0.82, 1], out: [0, 0, -1, -1.35, -1, 0, 0, -1.4, -1.8, -1.4, 0] },
+  s: { at: [0, 0.03, 0.07, 0.15, 0.28, HAP_GO, 0.38, 0.6, 1], x: [1, 1.14, 0.86, 1, 1.16, 1.12, 0.88, 1, 1], y: [1, 0.84, 1.2, 1, 0.84, 0.86, 1.16, 1, 1] },
+  lean: { at: [0, 0.06, 0.11, 0.16, 0.21, 0.27, 1], v: [0, 0.8, -0.8, 0.7, -0.5, 0, 0] },
+  spin: { at: [0, 0.4, 0.85, 1], v: [0, 0, 360, 360] },
+};
+// a bump: squished against the way it can't go (by ex, ey; Game.js sets
+// them), and `no`, a shake of the head (degrees)
+const BUMP_SQUISH = { at: [0, 0.3, 0.42, 0.7, 1], v: [0, 0.7, 1, 0.15, 0] };
+const NO = { at: [0, 0.22, 0.32, 0.46, 0.6, 0.74, 0.86, 1], v: [0, 0, 36, -32, 22, -11, 4, 0] };
+// stuck: a look to the left, then to the right (degrees)
+const LOOK = { at: [0, 0.25, 0.35, 0.5, 0.62, 0.78, 0.9, 1], v: [0, 0, -32, -32, 32, 32, 0, 0] };
+// a tap on the squishy itself: a wiggle
+const WIG = { at: [0, 0.25, 0.6, 1], v: [0, -0.6, 0.6, 0] };
+// drooped (stuck): sunk down and wide, its top hanging toward the camera
+const DROOP = { x: 1.08, y: 0.86, tilt: -14 };
+// how far a hop up or down the board leans it away or toward the camera
+export const LEAN_X = 22;
+
+const kf = (v, at, out) => v.interpolate({ inputRange: at, outputRange: out });
+const sum = (...xs) => xs.reduce((p, q) => Animated.add(p, q));
+const prod = (...xs) => xs.reduce((p, q) => Animated.multiply(p, q));
 
 // A squishy's animated values. Every move is ONE native timing of a phase
 // read through keyframes (a looped or chained Animated.sequence is stepped
@@ -376,35 +529,94 @@ const PEEK_DEG = [0, 0, -9, 8, -3, 0];
 //   bump      a bump or a nudge, 0 → 1 → toward (dx, dy) and back
 //   rot       a rock, -1 … 1 (±10°)
 //   o         its opacity; shadow its shadow's (0 while it flies off)
-export function freshPose() {
-  const hp = new Animated.Value(0);
-  const liftH = new Animated.Value(0);
-  const land = new Animated.Value(1);
-  const bump = new Animated.Value(0);
-  const dx = new Animated.Value(0);
-  const dy = new Animated.Value(0);
-  const arc = hp.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, -0.75, -1, -0.75, 0] });
+// With `juicy` (Squish Hop) the hop and landing are the bigger HOP and LAND
+// above, and there's more (each a phase 0 → 1 unless said):
+//   bp        a boing off a bubble, in place of hp
+//   lx, lzDeg the way the hop goes: -1 / 0 / 1 sideways, and the lean
+//             toward (−) or away from (+) the camera, in degrees
+//   face      1 as drawn, -1 mirrored (it hops left)
+//   ex, ey    a bump's squish across and up (set per bump)
+//   no        a shake of the head; look  stuck's look left and right
+//   droop     0 → 1, stuck's droop (rests at 0)
+//   joy       the win's jumps; hap  a friend's pick-up; wig  a wiggle
+// Squishdoku's room board (RoomBoard.js) uses the plain one.
+export function freshPose({ juicy = false } = {}) {
+  const V = (v) => new Animated.Value(v);
+  const hp = V(0);
+  const liftH = V(0);
+  const land = V(1);
+  const bump = V(0);
+  const dx = V(0);
+  const dy = V(0);
+  const rot = V(0);
   const out = bump.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 1, 0] });
+  const base = { x: V(0), y: V(0), k: V(1), o: V(1), shadow: V(1), rot, hp, liftH, land, bump, dx, dy, bx: Animated.multiply(out, dx), by: Animated.multiply(out, dy) };
+  if (!juicy) {
+    const arc = hp.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, -0.75, -1, -0.75, 0] });
+    return {
+      ...base,
+      arc,
+      shadowK: arc.interpolate({ inputRange: [-1, 0], outputRange: [0.6, 1] }),
+      lift: Animated.multiply(arc, liftH),
+      sx: Animated.multiply(hp.interpolate({ inputRange: [0, 0.4, 1], outputRange: [1, 0.9, 1] }), land.interpolate({ inputRange: [0, 0.55, 1], outputRange: [1.14, 0.96, 1] })),
+      sy: Animated.multiply(hp.interpolate({ inputRange: [0, 0.4, 1], outputRange: [1, 1.12, 1] }), land.interpolate({ inputRange: [0, 0.55, 1], outputRange: [0.86, 1.05, 1] })),
+    };
+  }
+  const [bp, joy, hap, no, look, wig, droop] = [0, 0, 0, 0, 0, 0, 0].map(V);
+  const [lx, lzDeg, ex, ey, face] = [0, 0, 0, 0, 1].map(V);
+  const arc = sum(kf(hp, HOP.arc.at, HOP.arc.out), kf(bp, BOING.arc.at, BOING.arc.out), kf(joy, JOY.arc.at, JOY.arc.out), kf(hap, HAP.arc.at, HAP.arc.out));
+  const lean = sum(kf(hp, HOP.lean.at, HOP.lean.v), kf(bp, BOING.lean.at, BOING.lean.v), kf(land, LAND.lean.at, LAND.lean.v));
+  const squish = kf(bump, BUMP_SQUISH.at, BUMP_SQUISH.v);
+  const axis = (c, e) =>
+    prod(
+      kf(hp, HOP.s.at, HOP.s[c]),
+      kf(bp, BOING.s.at, BOING.s[c]),
+      kf(land, LAND.s.at, LAND.s[c]),
+      kf(joy, JOY.s.at, JOY.s[c]),
+      kf(hap, HAP.s.at, HAP.s[c]),
+      Animated.add(1, Animated.multiply(squish, e)),
+      kf(droop, UNIT, [1, DROOP[c]]),
+    );
   return {
-    x: new Animated.Value(0),
-    y: new Animated.Value(0),
-    k: new Animated.Value(1),
-    o: new Animated.Value(1),
-    shadow: new Animated.Value(1),
-    rot: new Animated.Value(0),
-    hp,
-    liftH,
-    land,
-    bump,
-    dx,
-    dy,
+    ...base,
+    juicy: true,
+    facing: 1,
+    bp,
+    joy,
+    hap,
+    no,
+    look,
+    wig,
+    droop,
+    lx,
+    lzDeg,
+    ex,
+    ey,
+    face,
     arc,
+    shadowK: arc.interpolate({ inputRange: [-1.8, 0], outputRange: [0.45, 1], extrapolate: 'clamp' }),
     lift: Animated.multiply(arc, liftH),
-    bx: Animated.multiply(out, dx),
-    by: Animated.multiply(out, dy),
-    sx: Animated.multiply(hp.interpolate({ inputRange: [0, 0.4, 1], outputRange: [1, 0.9, 1] }), land.interpolate({ inputRange: [0, 0.55, 1], outputRange: [1.14, 0.96, 1] })),
-    sy: Animated.multiply(hp.interpolate({ inputRange: [0, 0.4, 1], outputRange: [1, 1.12, 1] }), land.interpolate({ inputRange: [0, 0.55, 1], outputRange: [0.86, 1.05, 1] })),
+    // two squashes at once (a landing still wobbling as the next hop crouches) give way softly
+    sx: kf(axis('x', ex), [0, 0.7, 1.34, 3], [0.64, 0.7, 1.34, 1.46]),
+    sy: kf(axis('y', ey), [0, 0.66, 1.36, 3], [0.6, 0.66, 1.36, 1.5]),
+    rz: sum(rot, kf(wig, WIG.at, WIG.v), Animated.multiply(lean, lx), kf(joy, JOY.lean.at, JOY.lean.v), kf(hap, HAP.lean.at, HAP.lean.v)),
+    rx: sum(Animated.multiply(lean, lzDeg), kf(droop, UNIT, [0, DROOP.tilt])),
+    yaw: sum(kf(no, NO.at, NO.v), kf(look, LOOK.at, LOOK.v), kf(joy, JOY.spin.at, JOY.spin.v), kf(hap, HAP.spin.at, HAP.spin.v)),
   };
+}
+
+// Back at rest, every move stopped (not where it stands: x, y, k, o, shadow).
+export function restPose(a) {
+  const stop = (v, to) => {
+    v.stopAnimation();
+    v.setValue(to);
+  };
+  [a.hp, a.bump, a.rot].forEach((v) => stop(v, 0));
+  stop(a.land, 1);
+  if (!a.juicy) return;
+  [a.bp, a.joy, a.hap, a.no, a.look, a.wig, a.droop, a.lx, a.lzDeg, a.ex, a.ey].forEach((v) => stop(v, 0));
+  stop(a.face, 1);
+  a.facing = 1;
 }
 
 // A cushion seen from straight above (the prototype's cushionSvg): the goal
@@ -450,6 +662,8 @@ export const OrderChip = memo(function OrderChip({ n, x, y, size }) {
 });
 
 const styles = StyleSheet.create({
+  fill: { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' },
+  redTint: { tintColor: '#ff2e55' },
   shadow: { position: 'absolute', left: '14%', right: '14%', bottom: '-5%', height: '15%', borderRadius: 999 },
   lockCount: { position: 'absolute', right: '-16%', top: '-10%', paddingHorizontal: 3, backgroundColor: '#ff8a3d', borderWidth: 2, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
   lockText: { fontFamily: F.display, color: '#ffffff', includeFontPadding: false },

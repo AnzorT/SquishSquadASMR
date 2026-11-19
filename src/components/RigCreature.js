@@ -4,6 +4,7 @@
 import React, { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { useRigLook } from '../squad/looks';
 
 // (web: the same page, served at /android_asset/ by metro.config.js; src/web/WebView.js)
 const HOST = Platform.select({ android: 'file:///android_asset/rig/host.html', web: '/android_asset/rig/host.html', default: null });
@@ -36,6 +37,11 @@ const RigCreature = forwardRef(function RigCreature({ creatureKey, shuffle = tru
   if (ready.current && creatureKey !== shownKey.current) { shownKey.current = creatureKey; run(`rigHost.mount(${JSON.stringify(creatureKey)})`); }
   const pausedNow = useRef(false);
   if (ready.current && paused !== pausedNow.current) { pausedNow.current = paused; run(`rigHost.pause(${paused ? 'true' : 'false'})`); }
+  // the border look's outline (config/roster, src/squad/looks.js), live
+  const look = useRigLook(creatureKey);
+  const lookNow = useRef(null);
+  const setLook = `rigHost.look&&rigHost.look(${look})`;
+  if (ready.current && look !== lookNow.current) { lookNow.current = look; run(setLook); }
 
   // the page's size with the bleed, and where the creature's box sits in it (as %, so the render scale doesn't matter)
   const bx = (bleed && bleed.x) || 0, bt = (bleed && bleed.top) || 0, bb = (bleed && bleed.bottom) || 0;
@@ -48,13 +54,13 @@ const RigCreature = forwardRef(function RigCreature({ creatureKey, shuffle = tru
   const onMessage = useCallback(e => {
     let m; try { m = JSON.parse(e.nativeEvent.data); } catch (x) { return; }
     if (m.type === 'ready') {
-      ready.current = true; shownKey.current = creatureKey; pausedNow.current = paused; insetNow.current = inset;
-      run(`${rigShadow ? '' : `${HIDE_SHADOW};`}${setInset};rigHost.shuffle(${shuffle ? 'true' : 'false'});rigHost.mount(${JSON.stringify(creatureKey)});rigHost.pause(${paused ? 'true' : 'false'})`);
+      ready.current = true; shownKey.current = creatureKey; pausedNow.current = paused; insetNow.current = inset; lookNow.current = look;
+      run(`${rigShadow ? '' : `${HIDE_SHADOW};`}${setInset};${setLook};rigHost.shuffle(${shuffle ? 'true' : 'false'});rigHost.mount(${JSON.stringify(creatureKey)});rigHost.pause(${paused ? 'true' : 'false'})`);
     } else if (m.type === 'state') onState && onState(m.state);
     else if (m.type === 'perf') onPerf && onPerf(m);
     else if (m.type === 'mounted') onMounted && onMounted(m);
     else if (m.type === 'error') console.warn('[rig]', m.message);
-  }, [creatureKey, shuffle, paused, rigShadow, inset, setInset, onState, onPerf, onMounted, run]);
+  }, [creatureKey, shuffle, paused, rigShadow, inset, setInset, look, setLook, onState, onPerf, onMounted, run]);
 
   if (!HOST) return null;
   const k = renderScale, w = W * k, h = H * k;

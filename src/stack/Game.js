@@ -7,19 +7,21 @@ import sfx from '../audio/sfx';
 import { FxLayer, PopIn } from '../squishdoku/fx';
 import { makeHaptics, prefetchImages } from '../squishdoku/game';
 import { Countdown } from '../squishdoku/BlitzGame';
-import { BlitzOverCard, BlitzSaveCard, PauseCard as BlitzPauseCard } from '../squishdoku/Overlays';
+import { BlitzOverCard, BlitzSaveCard, PauseCard, ResultCard } from '../squishdoku/Overlays';
+import { trioOf } from '../squishdoku/Trio';
 import { blitzSaveGems } from '../squishdoku/levels';
 import * as squad from '../squad/api';
 import { BtnLabel, Chip, SdButton } from '../squishdoku/ui';
 import { F, INK } from '../squishdoku/theme';
 import { saveStack } from '../firebase/firestore';
 import { Banner } from '../sort/Game';
-import { HintCard, PauseCard, ResultCard } from './Cards';
+import { HintCard, RESULT_TITLES } from './Cards';
 import { bestMove, canMove, makePuzzle, same, stackOf, topOf } from './engine';
 import { LEVELS, TIER_COLORS, TIER_NAMES, afterBlitz, afterLevel, blitzSpec, levelSpec, record } from './levels';
 import { Cushion, GoalCard, OVER, StarBadge, Squishy, bodyH } from './Pieces';
 import { pickCast } from './roster';
-import { usePingPong } from '../components/idleLoop';
+import Svg, { Path } from 'react-native-svg';
+import { PHASE, SWING, useKeyLoop, usePingPong } from '../components/idleLoop';
 
 // One level of Squish Stack (SQUISH_STACK.md), and the next ones after it:
 //   intro  the level's number and what's in it
@@ -43,6 +45,95 @@ const LOAD_SOUNDS = ['st_lift', 'st_land', 'st_cushion', 'st_ouch', 'st_bounce',
 
 const GAP = 16; // between the tallest tower and a lifted squishy
 const GRAVITY = Easing.bezier(0.55, 0, 1, 0.45);
+
+// --- how the squishies move (2026-11-17, the user's list: SQUISH_STACK.md "Moves") -----------
+// Every move is ONE native timing: a phase 0 → 1 read through keyframes (every list starts and ends at rest, so a
+// phase can be left at 0 or 1), or a place reached along a path whose turns are worked into the timing's easing
+// (`pathTiming`). A chained Animated.sequence, or a loop of one, is stepped from JS and hitches when JS is busy
+// (src/components/idleLoop.js), so none is used.
+const kf = (v, at, out) => v.interpolate({ inputRange: at, outputRange: out });
+const sum = (...xs) => xs.reduce((p, q) => Animated.add(p, q));
+const prod = (...xs) => xs.reduce((p, q) => Animated.multiply(p, q));
+// eased progress that waits `d` of its time first (a move that starts a little after the timing does)
+const after = (d, ease = (t) => t) => (t) => (t <= d ? 0 : ease((t - d) / (1 - d)));
+// an easing that is a curve through [t, v] keyframes (v can leave 0 … 1 and come back: a wobble on a plain value)
+const curve = (K) => (t) => {
+  let i = 1;
+  while (i < K.length - 1 && t > K[i][0]) i++;
+  const [t0, a] = K[i - 1];
+  const [t1, b] = K[i];
+  return a + (b - a) * (t1 > t0 ? Math.min(1, Math.max(0, (t - t0) / (t1 - t0))) : 1);
+};
+// landing: squashed flat, a springy wobble back up (`ldA` how hard: a soft landing is about half)
+const LAND = { at: [0, 0.1, 0.3, 0.5, 0.7, 1], x: [0, 0.26, -0.1, 0.06, -0.02, 0], y: [0, -0.28, 0.12, -0.05, 0.02, 0] };
+const LAND_MS = 420;
+// lifted: stretched up tall, then settling
+const PICK = { at: [0, 0.25, 0.5, 0.75, 1], x: [1, 0.8, 1.08, 0.97, 1], y: [1, 1.26, 0.92, 1.03, 1] };
+const PICK_MS = 360;
+// the one under a lifted squishy, relieved of its weight: springs up a little (hop in its heights)
+const RELIEF = { at: [0, 0.2, 0.45, 0.7, 0.85, 1], hop: [0, 0.04, -0.16, 0, -0.03, 0], x: [1, 1.08, 0.92, 1.04, 0.99, 1], y: [1, 0.9, 1.14, 0.96, 1.01, 1] };
+const RELIEF_MS = 440;
+// squashed by one landing on it: flat and bulging sideways, then springing back (`ripA` how hard: less further down)
+const RIPPLE = { at: [0, 0.14, 0.36, 0.56, 0.76, 1], x: [0, 0.34, -0.1, 0.06, -0.02, 0], y: [0, -0.32, 0.1, -0.05, 0.02, 0] };
+const RIPPLE_MS = 460;
+const RIPPLE_STEP = 60; // ms from one squishy down to the next
+// too big: the small one flattened like a pancake, held, then springing back
+const PANCAKE = { at: [0, 0.06, 0.55, 0.7, 0.82, 0.92, 1], x: [1, 1.75, 1.66, 0.84, 1.1, 0.97, 1], y: [1, 0.3, 0.34, 1.22, 0.92, 1.03, 1] };
+const PANCAKE_MS = 950;
+// "nope": a shake of the head (degrees, from its feet)
+const NOPE = { at: [0, 0.12, 0.3, 0.48, 0.66, 0.84, 1], v: [0, 13, -13, 10, -6, 3, 0] };
+const NOPE_MS = 560;
+// the win: a squash, a stretch up and a squash again (the wave runs up each tower); the hop is `waveH` of its
+// height: small inside a tower (so it doesn't jump into the one on it), big for the one on top
+const WAVE = { at: [0, 0.18, 0.32, 0.55, 0.75, 0.88, 1], hop: [0, 0, -0.26, -1, 0, -0.1, 0], x: [1, 1.18, 0.86, 0.96, 1.2, 0.97, 1], y: [1, 0.82, 1.18, 1.04, 0.8, 1.03, 1] };
+const WAVE_MS = 620;
+const WAVE_STEP = 85; // ms from one level of a tower up to the next
+// the hint: two hops
+const HINT = { at: [0, 0.23, 0.5, 0.73, 1], hop: [0, -0.28, 0, -0.28, 0] };
+const HINT_MS = 760;
+// stuck squishies (Blitz's mistake): drooped (sunk and wide), swaying slowly (a native loop)
+const DROOP = { x: 1.07, y: 0.86 };
+const SWAY_MS = 2000;
+// lifted and hovering: a gentle dangle from its top (a native loop); dragged: a swing from how fast it's moved
+const HOVER_MS = 1150;
+const BUMP_EASE = curve([[0, 0], [0.16, 1], [0.4, -0.35], [0.6, 0.15], [0.8, -0.05], [1, 0]]);
+
+// A squishy's animated values (see above), all at rest.
+function pieceAnims() {
+  const V = (v) => new Animated.Value(v);
+  const a = { x: V(0), y: V(0), o: V(0), wx: V(1), wy: V(1), ld: V(1), ldA: V(1), pk: V(1), rel: V(1), rip: V(1), ripA: V(0), pan: V(1), no: V(1), wave: V(1), waveH: V(0.4), hint: V(1), droop: V(0), sway: V(0), hov: V(0), swing: V(0) };
+  const dev = (ph, K, c, amp) => Animated.add(1, Animated.multiply(kf(ph, K.at, K[c]), amp));
+  const axis = (c) => prod(dev(a.ld, LAND, c, a.ldA), kf(a.pk, PICK.at, PICK[c]), kf(a.rel, RELIEF.at, RELIEF[c]), dev(a.rip, RIPPLE, c, a.ripA), kf(a.pan, PANCAKE.at, PANCAKE[c]), kf(a.wave, WAVE.at, WAVE[c]), kf(a.droop, [0, 1], [1, DROOP[c]]));
+  a.sx = axis('x');
+  a.sy = axis('y');
+  a.lift = sum(kf(a.rel, RELIEF.at, RELIEF.hop), Animated.multiply(kf(a.wave, WAVE.at, WAVE.hop), a.waveH), kf(a.hint, HINT.at, HINT.hop)); // of its height
+  a.rotFeet = sum(kf(a.no, NOPE.at, NOPE.v), Animated.multiply(kf(a.sway, PHASE, SWING), 5)); // degrees
+  a.rotTop = sum(a.swing, Animated.multiply(kf(a.hov, PHASE, SWING), 6)); // degrees
+  Object.assign(a, { tgt: null, at: { x: 0, y: 0 }, w: -1, tok: 0, hovLoop: null, swayLoop: null, swingT: 0 });
+  return a;
+}
+
+// One native timing taking `v` from `from` through `keys` ([[t 0…1, value, easing?], …], the last at t = 1) in `ms`:
+// Animated works out a timing's frames from its easing once, in JS, so a path with turns in it is still one
+// animation. (It runs from wherever `v` really is; `from` is where the path is drawn from.)
+function pathTiming(v, from, keys, ms) {
+  const pts = [[0, from], ...keys];
+  const far = pts.reduce((m, q) => (Math.abs(q[1] - from) > Math.abs(m - from) ? q[1] : m), from);
+  if (Math.abs(far - from) < 0.5) {
+    const end = keys[keys.length - 1][1];
+    return Math.abs(end - from) < 0.01 ? null : Animated.timing(v, { toValue: end, duration: ms, useNativeDriver: true });
+  }
+  const span = far - from;
+  const easing = (t) => {
+    let i = 1;
+    while (i < pts.length - 1 && t > pts[i][0]) i++;
+    const [t0, a] = pts[i - 1];
+    const [t1, b, e] = pts[i];
+    const u = t1 > t0 ? Math.min(1, Math.max(0, (t - t0) / (t1 - t0))) : 1;
+    return (a + (b - a) * (e || Easing.inOut(Easing.quad))(u) - from) / span;
+  };
+  return Animated.timing(v, { toValue: far, duration: ms, easing, useNativeDriver: true });
+}
 
 const NEWS = {
   picture: { text: 'GOAL CARD!', sub: 'Make the cushions look like the picture' },
@@ -101,20 +192,63 @@ function spotsOf(G, pos, skip = -1) {
 // --- drawing ---------------------------------------------------------------------------
 
 // A squishy: placed (x, y), squished by the ones on it (wx, wy, from its
-// feet), and its own squash / hop / wiggle on top.
+// feet), its own squash, stretch, hops and sways on top (from its feet), and
+// dangling from its top while it's lifted. (The transforms are made once: a
+// re-render must not build new animated nodes. PERFORMANCE.md.)
 const Piece = memo(function Piece({ c, w, h, a, z }) {
-  const wT = a.wy.interpolate({ inputRange: [0, 1], outputRange: [h / 2, 0] });
-  const sqX = a.sq.interpolate({ inputRange: [-1, 0, 1], outputRange: [0.9, 1, 1.22] });
-  const sqY = a.sq.interpolate({ inputRange: [-1, 0, 1], outputRange: [1.12, 1, 0.74] });
-  const sqT = a.sq.interpolate({ inputRange: [-1, 0, 1], outputRange: [-0.06 * h, 0, 0.13 * h] });
-  const rotate = a.rot.interpolate({ inputRange: [-1, 1], outputRange: ['-6deg', '6deg'] });
+  const t = useMemo(() => {
+    const deg = (v) => v.interpolate({ inputRange: [-1, 1], outputRange: ['-1deg', '1deg'] });
+    return {
+      weight: [{ translateY: a.wy.interpolate({ inputRange: [0, 1], outputRange: [h / 2, 0] }) }, { scaleX: a.wx }, { scaleY: a.wy }],
+      body: [{ translateY: h / 2 }, { translateY: Animated.multiply(a.lift, h) }, { rotate: deg(a.rotFeet) }, { scaleX: a.sx }, { scaleY: a.sy }, { translateY: -h / 2 }],
+      dangle: [{ translateY: -h / 2 }, { rotate: deg(a.rotTop) }, { translateY: h / 2 }],
+    };
+  }, [a, h]);
   return (
     <Animated.View pointerEvents="none" style={[styles.piece, { width: w, height: h, zIndex: z, opacity: a.o, transform: [{ translateX: a.x }, { translateY: a.y }] }]}>
-      <Animated.View style={{ transform: [{ translateY: wT }, { scaleX: a.wx }, { scaleY: a.wy }] }}>
-        <Animated.View style={{ transform: [{ translateY: a.hop }, { translateY: sqT }, { scaleX: sqX }, { scaleY: sqY }, { rotate }] }}>
-          <Squishy c={c} w={w} />
+      <Animated.View style={{ transform: t.weight }}>
+        <Animated.View style={{ transform: t.body }}>
+          <Animated.View style={{ transform: t.dangle }}>
+            <Squishy c={c} w={w} />
+          </Animated.View>
         </Animated.View>
       </Animated.View>
+    </Animated.View>
+  );
+});
+
+// Dizzy stars circling over a squishy flattened by a big one (TOO BIG!): three
+// stars on a tilted ring (one native loop), fading out at the end.
+const STAR_D = 'M12 2 L14.6 8.6 L21.6 9.2 L16.3 13.8 L18 20.8 L12 17 L6 20.8 L7.7 13.8 L2.4 9.2 L9.4 8.6 Z';
+const Dizzy = memo(function Dizzy({ x, y, w }) {
+  const spin = useKeyLoop(760, { at: PHASE, values: PHASE });
+  const life = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(life, { toValue: 1, duration: 1250, easing: Easing.linear, useNativeDriver: true }).start();
+  }, [life]);
+  const size = Math.max(12, w * 0.2);
+  const stars = useMemo(
+    () =>
+      [0, 1 / 3, 2 / 3].map((o) => {
+        const ang = PHASE.map((p) => 2 * Math.PI * (p + o));
+        return {
+          tx: spin.interpolate({ inputRange: PHASE, outputRange: ang.map((q) => Math.cos(q) * w * 0.34) }),
+          ty: spin.interpolate({ inputRange: PHASE, outputRange: ang.map((q) => Math.sin(q) * w * 0.1) }),
+          k: spin.interpolate({ inputRange: PHASE, outputRange: ang.map((q) => 0.75 + 0.3 * Math.sin(q)) }),
+        };
+      }),
+    [spin, w],
+  );
+  const opacity = life.interpolate({ inputRange: [0, 0.08, 0.8, 1], outputRange: [0, 1, 1, 0] });
+  return (
+    <Animated.View pointerEvents="none" style={[styles.dizzy, { left: x, top: y, opacity }]}>
+      {stars.map((st, i) => (
+        <Animated.View key={i} style={{ position: 'absolute', left: -size / 2, top: -size / 2, transform: [{ translateX: st.tx }, { translateY: st.ty }, { scale: st.k }] }}>
+          <Svg width={size} height={size} viewBox="0 0 24 24">
+            <Path d={STAR_D} fill="#ffe045" stroke="#b86200" strokeWidth={1.6} strokeLinejoin="round" />
+          </Svg>
+        </Animated.View>
+      ))}
     </Animated.View>
   );
 });
@@ -220,6 +354,8 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   // a fresh puzzle and fresh squishies for every level and every retry
   const puzzle = useMemo(() => makePuzzle(spec), [spec]);
   const who = useMemo(() => pickCast(cast, spec.n), [puzzle]); // eslint-disable-line react-hooks/exhaustive-deps
+  // the result card's three: from the level's stack
+  const trio = useMemo(() => trioOf(who.slice(0, 3).map((c) => c && c.key), (cast || []).map((c) => c.key)), [who, cast]);
 
   const [area, setArea] = useState(null);
   const areaRef = useRef(null);
@@ -231,25 +367,12 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   }, []);
   const g = useMemo(() => (area && who.length === spec.n ? geometry(area.w, area.h, spec.n, spec.k, who) : null), [area, spec, who]);
 
-  const anims = useMemo(
-    () =>
-      who.map(() => ({
-        x: new Animated.Value(0),
-        y: new Animated.Value(0),
-        o: new Animated.Value(0),
-        wx: new Animated.Value(1),
-        wy: new Animated.Value(1),
-        sq: new Animated.Value(0),
-        hop: new Animated.Value(0),
-        rot: new Animated.Value(0),
-        tgt: null, // where it's headed
-        w: -1, // the weight it's squished to
-        tok: 0, // bumped by every new move, so a stale landing does nothing
-        wig: null,
-      })),
-    [who],
-  );
+  // each squishy's animated values (pieceAnims); tgt: where it's headed, at: where its last move takes it, w: the
+  // weight it's squished to, tok: bumped by every new move (a stale landing does nothing)
+  const anims = useMemo(() => who.map(pieceAnims), [who]);
   const bumps = useMemo(() => Array.from({ length: 4 }, () => new Animated.Value(0)), []);
+  const flash = useRef(new Animated.Value(0)).current; // TOO BIG!'s red flash
+  const [dizzy, setDizzy] = useState(null); // { key, x, y, w }: stars over a flattened squishy
   const fx = useRef(null);
   const fxTop = useRef(null); // Blitz: over the cards, a new best's confetti
 
@@ -322,6 +445,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
       }
       if (A.tgt && Math.abs(A.tgt.x - s.x) < 0.5 && Math.abs(A.tgt.y - s.y) < 0.5) return;
       A.tgt = { x: s.x, y: s.y };
+      A.at = { x: s.x, y: s.y };
       A.tok += 1;
       Animated.parallel([
         Animated.spring(A.x, { toValue: s.x, friction: 7, tension: 120, useNativeDriver: true }),
@@ -330,53 +454,76 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     });
   }
 
-  // steps: [{ x, y, ms, ex, ey }] one after another; `done` only if nothing
+  // steps: [{ x, y, ms, ex, ey }] one after another, as ONE timing per axis (pathTiming); `done` only if nothing
   // else moved it meanwhile
   function fly(r, steps, done) {
+    const total = steps.reduce((m, st) => m + st.ms, 0);
+    let t = 0;
+    const kx = [];
+    const ky = [];
+    steps.forEach((st) => {
+      t += st.ms;
+      kx.push([t / total, st.x, st.ex]);
+      ky.push([t / total, st.y, st.ey]);
+    });
+    flyKeys(r, kx, ky, total, done);
+  }
+  // the same with each axis's own keys ([[t, value, easing?], …]): an arc's x and y turn at different times
+  function flyKeys(r, kx, ky, ms, done) {
     const A = live.current.anims[r];
     const tok = ++A.tok;
-    const last = steps[steps.length - 1];
-    A.tgt = { x: last.x, y: last.y };
-    Animated.sequence(
-      steps.map((s) =>
-        Animated.parallel([
-          Animated.timing(A.x, { toValue: s.x, duration: s.ms, easing: s.ex || Easing.inOut(Easing.quad), useNativeDriver: true }),
-          Animated.timing(A.y, { toValue: s.y, duration: s.ms, easing: s.ey || Easing.inOut(Easing.quad), useNativeDriver: true }),
-        ]),
-      ),
-    ).start(({ finished }) => {
+    const end = { x: kx[kx.length - 1][1], y: ky[ky.length - 1][1] };
+    const from = A.at;
+    A.tgt = end;
+    A.at = end;
+    Animated.parallel([pathTiming(A.x, from.x, kx, ms), pathTiming(A.y, from.y, ky, ms)].filter(Boolean)).start(({ finished }) => {
       if (finished && A.tok === tok && alive.current && done) done();
     });
   }
-
-  function wiggle(r, on) {
-    const A = live.current.anims[r];
-    A.wig?.stop();
-    A.wig = null;
+  // one go of a phase 0 → 1 (pieceAnims reads it through its keyframes), after `delay` ms (worked into the timing)
+  function play(v, ms, delay = 0) {
+    v.setValue(0);
+    Animated.timing(v, { toValue: 1, duration: ms + delay, easing: after(delay / (ms + delay)), useNativeDriver: true }).start();
+  }
+  // a native loop of a phase (the hover dangle, the sad sway), or stopped and back at rest
+  function loopOf(A, key, v, ms, on) {
+    A[key]?.stop();
+    A[key] = null;
     if (!on) {
-      Animated.spring(A.rot, { toValue: 0, friction: 4, tension: 160, useNativeDriver: true }).start();
+      Animated.timing(v, { toValue: 0, duration: 160, useNativeDriver: true }).start();
       return;
     }
-    A.wig = Animated.loop(
-      Animated.sequence([
-        Animated.timing(A.rot, { toValue: 1, duration: 260, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(A.rot, { toValue: -1, duration: 260, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    A.wig.start();
+    v.setValue(0);
+    A[key] = Animated.loop(Animated.timing(v, { toValue: 1, duration: ms, easing: Easing.linear, useNativeDriver: true }));
+    A[key].start();
   }
 
+  // lifted: a gentle dangle from its top while it hovers (off: back still, and any swing let go)
+  function hover(r, on) {
+    const A = live.current.anims[r];
+    loopOf(A, 'hovLoop', A.hov, HOVER_MS, on);
+    if (!on) Animated.spring(A.swing, { toValue: 0, friction: 2.6, tension: 70, useNativeDriver: true }).start();
+  }
+  // dragged: it swings from its top against the way it's moved, by how fast (a native spring: let go, it swings back
+  // and forth like a pendulum and settles)
+  function swing(r, vx) {
+    const A = live.current.anims[r];
+    const deg = Math.max(-30, Math.min(30, vx * 22));
+    Animated.spring(A.swing, { toValue: deg, friction: 5, tension: 120, useNativeDriver: true }).start();
+    clearTimeout(A.swingT);
+    A.swingT = setTimeout(() => Animated.spring(A.swing, { toValue: 0, friction: 2.4, tension: 60, useNativeDriver: true }).start(), 90);
+  }
+
+  // a cushion's bump (k: how hard; negative springs it up), one timing whose easing wobbles back to 0
   function bump(p, k = 1) {
     const B = live.current.bumps[p];
     B.setValue(0);
-    Animated.sequence([
-      Animated.timing(B, { toValue: k, duration: 80, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.spring(B, { toValue: 0, friction: 3.5, tension: 170, useNativeDriver: true }),
-    ]).start();
+    Animated.timing(B, { toValue: k, duration: 420, easing: BUMP_EASE, useNativeDriver: true }).start();
   }
 
   function pickUp(r, p) {
-    const A = live.current.anims[r];
+    const { anims: AS } = live.current;
+    const A = AS[r];
     setHeld({ r, from: p });
     setTop(r);
     setGlow(null);
@@ -389,13 +536,19 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
         Animated.spring(A.wy, { toValue: 1, friction: 5, tension: 140, useNativeDriver: true }),
       ]).start();
     }
+    // stretched up tall as it's lifted
+    play(A.pk, PICK_MS);
+    // the one under it springs up, relieved of the weight (or, from the cushion, the cushion does)
+    const st = stackOf(posRef.current, p);
+    const under = st[st.indexOf(r) - 1];
+    if (under != null) play(AS[under].rel, RELIEF_MS);
+    else bump(p, -0.7);
     A.tgt = { x: xOf(r, p), y: hoverY(r) };
+    const from = A.at;
+    A.at = A.tgt;
     A.tok += 1;
-    Animated.parallel([
-      Animated.timing(A.x, { toValue: A.tgt.x, duration: 150, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(A.y, { toValue: A.tgt.y, duration: 200, easing: Easing.out(Easing.back(1.6)), useNativeDriver: true }),
-    ]).start();
-    wiggle(r, true);
+    Animated.parallel([pathTiming(A.x, from.x, [[1, A.tgt.x, Easing.out(Easing.quad)]], 160), pathTiming(A.y, from.y, [[1, A.tgt.y, Easing.out(Easing.back(1.6))]], 220)].filter(Boolean)).start();
+    hover(r, true);
     settle(); // the stack under it stands up a little
   }
 
@@ -404,20 +557,26 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     const { g: G, anims: AS } = live.current;
     settle(); // the ones under it squish down a little
     const A = AS[r];
-    A.sq.setValue(0);
-    Animated.sequence([
-      Animated.timing(A.sq, { toValue: soft ? 0.6 : 1, duration: 70, useNativeDriver: true }),
-      Animated.spring(A.sq, { toValue: 0, friction: 3.5, tension: 170, useNativeDriver: true }),
-    ]).start();
+    A.ldA.setValue(soft ? 0.5 : 1);
+    play(A.ld, LAND_MS);
     const p = posRef.current[r];
-    if (stackOf(posRef.current, p)[0] === r) {
+    const st = stackOf(posRef.current, p);
+    const below = st.indexOf(r);
+    if (below === 0) {
       bump(p, soft ? 0.6 : 1);
       sfx.play('st_cushion', { rate: rateOf(r) });
     } else sfx.play('st_land', { rate: rateOf(r) });
     if (soft) return;
     haptics.place();
-    const s = spotsOf(G, posRef.current)[r];
-    fx.current?.burst('dust', cx(G, p), s.y + G.bh[r] * 0.98, 0.8);
+    // the one under it squashes flat and bulges, and the squash runs down the tower, smaller at each level, to the
+    // cushion; a puff of dust off the cushion
+    for (let j = below - 1, k = 0; j >= 0; j--, k++) {
+      const U = AS[st[j]];
+      U.ripA.setValue(0.95 * Math.pow(0.62, k));
+      play(U.rip, RIPPLE_MS, k * RIPPLE_STEP);
+    }
+    if (below > 0) later(below * RIPPLE_STEP, () => bump(p, Math.max(0.35, 0.8 * Math.pow(0.62, below))));
+    later(below * RIPPLE_STEP, () => fx.current?.burst('puff', cx(G, p), G.surface - G.cushH * 0.1, Math.max(0.8, G.cushW / 110)));
     if (phaseRef.current === 'play' && same(posRef.current, live.current.puzzle.goal)) win();
   }
 
@@ -427,7 +586,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     if (!h) return;
     const G = live.current.g;
     const { r, from } = h;
-    wiggle(r, false);
+    hover(r, false);
     setDragCol(-1);
     setHeld(null);
     if (p === from || p < 0) {
@@ -436,7 +595,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
       return;
     }
     if (canMove(posRef.current, from, p) < 0) {
-      bounce(r, from, p);
+      bounce(r, from, p, dragged);
       return;
     }
     const next = posRef.current.slice();
@@ -451,35 +610,54 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     else fly(r, [{ x: s.x, y: hoverY(r), ms: 110 + dx * 0.45 }, { x: s.x, y: s.y, ms: 170, ey: GRAVITY }], () => land(r));
   }
 
-  // Too big for cushion p: it lands on the small one's head, squashes it
-  // flat, and boings home. No move counted.
-  function bounce(r, from, p) {
+  // Too big for cushion p: it lands on the small one's head and flattens it like a pancake (dizzy stars, a quick red
+  // flash), boings off, shakes its head "nope" and arcs back home. No move counted.
+  function bounce(r, from, p, dragged = false) {
     const { g: G, anims: AS, spec: S } = live.current;
     const t = topOf(posRef.current, p);
     const ts = spotsOf(G, posRef.current)[t];
-    const sit = ts.y + G.bh[t] * (1 - ts.sy) + G.bh[t] * 0.42 - G.bh[r];
+    const sit = ts.y + G.bh[t] * 0.66 - G.bh[r]; // on the flattened one (PANCAKE leaves it a third as tall)
     const dx = Math.abs(cx(G, p) - cx(G, from));
     setTop(r);
-    fly(r, [{ x: xOf(r, p), y: hoverY(r), ms: 110 + dx * 0.45 }, { x: xOf(r, p), y: sit, ms: 140, ey: GRAVITY }], () => {
+    // (let go from a drag: straight down from where it was dropped; from a tap: over from its hover, then down)
+    const there = dragged ? [{ x: xOf(r, p), y: sit, ms: 190, ex: Easing.out(Easing.quad), ey: GRAVITY }] : [{ x: xOf(r, p), y: hoverY(r), ms: 110 + dx * 0.45 }, { x: xOf(r, p), y: sit, ms: 140, ey: GRAVITY }];
+    fly(r, there, () => {
       const T = AS[t];
-      T.sq.setValue(0);
-      Animated.sequence([
-        Animated.timing(T.sq, { toValue: 1.7, duration: 80, useNativeDriver: true }),
-        Animated.timing(T.sq, { toValue: 1.55, duration: 180, useNativeDriver: true }),
-        Animated.spring(T.sq, { toValue: 0, friction: 3, tension: 140, useNativeDriver: true }),
-      ]).start();
+      const A = AS[r];
+      play(T.pan, PANCAKE_MS);
+      setDizzy({ key: Date.now(), x: cx(G, p), y: ts.y + G.bh[t] * 0.62, w: G.bw[t] });
+      later(1300, () => setDizzy(null));
+      flash.setValue(0);
+      Animated.timing(flash, { toValue: 1, duration: 340, easing: Easing.linear, useNativeDriver: true }).start();
       sfx.play('st_ouch');
       haptics.wrong();
-      fx.current?.burst('angry', cx(G, p), ts.y + G.bh[t] * 0.5, 1);
+      fx.current?.burst('angry', cx(G, p), ts.y + G.bh[t] * 0.6, 1);
       say('TOO BIG!', { small: true, ink: '#8e1030', hold: 380, sub: S.lv <= 3 ? 'Big ones never sit on smaller ones' : null });
       if (blitz) blitzMistake();
-      const tok = AS[r].tok;
-      later(260, () => {
-        if (AS[r].tok !== tok || (heldRef.current && heldRef.current.r === r)) return;
+      // the big one: squashed on landing, then boing, up and away in an arc, shaking its head, and home
+      A.ldA.setValue(1);
+      play(A.ld, LAND_MS);
+      const tok = A.tok;
+      later(200, () => {
+        if (A.tok !== tok || (heldRef.current && heldRef.current.r === r)) return;
         sfx.play('st_bounce');
-        const s = spotsOf(G, posRef.current)[r];
-        fly(r, [{ x: xOf(r, p), y: hoverY(r) - 24, ms: 220, ey: Easing.out(Easing.quad) }, { x: s.x, y: hoverY(r) - 10, ms: 130 + dx * 0.45 }, { x: s.x, y: s.y, ms: 170, ey: GRAVITY }], () => land(r, true));
+        play(A.pk, PICK_MS);
+        play(A.no, NOPE_MS, 60);
+        const home = spotsOf(G, posRef.current)[r];
+        // (not so high that it leaves the play area for the counter over it)
+        const peak = Math.max(-G.bh[r] * 0.05, Math.min(sit, hoverY(r)) - G.bh[r] * 0.22);
+        const ms = 520 + dx * 0.4;
+        flyKeys(r, [[0.15, xOf(r, p)], [1, home.x, Easing.inOut(Easing.sin)]], [[0.45, peak, Easing.out(Easing.quad)], [1, home.y, GRAVITY]], ms, () => land(r, true));
       });
+    });
+  }
+
+  // Blitz's mistake: everyone droops and sways sadly (until the run's saved, or a new one)
+  function sad(on) {
+    live.current.anims.forEach((A, r) => {
+      Animated.timing(A.droop, { toValue: on ? 1 : 0, duration: on ? 520 : 200, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+      if (on) later(r * 120, () => loopOf(A, 'swayLoop', A.sway, SWAY_MS, true));
+      else loopOf(A, 'swayLoop', A.sway, SWAY_MS, false);
     });
   }
 
@@ -488,7 +666,9 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     setPhase('held');
     setGlow(null);
     if (heldRef.current) drop(heldRef.current.from);
-    later(1000, () => offerSave('mistake'));
+    // everyone droops and sways sadly, and the save card comes once that's shown (1.5 s: it covers the cushions)
+    later(280, () => sad(true));
+    later(1500, () => offerSave('mistake'));
   }
 
   // Blitz: a mistake — save the run, or END RUN for GAME OVER
@@ -503,6 +683,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     setSaving(false);
     setBlitzCard(null);
     sfx.play('sd_revive');
+    sad(false);
     setPhase('play');
   }
   function saveByAd() {
@@ -585,7 +766,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   function restart() {
     if (phaseRef.current !== 'play' || pausedRef.current) return;
     if (heldRef.current) {
-      wiggle(heldRef.current.r, false);
+      hover(heldRef.current.r, false);
       setHeld(null);
     }
     setPos(live.current.puzzle.start.slice());
@@ -606,13 +787,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     const [r, from, to] = m;
     setHinted(true);
     setGlow({ from, to });
-    const A = AS[r];
-    Animated.sequence(
-      [0, 1].flatMap(() => [
-        Animated.timing(A.hop, { toValue: -G.bh[r] * 0.28, duration: 170, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(A.hop, { toValue: 0, duration: 200, easing: Easing.bounce, useNativeDriver: true }),
-      ]),
-    ).start();
+    play(AS[r].hint, HINT_MS);
     sfx.play('st_hint');
     fx.current?.burst('spark', cx(G, to), G.surface - 4, 1);
     later(2800, () => setGlow((x) => (x && x.from === from && x.to === to ? null : x)));
@@ -641,21 +816,16 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     const { g: G, anims: AS, puzzle: P, spec: S } = live.current;
     sfx.play('sd_solve');
     haptics.win();
-    // a hop down each tower, top first
-    let i = 0;
+    // a bounce wave up each tower, bottom to top, a sparkle off each one as it jumps (over before the result card)
+    const m = spotsOf(G, posRef.current);
     for (let p = 0; p < S.k; p++) {
-      stackOf(posRef.current, p)
-        .slice()
-        .reverse()
-        .forEach((r) => {
-          const d = 150 + i++ * 70;
-          later(d, () =>
-            Animated.sequence([
-              Animated.timing(AS[r].hop, { toValue: -G.bh[r] * 0.3, duration: 170, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-              Animated.timing(AS[r].hop, { toValue: 0, duration: 220, easing: Easing.bounce, useNativeDriver: true }),
-            ]).start(),
-          );
-        });
+      const st = stackOf(posRef.current, p);
+      st.forEach((r, j) => {
+        const d = 120 + j * WAVE_STEP + p * 45;
+        AS[r].waveH.setValue(j === st.length - 1 ? 0.42 : 0.1);
+        play(AS[r].wave, WAVE_MS, d);
+        later(d + WAVE_MS * 0.45, () => fx.current?.burst('spark', cx(G, p), m[r].y + G.bh[r] * 0.1, Math.max(0.7, G.bw[r] / 90)));
+      });
     }
     // (Blitz keeps its confetti for a new best at GAME OVER)
     if (!blitz) {
@@ -742,17 +912,29 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
     // their targets, so nothing settles them there early)
     const m = spotsOf(g, puzzle.start);
     anims.forEach((A, r) => {
-      A.wig?.stop();
-      A.wig = null;
+      A.hovLoop?.stop();
+      A.swayLoop?.stop();
+      A.hovLoop = null;
+      A.swayLoop = null;
+      clearTimeout(A.swingT);
       A.tok += 1;
-      [A.rot, A.sq, A.hop, A.o].forEach((v) => v.setValue(0));
+      [A.ld, A.pk, A.rel, A.rip, A.pan, A.no, A.wave, A.hint].forEach((v) => {
+        v.stopAnimation();
+        v.setValue(1);
+      });
+      [A.droop, A.sway, A.hov, A.swing, A.o].forEach((v) => {
+        v.stopAnimation();
+        v.setValue(0);
+      });
       A.wx.setValue(m[r].sx);
       A.wy.setValue(m[r].sy);
       A.w = m[r].sy;
       A.x.setValue(m[r].x);
       A.y.setValue(m[r].y - g.h * 0.6);
+      A.at = { x: m[r].x, y: m[r].y - g.h * 0.6 };
       A.tgt = { x: m[r].x, y: m[r].y };
     });
+    setDizzy(null);
     setPhase('intro');
     // a Blitz run opens with 3, 2, 1, GO! (the first puzzle drops in on GO)
     const countdown = blitz && !runStarted.current;
@@ -831,7 +1013,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   }
 
   const acts = useRef({});
-  acts.current = { pickUp, drop, undo, restart, askHint, watchHint, showHint, pause, resume, leave, replay, again, goOn, saveByAd, saveByGems, endRun };
+  acts.current = { swing, hoverOff: (r) => loopOf(live.current.anims[r], 'hovLoop', live.current.anims[r].hov, HOVER_MS, false), pickUp, drop, undo, restart, askHint, watchHint, showHint, pause, resume, leave, replay, again, goOn, saveByAd, saveByGems, endRun };
   // web, development only: the browser tests move squishies without finding the cushions on screen (src/web/README.md)
   if (__DEV__ && typeof window !== 'undefined' && window.document) {
     window.__stack = {
@@ -843,6 +1025,14 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
         setTimeout(() => acts.current.drop(to), 60);
         return true;
       },
+      // lift the top one off cushion `from` (it hovers), and let it go over cushion `to`
+      pick: (from) => {
+        const r = topOf(posRef.current, from);
+        if (r < 0 || phaseRef.current !== 'play' || heldRef.current) return false;
+        acts.current.pickUp(r, from);
+        return true;
+      },
+      drop: (to) => acts.current.drop(to),
       state: () => ({ phase: phaseRef.current, pos: posRef.current.slice(), k: live.current.spec.k }),
     };
   }
@@ -911,8 +1101,22 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
           A.tgt = null;
           A.x.stopAnimation();
           A.y.stopAnimation();
-          A.x.setValue(Math.max(0, Math.min(G.w - bw, x - bw / 2)));
-          A.y.setValue(Math.max(-bh * 0.3, Math.min(G.surface - bh, y - bh * 0.85)));
+          const nx = Math.max(0, Math.min(G.w - bw, x - bw / 2));
+          const ny = Math.max(-bh * 0.3, Math.min(G.surface - bh, y - bh * 0.85));
+          A.x.setValue(nx);
+          A.y.setValue(ny);
+          // the swing: from how fast it's moved sideways (px a ms), every few frames
+          const now = Date.now();
+          if (T.lt == null) {
+            T.lt = now;
+            T.lx = nx;
+            acts.current.hoverOff(h.r);
+          } else if (now - T.lt >= 40) {
+            acts.current.swing(h.r, (nx - T.lx) / (now - T.lt));
+            T.lt = now;
+            T.lx = nx;
+          }
+          A.at = { x: nx, y: ny };
           const col = Math.max(0, Math.min(G.k - 1, Math.floor(x / G.colW)));
           if (col !== T.col) {
             T.col = col;
@@ -1012,6 +1216,9 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
             {order.map((r) => (
               <Piece key={r} c={who[r]} w={g.bw[r]} h={g.bh[r]} a={anims[r]} z={r === top ? 99 : zOf[r] || 10} />
             ))}
+            {dizzy ? <Dizzy key={dizzy.key} x={dizzy.x} y={dizzy.y} w={dizzy.w} /> : null}
+            {/* TOO BIG!'s quick red flash */}
+            <Animated.View pointerEvents="none" style={[styles.flash, { opacity: flash.interpolate({ inputRange: [0, 0.18, 1], outputRange: [0, 0.32, 0] }) }]} />
             <Banner banner={banner} top={4} />
             <FxLayer ref={fx} />
           </>
@@ -1065,7 +1272,7 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
 
       {blitz ? (
         <>
-          <BlitzPauseCard blitz visible={paused} onResume={() => acts.current.resume()} onRestart={() => acts.current.again()} onQuit={() => acts.current.leave()} />
+          <PauseCard visible={paused} onResume={() => acts.current.resume()} onQuit={() => acts.current.leave()} />
           <BlitzSaveCard
             visible={blitzCard === 'save'}
             unit="puzzle"
@@ -1088,12 +1295,8 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
         </>
       ) : (
         <>
-          <ResultCard visible={!!result} res={result} spec={spec} last={lv >= LEVELS} onNext={next} onReplay={replay} onHub={() => acts.current.leave()} />
-          <PauseCard
-            visible={paused}
-            onResume={() => acts.current.resume()}
-            onQuit={() => acts.current.leave()}
-          />
+          <ResultCard visible={!!result} res={result} titles={RESULT_TITLES} keys={trio} last={lv >= LEVELS} onNext={next} onReplay={replay} onBack={() => acts.current.leave()} />
+          <PauseCard visible={paused} onResume={() => acts.current.resume()} onQuit={() => acts.current.leave()} />
           <HintCard visible={hintAsk} adReady={ad.ready} adsFree={adsFree} onWatch={() => acts.current.watchHint()} onClose={() => setHintAsk(false)} />
         </>
       )}
@@ -1142,6 +1345,8 @@ const styles = StyleSheet.create({
   halo: { position: 'absolute', left: -10, right: -10, top: -9, bottom: -6 },
   badge: { position: 'absolute' },
   piece: { position: 'absolute', left: 0, top: 0 },
+  dizzy: { position: 'absolute', zIndex: 120 },
+  flash: { ...StyleSheet.absoluteFillObject, zIndex: 110, backgroundColor: '#ff2d55', borderRadius: 24 },
   controls: { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 10 },
   ctrl: { flex: 1, maxWidth: 130 },
   ctrlFace: { paddingHorizontal: 6, paddingVertical: 10 },

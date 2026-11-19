@@ -1,7 +1,7 @@
 // node src/sort/board.test.js — Squish Sort's levels and board rules.
 import assert from 'node:assert/strict';
 import { drop, makeBoard, occupant, solved, startState } from './board.js';
-import { BLITZ_COINS, BLITZ_ROUNDS, HEARTS, LEVELS, LEVEL_LIST, MODEL_STARTS, afterBlitz, afterLevel, blitzSpec, blitzTheme, coinsFor, levelSpec, nextSkill, record, skillShift, starsFor, xpFor } from './levels.js';
+import { HEARTS, LEVELS, LEVEL_LIST, MODEL_STARTS, afterBlitz, afterLevel, blitzCoins, blitzPrize, blitzSpec, coinsFor, levelSpec, nextSkill, record, skillShift, starsFor, xpFor } from './levels.js';
 
 // a seeded random
 const rng = (seed) => () => {
@@ -16,7 +16,7 @@ assert.equal(LEVEL_LIST.length, 50);
 // level 1 is one shelf, easy; the last is eight
 assert.deepEqual([levelSpec(1).rows, levelSpec(1).cols, levelSpec(1).tier, levelSpec(1).count], [1, 3, 0, 2]);
 assert.equal(levelSpec(50).rows, 8);
-// seven fridges (and cupboards), small to very very large: each one starts
+// seven fridges, small to very very large: each one starts
 // on its first level, is at least as wide as the last, and gains shelves
 // as it goes, never losing one
 assert.deepEqual(MODEL_STARTS, [1, 6, 12, 19, 26, 33, 42]);
@@ -169,34 +169,50 @@ assert.equal(out.update['sort.fridge.best.3'], 2);
 assert.ok(out.update['sort.fridge.skill'] > 0);
 assert.ok(out.coins > 0 && out.unlocked);
 assert.equal(afterLevel(p, 'fridge', levelSpec(1), { won: true, mistakes: 2, ms: 1 }).update['sort.fridge.best.1'], undefined); // not better
-const lost = afterLevel(p, 'cupboard', levelSpec(1), { won: false });
+const lost = afterLevel(p, 'fridge', levelSpec(1), { won: false });
 assert.equal(lost.coins, 0);
-assert.ok(lost.update['sort.cupboard.skill'] < 0);
-assert.equal(record(p).cupboard.lv, 1);
+assert.ok(lost.update['sort.fridge.skill'] < 0);
+assert.equal(record(p).cupboard, undefined); // (the toy cupboard is gone since 2026-11-17)
 assert.equal(afterLevel({ sort: { fridge: { lv: 50 } } }, 'fridge', levelSpec(50), { won: true, mistakes: 0, ms: 1 }).unlocked, false);
 
-// Blitz: ten rounds that never shrink, the fridge and the cupboard taking
-// turns, each one dealable; the run's record
-assert.equal(BLITZ_ROUNDS, 10);
-assert.deepEqual([0, 1, 2, 3].map(blitzTheme), ['fridge', 'cupboard', 'fridge', 'cupboard']);
-for (let i = 0; i < BLITZ_ROUNDS; i++) {
+// Blitz (endless since 2026-11-17): the rounds never shrink, each one is dealable, and its clock is under Regular's for
+// the same level; past the climb the clocks get shorter, down to three quarters; the run's record and pay
+for (let i = 0; i < 40; i++) {
   const s = blitzSpec(i, 0);
   assert.equal(s.round, i + 1);
   if (i > 0) assert.ok(s.rows * s.cols >= blitzSpec(i - 1).rows * blitzSpec(i - 1).cols, i);
+  assert.ok(s.limitMs < levelSpec(s.lv).limitMs, `blitz ${i}: its clock is under Regular's`);
+  assert.ok(s.limitMs >= s.parMs * 0.99, `blitz ${i}: its clock leaves the 3-star time`);
+  assert.equal(s.limitMs % 1000, 0);
   const b = makeBoard(s, POOL, rng(i + 40));
   assert.equal(b.pieces.filter((pc) => pc.home != null).length, s.count, `blitz ${i} deals its squishies`);
 }
-assert.equal(record({}).blitz.reached, 0);
-const lostRun = afterBlitz({}, { won: false, reached: 3 });
-assert.equal(lostRun.coins, 0);
-assert.equal(lostRun.update['sort.blitz.reached'], 3);
-const wonRun = afterBlitz({ sort: { blitz: { reached: 10, bestMs: 0, wins: 0 } } }, { won: true, reached: 10, ms: 200000 });
-assert.equal(wonRun.coins, BLITZ_COINS);
-assert.equal(wonRun.update['sort.blitz.wins'], 1);
-assert.equal(wonRun.update['sort.blitz.bestMs'], 200000);
+{
+  const full = (s) => Math.ceil((s.parMs * 1.33) / 1000) * 1000;
+  for (let i = 0; i < 13; i++) assert.equal(blitzSpec(i).limitMs, full(blitzSpec(i)), `blitz ${i}: the climb's full clock`);
+  for (let i = 13; i < 30; i++) assert.ok(blitzSpec(i).limitMs < full(blitzSpec(i)), `blitz ${i}: past the climb, shorter`);
+  const late = blitzSpec(80);
+  assert.equal(late.limitMs, Math.ceil((late.parMs * 1.33 * 0.75) / 1000) * 1000, 'three quarters at most');
+}
+assert.deepEqual(record({}).blitz, { top: 0, runs: 0, reached: 0, bestMs: 0, wins: 0 });
+const none = afterBlitz({}, { cleared: 0 });
+assert.equal(none.coins, 0);
+assert.equal(none.update['sort.blitz.runs'], 1);
+assert.equal(none.update['sort.blitz.top'], undefined);
+assert.ok(none.update['sort.bSkill'] < 0);
+const three = afterBlitz({}, { cleared: 3 });
+assert.equal(three.coins, blitzPrize(3).coins);
+assert.equal(three.coins, [0, 1, 2].reduce((a, i) => a + blitzCoins(blitzSpec(i)), 0));
+assert.equal(three.update['sort.blitz.top'], 3);
+assert.ok(three.newTop);
+const notBest = afterBlitz({ sort: { blitz: { top: 8, runs: 4 } } }, { cleared: 5 });
+assert.equal(notBest.update['sort.blitz.top'], undefined);
+assert.equal(notBest.update['sort.blitz.runs'], 5);
+assert.equal(notBest.newTop, false);
+assert.ok(afterBlitz({}, { cleared: 12 }).update['sort.bSkill'] > 0);
 
 // the player's XP (PLAYER_XP.md): all of it on a first win, half on a replay,
-// the difference when a replay beats the best by more; 200 for a Blitz win
+// the difference when a replay beats the best by more; 20 for each Blitz round cleared
 {
   const spec = levelSpec(10);
   const full = xpFor(spec, 3);
@@ -209,9 +225,11 @@ assert.equal(wonRun.update['sort.blitz.bestMs'], 200000);
   const better = afterLevel({ pxp: 0, sort: { fridge: { lv: 11, best: { 10: 1 } } } }, 'fridge', spec, { won: true, mistakes: 0, ms: 1 });
   assert.equal(better.xp, Math.max(Math.round(full / 2), full - xpFor(spec, 1)));
   assert.equal(afterLevel({}, 'fridge', spec, { won: false }).xp, 0);
-  const run = afterBlitz({ pxp: 150 }, { won: true, reached: BLITZ_ROUNDS, ms: 1000 });
+  // Blitz: config/levels xp.blitz.sort (200 by default) is ten rounds' XP
+  const run = afterBlitz({ pxp: 150 }, { cleared: 10 });
   assert.equal(run.xp, 200);
   assert.deepEqual(run.levelUps, [2]);
+  assert.equal(afterBlitz({ pxp: 0 }, { cleared: 1 }).xp, 20);
 }
 
 console.log('sort board.test.js: all passed');

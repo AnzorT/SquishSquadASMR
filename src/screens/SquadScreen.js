@@ -8,7 +8,7 @@ import CandyBackground from '../components/candy/CandyBackground';
 import RoundButton from '../components/candy/RoundButton';
 import ShadowText from '../components/candy/ShadowText';
 import RigCreature from '../components/RigCreature';
-import { BY_ID, GROUPS, GROUP_INK, HIDDEN, RAINBOW, RAR_LOOK, ROSTER, SET_REWARDS, SIZES, SIZE_I, copyProgress, dropRar, isOut, outIds, owns, rainbowProgress, rainbowReady } from '../squad/data';
+import { BY_ID, GROUPS, GROUP_INK, HIDDEN, RAINBOW, RAR_LOOK, ROSTER, SET_REWARDS, SIZES, SIZE_I, copyProgress, isOut, outIds, owns, rainbowProgress, rainbowReady } from '../squad/data';
 import GCHEST, { CHEST_NAMES } from '../squad/groupChestArt';
 import { isNewId, ownedIdList, selectedId } from '../squad/lobby';
 import { F, Ringed } from '../squad/ui';
@@ -389,8 +389,8 @@ function SquadScreen({ active = true, profile, creatures, hidden = HIDDEN, setRe
       // the pass's creature is in no chest (Squishies' "Season Pass exclusive")
       m = { ...look, ic: 'gift', label: viaSet ? 'SET REWARD' : 'SEASON PASS', tap: () => flash(viaSet ? `Finish the ${group} set first` : `${c.name} comes with the season pass`) };
     } else {
-      // its group's chest of the size for its rarity (a set reward drops as a Legendary)
-      const ti = Math.min(dropRar(c), SIZES.length - 1);
+      // its group's chest of its own rarity, the only chest that holds it
+      const ti = Math.min(c.rar, SIZES.length - 1);
       const chest = (GCHEST[c.set] || GCHEST.snack)[`${SIZES[ti].k}-grow`];
       const name = (CHEST_NAMES[c.set] || [])[ti];
       m = { ...look, chest, chestTi: ti, label: `${CHEST_WORD[ti]} CHEST`, tap: () => flash(name ? `${c.name} is in the ${name}` : `${c.name} is in ${group} chests`) };

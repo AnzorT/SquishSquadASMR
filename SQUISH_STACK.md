@@ -173,3 +173,81 @@ The user's marked-up screenshots of a level:
   RESTART and HINT side by side bottom right.
 - "remove the dashed lines": the dashed outline round the cushions is gone (its soft glow stays).
 - "remove the new puzzle button from the menu": the pause card has RESUME and QUIT only.
+
+## Moves (2026-11-17)
+
+The user's list, to make the moves (and "TOO BIG!") much clearer, from the same cut-outs (no new art):
+- **Grab:** the squishy stretches up as it's lifted, then dangles from its top while it hovers. Dragged, it swings
+  against the way it's moved, by how fast (a native spring toward an angle from the drag speed, every 40 ms). Held
+  still or let go, it swings back and forth like a pendulum and settles. The one under it springs up a little,
+  relieved of the weight; lifted straight off a cushion, the cushion springs up instead.
+- **Correct drop:** it falls and lands with a squash. The one under it squashes flat and bulges sideways, then springs
+  back. The squash runs down the tower, 60 ms and about 40 % smaller at each level, to the cushion, and a puff of dust
+  comes off the cushion (`puff`, Squish Hop's).
+- **Too big:**
+  - The small one is flattened like a pancake (a third of its height, held about half a second), with dizzy stars
+    circling over it (`Dizzy`), and the board flashes red.
+  - The big one is squashed by the landing, then boings off (the boing sound, a stretch) and shakes its head "nope".
+    It arcs back home in one curve and lands softly.
+  - Let go from a drag, it now comes straight down from where it was dropped, instead of first flying up to hover
+    height.
+- **Win:** a bounce wave runs up each tower from bottom to top (85 ms a level, the towers 45 ms apart), with a sparkle
+  off each squishy. Each one squashes, stretches and squashes again with only a small hop, so it doesn't jump into the
+  one on it; the one on top hops high. It's all over before the result card (1.5 s).
+- **Lose:** there's no clock any more (2026-11-16), so no TIME'S UP; the one loss is Blitz's mistake (big on small).
+  280 ms after it, everyone droops (sunk and wider) and sways sadly (a native loop each, a little apart). The save card
+  now comes at 1.5 s (was 1 s), so that shows first. Saving the run straightens everyone up.
+
+**How it's built** (`src/stack/Game.js`)
+- **One native timing per move.** Each move is a phase 0 → 1 read through keyframes (`LAND`, `PICK`, `RELIEF`,
+  `RIPPLE`, `PANCAKE`, `NOPE`, `WAVE`, `HINT`; `pieceAnims`), as in Squish Hop.
+- **A path with turns is one timing per axis:** `pathTiming` works the turns into the timing's easing, and Animated
+  computes the frames once. So `fly` (lifts, drops, the deal, the bounce home) no longer chains timings.
+- **A delay is worked into the timing** (`after`), e.g. each level of the ripple and the wave.
+- **The cushions' bump** is one timing whose easing wobbles back to 0 (`curve`).
+- **Loops:** the hover dangle and the sad sway are native loops of one timing.
+- Every `Animated.sequence` and `Animated.loop(sequence)` is gone. They were stepped from JS: the land squash, the
+  bounce, the hint and win hops, the cushion bump, the held wiggle, the multi-step flights.
+- `Piece` draws its weight squish, its body (from its feet: squash, stretch, hops, the nope and the sway), and the
+  dangle (from its top). Its transforms are made once (`useMemo`).
+- Rules, levels, the engine, stars and coins are untouched. `node src/stack/engine.test.js`: "stack: all good".
+- `window.__stack` (web, development only) also has `pick(from)` and `drop(to)`, to lift one and let it go separately.
+
+**Checked** in the web version, frame by frame with Playwright's fake clock (`?phone=1&preview=1&card=stack-level&lv=5`
+and `lv=8`, `card=stack-blitz`):
+- a pick-up; a real mouse drag with its swing and pendulum settle;
+- a drop onto a two-high tower with the ripple;
+- too big, from a tap and from a drag;
+- level 8 solved, with the win wave;
+- a Blitz mistake into the droop and the save card.
+
+Fixed on the way: the win's hops overlapped the ones above them, the bounce arc went up over the counter, and the
+sway was hidden by the save card. Not checked on a phone (A15 speed).
+
+## Forest road map (2026-11-17)
+
+The user: "in squish stack let it be the trees forest and i want the background to also scroll with the road itself,
+and i want the road to be part of the background and we see our current selected character walking to the next step".
+
+- **The forest** is drawn in the menu world's style (its own `tree()` / `bush()` from `main-menu-scene.js`, the same
+  season colours) with a dirt road baked in: `tools/stack/forest.mjs` → `assets/stack/forest-<season>-<0..3>.jpg`
+  (2250 × 1035, ~230 KB each). It's one strip of 4 tiles that wraps without a seam, so the map lays them A B C D A B …
+  Season by month like the menu (`seasonNow` in `src/royal/WorldBg.js`).
+- **The road** is one formula in `src/stack/road.js` (`roadY`, in the pictures' 1000 × 460 units), used by both the
+  drawing script and the map, so the levels always stand on it. `layout(list)` places the levels 128 units apart, with
+  a 300-unit gap at each band for its wooden sign. Change the road → re-run the script.
+- **The map** (`src/stack/ForestMap.js`, sideways only; upright keeps Squish Sort's map) takes the whole screen; the
+  top bar lies over the sky (white title). Tiles, signs, level buttons (Squish Sort's `Node`) and the walker all scroll
+  together.
+- **The walker** is the player's selected character (`lobby.sel`, as the Lobby / Menu pick it) as its live rig:
+  `tools/rig/walk.html` (via `RigStage`, `page="walk"`), with the Squad House gaits (`house-walk.js`,
+  `house-walk-c.js` + the fruit / pet2 / snack2 profiles, copied by `tools/rig/build.mjs` from the webgame build). It
+  stands on the next level to play. Back on the map with that level beaten it turns side-on, walks the road (stepping
+  down off each button and up onto the next), turns back and does its happy bounce; the camera frames both ends, or
+  follows for a long walk. More than 6 levels on, or backwards: it's just there.
+- Its page is mounted fresh each time the map comes back into view (`visit`): a WebView kept hidden under a level can
+  come back blank. The walk waits until the character is drawn (3.5 s at most, then it just stands there).
+- Web check: `/?full=1&preview=1&card=stack-forest`, tap REGULAR, then `window.__stackWin()`.
+- **Not yet on a phone.** `walk.html` and the walk scripts are new Android assets: they need a new APK. Without it the
+  map works but shows no walker.
+

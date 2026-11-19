@@ -16,8 +16,15 @@ const RATIO = 1704 / 786; // the room pictures' width / height
 // where the floor line goes on a screen `height` tall
 export const floorLineOf = (height) => Math.round(Math.min(330, Math.max(190, height * 0.32)));
 
-export function roomGeometry(room, width, height) {
+// `full`: the whole room on screen (a level map's background, src/royal/WorldBg.js): spanning the width, its bottom on
+// the screen's when it's taller than the screen (the ceiling cut off), else from the top with the floor repeated below
+export function roomGeometry(room, width, height, full = false) {
   const R = ROOMS[room];
+  if (full) {
+    const H = width / RATIO;
+    const top = Math.min(0, height - H);
+    return { W: width, H, left: 0, top, floorY: H * R.floor + top };
+  }
   if (width > height) {
     // landscape (REDESIGN_V8, the games laid out sideways): the picture spans the width and is raised so its floor line
     // sits 30% down (its ceiling cut off), the floor repeated below: the board gets most of the screen's height
@@ -33,10 +40,10 @@ export function roomGeometry(room, width, height) {
   return { W, H, left, top: 0, floorY: H * R.floor };
 }
 
-function Room({ room, phase, width, height }) {
+function Room({ room, phase, width, height, full = false }) {
   const R = ROOMS[room];
   const art = ROOM_ART[room];
-  const { W, H, left, top: T0 } = roomGeometry(room, width, height);
+  const { W, H, left, top: T0 } = roomGeometry(room, width, height, full);
   // the floor again and again below
   const step = H * (1 - R.floor) - H * 0.06;
   const copies = [];

@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Path } from 'react-native-svg';
 import Pressable from '../components/Pressable';
 import ShadowText from '../components/candy/ShadowText';
-import { BY_ID, GDEAL, GROUPS, LUCK_MAX, RAINBOW, RAR_LOOK, ROSTER, SEASON, SET_OF, SIZES, SIZE_I, UPGRADE, AD_CHESTS, copyProgress, dropRar, dupeCoinsFor, groupOut, inGroupChest, owns, lineup, rainbowProgress, rainbowReady } from '../squad/data';
+import { BY_ID, GDEAL, GROUPS, RAINBOW, RAR_LOOK, ROSTER, SEASON, SET_OF, SIZES, SIZE_I, UPGRADE, AD_CHESTS, chestPool, copyProgress, dropRar, dupeCoinsFor, groupOut, inGroupChest, owns, lineup, rainbowProgress, rainbowReady } from '../squad/data';
 import GCHEST, { CHEST_NAMES } from '../squad/groupChestArt';
 import { COIN, GEM } from '../squad/currencyArt';
 import { Bob, F, TickingText, hms, untilMidnight } from '../squad/ui';
@@ -16,8 +16,8 @@ import { useProgressive } from '../components/Skeleton';
 // chest (every 4 h) and the Rare chest (an ad, 3 a day), the daily deal (a
 // Legendary at half price), then "All chests" — every group's chest in a
 // swipe carousel with a chip row, today's three HOT groups first, then the
-// season, then the rest; each card picks one of the five sizes — the Lucky
-// meter and the drop odds. The chests are the design's own art
+// season, then the rest; each card picks one of the five sizes — and the
+// drop odds (the Lucky meter was deleted 2026-11-16, the user). The chests are the design's own art
 // (tools/shop-art/groupchests.mjs). Every purchase is the server's (squad
 // groupChest / freeChest / adChest / dealChest) and opens at once in the
 // chest smash (ShopScreen → ChestSmash).
@@ -37,7 +37,7 @@ const TC = [
   { c: '#d6249a', soft: '#ffe6f6', dot: ['#ff8fd8', '#ffe38a', '#9ff7c8', '#9fd8ff', '#d6b3ff'] },
 ];
 const SIZE_NAME = ['Common', 'Rare', 'Epic', 'Legendary', 'Rainbow'];
-const RAR_ROW = [['Common', '#e3f1ff', '#2f6fc0'], ['Rare', '#e3fbe9', '#17803a'], ['Epic', '#f1e6ff', '#6a22d6'], ['Legendary', '#fff3d6', '#b86200']];
+const RAR_ROW = [['Common', '#e3f1ff', '#2f6fc0'], ['Rare', '#e3fbe9', '#17803a'], ['Epic', '#f1e6ff', '#6a22d6'], ['Legendary', '#fff3d6', '#b86200'], ['Rainbow', '#ffe6f6', '#d6249a']];
 const GROUP_LABEL = { snack: 'SNACK SHACK', fruit: 'FRUIT PATCH', ocean: 'OCEAN PALS', pet: 'PET SHOP', forest: 'FOREST FRIENDS', sky: 'SKY & STARS', dream: 'DREAMLAND', bakery: 'SWEET BAKERY', heroes: 'MASKED HEROES', elemental: 'ELEMENTAL HEROES', spooky: 'SPOOKY SQUISH' };
 const title = (s) => s.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
 const hm = (ms) => {
@@ -46,13 +46,15 @@ const hm = (ms) => {
 };
 
 // Every group that's out, in the design's order for the day: the three HOT
-// ones, the season, the rest.
+// ones, the season, the rest. The season obeys config/roster's switch like
+// any group (it used to be listed always, so a switched-off Spooky Squish
+// still showed a chest the server then refused to sell).
 export function allChests(day, hidden) {
   const hot = lineup(day, hidden);
   const rest = GROUPS.map((g) => g.key).filter((k) => k !== SEASON.key && !hot.includes(k) && groupOut(k, hidden));
   return [
     ...hot.map((k) => ({ k, tag: 'HOT TODAY', tagBg: ['#ff3d6e', '#ff7a3d'], dot: '#ff3d6e' })),
-    { k: SEASON.key, tag: 'SEASON', tagBg: ['#ff8a1e', '#b03a00'], dot: '#ff8a1e' },
+    ...(groupOut(SEASON.key, hidden) ? [{ k: SEASON.key, tag: 'SEASON', tagBg: ['#ff8a1e', '#b03a00'], dot: '#ff8a1e' }] : []),
     ...rest.map((k) => ({ k, tag: '' })),
   ];
 }
@@ -83,14 +85,20 @@ function rainbowInfo(gk, profile, artIds) {
   };
 }
 
+// How much of a group's chest creatures, of every rarity, the player has.
+export function groupCollected(gk, profile, artIds, setRewards, rainbow = RAINBOW) {
+  const all = ROSTER.filter((c) => inGroupChest(c, gk, setRewards, rainbow) && artIds.includes(c.id));
+  return { have: all.filter((c) => owns(profile || {}, c.id)).length, total: all.length };
+}
+
 // A group's chest of a size: what the card and the sheet say.
 export function chestInfo(gk, size, profile, artIds, setRewards, rainbow = RAINBOW) {
   if (size === 'set' && rainbow === 'chest') return rainbowInfo(gk, profile, artIds);
   const ti = SIZE_I[size];
   const T = SIZES[ti];
-  const pool = ROSTER.filter((c) => inGroupChest(c, gk, setRewards, rainbow) && artIds.includes(c.id));
+  // only this chest's own rarity (functions/squad.js chestPool)
+  const pool = chestPool(gk, size, artIds, setRewards, rainbow);
   const have = pool.filter((c) => owns(profile || {}, c.id)).length;
-  const epicUp = Math.round((T.odds[2] + T.odds[3]) * 10) / 10;
   return {
     ti,
     T,
@@ -98,7 +106,7 @@ export function chestInfo(gk, size, profile, artIds, setRewards, rainbow = RAINB
     have,
     name: (CHEST_NAMES[gk] || [])[ti] || `${SIZE_NAME[ti]} chest`,
     look: T.price.cur === 'coins' ? GOLD : PURPLE,
-    odds: `${T.odds[3] ? `Leg ${T.odds[3]}% · ` : ''}Epic+ ${epicUp}%`,
+    odds: `Only ${SIZE_NAME[ti]} pals`,
     // what a duplicate pays: 7% of the chest's worth (no other coins inside)
     dupeCoins: `+${fmt(dupeCoinsFor(size))}`,
     upNote: ti <= 1 ? `${UPGRADE[size]}% chance it upgrades on your first smash` : '',
@@ -483,35 +491,6 @@ function Carousel({ list, profile, artIds, setRewards, rainbow, onOpen, onBuy })
   );
 }
 
-// --- the Lucky meter ---------------------------------------------------------------------
-
-function Lucky({ epic }) {
-  const n = Math.min(epic || 0, LUCK_MAX);
-  const left = Math.max(1, LUCK_MAX - n);
-  return (
-    <View style={styles.lucky}>
-      <View style={styles.row8}>
-        <Svg width={18} height={18} viewBox="0 0 24 24">
-          <Path d="M12 2L14.6 8.6L21.5 9.2L16.2 13.7L17.9 20.5L12 16.8L6.1 20.5L7.8 13.7L2.5 9.2L9.4 8.6Z" fill="#ff5cc6" stroke="#8e1580" strokeWidth={1.4} strokeLinejoin="round" />
-        </Svg>
-        <Text style={styles.luckyTitle}>Lucky meter</Text>
-        <Text style={styles.luckyNote}>{`Epic or better in ${left} ${left === 1 ? 'chest' : 'chests'}`}</Text>
-      </View>
-      <View style={styles.row4}>
-        {Array.from({ length: LUCK_MAX }, (_, i) => {
-          const on = i < n;
-          const hot = i >= LUCK_MAX - 3;
-          return on ? (
-            <LinearGradient key={i} colors={hot ? ['#ffd6f4', '#ff5cc6'] : ['#d8b8ff', '#8a3cff']} style={[styles.luckySeg, { borderBottomColor: hot ? '#c02bd9' : '#6a22d6', borderBottomWidth: 2 }]} />
-          ) : (
-            <View key={i} style={[styles.luckySeg, { backgroundColor: '#ece4f7' }]} />
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
 // --- the tab -----------------------------------------------------------------------------
 
 // Built a part a frame (the tiles and the deal, then the carousel, then the
@@ -544,7 +523,6 @@ function ChestsTab({ profile, day, artIds, hidden, setRewards, rainbow = RAINBOW
         </View>
       )}
       {parts >= 2 && <Carousel list={list} profile={profile} artIds={artIds} setRewards={setRewards} rainbow={rainbow} onOpen={onOpenSheet} onBuy={onBuy} />}
-      {parts >= 3 && <Lucky epic={profile?.epic || 0} />}
       {parts >= 3 && (
         <Pressable onPress={onOdds} style={styles.oddsLink}>
           <Text style={styles.oddsLinkText}>See all drop odds</Text>
@@ -583,12 +561,10 @@ export function ChestSheetBody({ gk, size, profile, artIds, setRewards, rainbow 
   const details = (
     <>
       <View style={styles.sheetOdds}>
-        {C.T.odds.map((o, i) => (
-          <View key={i} style={[styles.sheetOdd, { backgroundColor: RAR_ROW[i][1], opacity: o ? 1 : 0.45 }]}>
-            <Text style={[styles.sheetOddPct, { color: RAR_ROW[i][2] }]}>{`${o}%`}</Text>
-            <Text style={[styles.sheetOddName, { color: RAR_ROW[i][2] }]}>{RAR_ROW[i][0]}</Text>
-          </View>
-        ))}
+        <View style={[styles.sheetOdd, { backgroundColor: RAR_ROW[C.ti][1] }]}>
+          <Text style={[styles.sheetOddPct, { color: RAR_ROW[C.ti][2] }]}>100%</Text>
+          <Text style={[styles.sheetOddName, { color: RAR_ROW[C.ti][2] }]}>{RAR_ROW[C.ti][0]}</Text>
+        </View>
       </View>
       <View style={styles.sheetRow}>
         <Text style={styles.sheetInside}>Squishies inside</Text>
@@ -613,7 +589,7 @@ export function ChestSheetBody({ gk, size, profile, artIds, setRewards, rainbow 
       </View>
       <View style={styles.row4}>
         <Image source={COIN[0]} style={styles.icon16} />
-        <Text style={styles.sheetCoins}>{`Duplicate: ${C.dupeCoins} coins · Lucky meter counts this chest`}</Text>
+        <Text style={styles.sheetCoins}>{`Duplicate: ${C.dupeCoins} coins`}</Text>
       </View>
     </>
   );
@@ -740,11 +716,11 @@ export function OddsSheetBody({ rainbow = RAINBOW }) {
       {SIZES.map((T, i) => (
         <View key={T.k} style={styles.oddsRow}>
           <Text style={[styles.oddsRowName, { color: TC[i].c }]}>{SIZE_NAME[i]}</Text>
-          <Text style={styles.oddsRowOdds}>{earned && T.k === 'set' ? "Not sold: earned once by unlocking a group, with its Rainbow pal" : T.odds.map((o) => `${o}%`).join(' / ')}</Text>
+          <Text style={styles.oddsRowOdds}>{earned && T.k === 'set' ? "Not sold: earned once by unlocking a group, with its Rainbow pal" : `100% ${SIZE_NAME[i]} pals`}</Text>
         </View>
       ))}
       <Text style={styles.oddsNote}>
-        {`Order: Common / Rare / Epic / Legendary. Common and Rare chests can upgrade on your first smash. The lucky meter guarantees an Epic or better at least every 10 chests. Duplicates turn into coins.${earned ? " Rainbow pals come only from their group's Rainbow chest." : ''}`}
+        {`Each chest holds only pals of its own rarity. Common and Rare chests can upgrade on your first smash, and then hold the rarity they became. Duplicates turn into coins.${earned ? " Rainbow pals come only from their group's Rainbow chest." : ''}`}
       </Text>
     </View>
   );
@@ -838,10 +814,6 @@ const styles = StyleSheet.create({
   buyRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 18, paddingRight: 6 },
   pricePill: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 38, paddingLeft: 6, paddingRight: 12, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.88)' },
   priceText: { fontFamily: F.display, fontSize: 17 },
-  lucky: { gap: 9, paddingHorizontal: 14, paddingVertical: 13, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.86)', borderWidth: 2, borderColor: '#ffffff' },
-  luckyTitle: { fontFamily: F.display, fontSize: 15, color: '#45107a' },
-  luckyNote: { marginLeft: 'auto', fontFamily: F.heavy, fontSize: 11.5, color: '#6a4a9a' },
-  luckySeg: { flex: 1, height: 11, borderRadius: 6 },
   oddsLink: { alignSelf: 'center', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: 2, borderColor: '#ffffff' },
   oddsLinkText: { fontFamily: F.heavy, fontSize: 12, color: '#45107a' },
   sheetBody: { alignSelf: 'stretch', alignItems: 'center', gap: 10 },

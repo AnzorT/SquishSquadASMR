@@ -516,12 +516,52 @@ function Jar({ offer, profile, price, onBuy }) {
 
 // --- bundles -----------------------------------------------------------------------------
 
-// One thing in a bundle: a white pod with its picture and amount.
-const Pod = ({ img, imgStyle, amount, ink, wide }) => (
+// A mountain of coins or gems (2026-11-16, the user: "add mountains of golds and gems" to the special offers): rows of
+// pieces heaped into a peak, one more piece in each row down, every piece a little turned, the rows above the base
+// drooping at their ends so the heap is a rounded mound. The front row is drawn last (nearest). A big amount heaps a
+// fourth row. `art`: the six coins or the six gems, mixed through the heap from `start`.
+const TILT = [-14, 9, -5, 12, -9, 4, 15, -11, 6, -3];
+const Mountain = memo(function Mountain({ art, rows, start = 0, twinkle = '#ffffff' }) {
+  const size = rows >= 4 ? 24 : 26;
+  const h = Math.round(size * 0.64);
+  const v = Math.round(size * 0.52);
+  const w = (rows - 1) * h + size;
+  const tall = (rows - 1) * v + size + 4;
+  const pieces = [];
+  let n = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c <= r; c++) {
+      const s = Math.round(size * (0.86 + (0.14 * r) / Math.max(1, rows - 1)));
+      const off = (c - r / 2) / Math.max(1, (rows - 1) / 2);
+      const droop = r < rows - 1 ? off * off * v * 0.6 : 0;
+      pieces.push(
+        <Image
+          key={n}
+          source={art[(start + n) % art.length]}
+          style={{ position: 'absolute', left: w / 2 + (c - r / 2) * h - s / 2, top: r * v + (size - s) + droop, width: s, height: s, transform: [{ rotate: `${TILT[n % TILT.length]}deg` }] }}
+        />,
+      );
+      n++;
+    }
+  }
+  return (
+    <View style={{ width: w, height: tall }}>
+      {pieces}
+      <Twinkle size={11} color={twinkle} duration={1.8} style={{ position: 'absolute', left: w / 2 + h * 0.7, top: -4 }} />
+      <Twinkle size={8} color="#ffffff" duration={2.4} delay={0.7} style={{ position: 'absolute', left: 1, top: v * (rows - 2) }} />
+    </View>
+  );
+});
+// rows in a bundle's mountain: a bigger amount, a bigger mountain
+const gemRows = (n) => (n >= 2000 ? 4 : 3);
+const coinRows = (n) => (n >= 20000 ? 4 : 3);
+
+// One thing in a bundle: a white pod with its picture (or `art`, a mountain) and amount.
+const Pod = ({ img, imgStyle, art, amount, ink, wide }) => (
   <View style={[styles.pod, wide && styles.podWide]}>
-    <View style={styles.podArt}>
-      <Glow size={wide ? 96 : 70} color="#fff6c4" opacity={0.9} />
-      <Image source={img} style={imgStyle} resizeMode="contain" />
+    <View style={[styles.podArt, art && styles.podArtTall]}>
+      <Glow size={art ? 90 : wide ? 96 : 70} color="#fff6c4" opacity={0.9} style={art ? { top: -10 } : undefined} />
+      {art || <Image source={img} style={imgStyle} resizeMode="contain" />}
     </View>
     <Text style={[styles.podAmt, { color: ink }]} numberOfLines={2}>
       {amount}
@@ -565,9 +605,9 @@ function Bundle({ offer, hot, price, seenAt, onBuy, index }) {
             </View>
           </View>
           <View style={styles.pods}>
-            {offer.gems > 0 && <Pod img={GEM[(index + 1) % 6]} imgStyle={styles.img44} amount={fmt(offer.gems)} ink="#5a22c8" />}
+            {offer.gems > 0 && <Pod art={<Mountain art={GEM} rows={gemRows(offer.gems)} start={index + 1} twinkle="#d9c4ff" />} amount={fmt(offer.gems)} ink="#5a22c8" />}
             {offer.gems > 0 && (offer.coins > 0 || chests.length > 0) && <Text style={styles.plus}>+</Text>}
-            {offer.coins > 0 && <Pod img={COIN[(index + 2) % 6]} imgStyle={styles.img42} amount={fmt(offer.coins)} ink="#b86200" />}
+            {offer.coins > 0 && <Pod art={<Mountain art={COIN} rows={coinRows(offer.coins)} start={index + 2} twinkle="#fff3a0" />} amount={fmt(offer.coins)} ink="#b86200" />}
             {offer.coins > 0 && chests.length > 0 && <Text style={styles.plus}>+</Text>}
             {chests.length > 0 && (
               <Pod
@@ -692,7 +732,10 @@ function Pass({ pass, profile, price, onClaim, onBuy }) {
 
 // `buyOffer(offer, extra)`, `priceOf(key)`, `claimStreak(from)`, `claimPass(i, from)`, `seeOffer(id)`
 // (`from`: { view, img }, the prize's icon its coins or gems fly out of)
-export const DealsTab = memo(function DealsTab({ config, profile, day, hidden, priceOf, onBuyOffer, onClaimStreak, onClaimPass, onNoAds, onSeen, toast, wide = false }) {
+// `part`: 'all' (the portrait Shop: everything, the bundles under a "Special offers" heading), or the landscape
+// Shop's two tabs (2026-11-16, the user: the bundles get a Special offers tab of their own): 'deals' (everything but
+// the bundles) and 'special' (the bundles only, no heading). A one-time bundle's window starts when its tab first shows.
+export const DealsTab = memo(function DealsTab({ config, profile, day, hidden, priceOf, onBuyOffer, onClaimStreak, onClaimPass, onNoAds, onSeen, toast, wide = false, part = 'all' }) {
   // landscape (REDESIGN_V7): the cards side by side, each in a column of its own
   const col = (el, key) => (wide && el ? <View key={key} style={styles.wideCol}>{el}</View> : el);
   const C = offersOf(config);
@@ -706,6 +749,7 @@ export const DealsTab = memo(function DealsTab({ config, profile, day, hidden, p
     .filter((o) => !(o.once && bought[o.id]))
     .filter((o) => !(o.once && o.windowHours && seen[o.id] && now > seen[o.id] + o.windowHours * 3600e3))
     .filter((o) => !(o.kind === 'pass' && C.pass.ends && now > Date.parse(C.pass.ends)))
+    .filter((o) => part === 'all' || (part === 'special') === (o.kind === 'bundle'))
     .sort((a, b) => (a.order || 0) - (b.order || 0));
   // a one-time offer's window starts the first time it shows
   useEffect(() => {
@@ -738,17 +782,25 @@ export const DealsTab = memo(function DealsTab({ config, profile, day, hidden, p
   const first = offers.filter((o) => (o.order || 0) < 0);
   const rest = offers.filter((o) => (o.order || 0) >= 0);
   const bundles = rest.filter((o) => o.kind === 'bundle');
+  const streakN = part === 'special' ? 0 : 1;
   // The page a part a frame as it's built (the offers on top, the streak,
   // then each offer). All at once was one 0.3 s frame on the Galaxy A15, and
   // two offers a frame with the streak still one of 0.25 s, built unseen a
   // second after the Shop opened (2026-10-28).
-  const shown = useProgressive(first.length + 1 + rest.length, 1, 1);
-  const shownRest = Math.max(0, shown - first.length - 1);
+  const shown = useProgressive(first.length + streakN + rest.length, 1, 1);
+  const shownRest = Math.max(0, shown - first.length - streakN);
+  if (part === 'special' && !offers.length)
+    return (
+      <View style={styles.specialNone}>
+        <Text style={styles.specialNoneT}>No special offers right now.</Text>
+        <Text style={styles.specialNoneT}>Check back soon!</Text>
+      </View>
+    );
   return (
     <DealsWide.Provider value={wide}>
     <View style={wide ? styles.tabWide : styles.tab}>
       {first.slice(0, shown).map((o, i) => col(card(o, i), o.id))}
-      {shown > first.length && col(
+      {streakN && shown > first.length ? col(
         <Streak
           streak={C.streak}
           profile={profile}
@@ -756,14 +808,14 @@ export const DealsTab = memo(function DealsTab({ config, profile, day, hidden, p
           hot={hot}
           onClaim={(today, done, i, from) => (today ? onClaimStreak(from) : toast(done ? 'Already claimed' : `Come back on day ${i + 1}`))}
         />, 'streak'
-      )}
+      ) : null}
       {rest.slice(0, shownRest).map((o, i) => (
         <React.Fragment key={o.id}>
-          {o.kind === 'bundle' && o.id === bundles[0]?.id ? <Heading title="Special offers" note="Limited bundles" /> : null}
+          {part === 'all' && o.kind === 'bundle' && o.id === bundles[0]?.id ? <Heading title="Special offers" note="Limited bundles" /> : null}
           {col(card(o, i), o.id)}
         </React.Fragment>
       ))}
-      {adsFree && offers.some((o) => o.kind === 'noads') ? col(<NoAdsOwned />, 'noads') : null}
+      {part !== 'special' && adsFree && offers.some((o) => o.kind === 'noads') ? col(<NoAdsOwned />, 'noads') : null}
     </View>
     </DealsWide.Provider>
   );
@@ -944,6 +996,9 @@ const styles = StyleSheet.create({
   // landscape (REDESIGN_V7): the sections side by side in a row that scrolls sideways
   tabWide: { flexDirection: 'row', alignItems: 'center', gap: 18, paddingTop: 10, paddingBottom: 8 },
   wideCol: { width: 330, height: 262 },
+  // the Special offers tab with every bundle bought or gone
+  specialNone: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  specialNoneT: { fontFamily: F.display, fontSize: 18, color: '#fff6e2', textAlign: 'center', textShadowColor: 'rgba(107,68,38,0.8)', textShadowOffset: { width: 0, height: 1.5 }, textShadowRadius: 1, includeFontPadding: false },
   flex1: { flex: 1 },
   cardFit: { flex: 1, justifyContent: 'space-between', gap: 6, padding: 10 },
   titleFit: { fontSize: 21, lineHeight: 25, paddingRight: 34 },
@@ -974,8 +1029,6 @@ const styles = StyleSheet.create({
   img22: { width: 22, height: 22 },
   img34: { width: 34, height: 34 },
   img36: { width: 36, height: 36 },
-  img42: { width: 42, height: 42 },
-  img44: { width: 44, height: 44 },
   btnFace: { borderWidth: 3, borderColor: '#ffffff', overflow: 'hidden', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12 },
   btnShine: { position: 'absolute', left: '7%', right: '7%', top: 2, height: '42%', backgroundColor: 'rgba(255,255,255,0.5)' },
   heading: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: -6, paddingHorizontal: 2 },
@@ -1056,6 +1109,8 @@ const styles = StyleSheet.create({
   pod: { flex: 1, minWidth: 0, alignItems: 'center', gap: 2, paddingTop: 6, paddingBottom: 7, paddingHorizontal: 3, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.92)', borderWidth: 2, borderColor: '#ffffff' },
   podWide: { flex: 1.35 },
   podArt: { height: 56, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
+  // a mountain's: as tall as the chest pod's picture and two-line name, so the row doesn't grow
+  podArtTall: { height: 70, justifyContent: 'flex-end' },
   podChest: { width: 76, height: 62 },
   podAmt: { fontFamily: F.display, fontSize: 15, textAlign: 'center', includeFontPadding: false },
   plus: { fontFamily: F.display, fontSize: 20, color: '#ffffff', textShadowColor: 'rgba(40,0,70,0.45)', textShadowOffset: { width: 0, height: 1.5 }, textShadowRadius: 1, includeFontPadding: false },

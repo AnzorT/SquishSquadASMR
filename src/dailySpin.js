@@ -5,18 +5,20 @@ import { fmtNum } from './format';
 // wheel and lands it on the slice the server picked. The eight slices here
 // must match functions/dailySpin.js, in the same order.
 
-// The shell's wheel (2026-10-08): coins and gems; `color` is the
-// slice's (the design's WCOL).
+// The shell's wheel (2026-10-08): coins and gems; `tone` is the slice's
+// look on the wood-and-gold wheel (DailySpinScreen TONES; 2026-11-17, the
+// user: the wheel remodelled to the game's look). The 150 coins slice is a
+// Common chest since 2026-11-17 (the user: "1 mystery box"): today's first
+// HOT group's, opened by the server, smashed after the prize card.
 export const WHEEL = [
-  // (REDESIGN_V8: orange and wood brown instead of pink and purple)
-  { kind: 'coins', amount: 100, color: '#ff8a3d' },
-  { kind: 'gems', amount: 5, color: '#c0702e' },
-  { kind: 'coins', amount: 250, color: '#ff8a3d' },
-  { kind: 'coins', amount: 150, color: '#c0702e' },
-  { kind: 'coins', amount: 50, color: '#ff8a3d' },
-  { kind: 'gems', amount: 15, color: '#2fc8f0' },
-  { kind: 'coins', amount: 500, color: '#ff8a3d' },
-  { kind: 'gems', amount: 50, color: '#ffb81f' },
+  { kind: 'coins', amount: 100, tone: 'cream' },
+  { kind: 'gems', amount: 5, tone: 'wood' },
+  { kind: 'coins', amount: 250, tone: 'cream' },
+  { kind: 'chest', amount: 1, size: 'common', tone: 'gold' },
+  { kind: 'coins', amount: 50, tone: 'cream' },
+  { kind: 'gems', amount: 15, tone: 'wood' },
+  { kind: 'coins', amount: 500, tone: 'cream' },
+  { kind: 'gems', amount: 50, tone: 'jewel' },
 ];
 export const SLICE = 360 / WHEEL.length;
 
@@ -54,6 +56,6 @@ export function prizeCard(result) {
   return {
     title: result.kind === 'gems' && result.amount >= 50 ? 'JACKPOT!' : 'You won!',
     amount: `+${fmtNum(result.amount)}`,
-    what: result.kind.toUpperCase(),
+    what: result.kind === 'chest' ? 'MYSTERY BOX' : result.kind.toUpperCase(),
   };
 }

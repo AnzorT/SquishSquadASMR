@@ -1,116 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import OutlinedTitle from '../components/candy/OutlinedTitle';
-import { RaysSpin } from '../components/candy/Decor';
-import { CoinIcon } from '../squad/ui';
-import sfx from '../audio/sfx';
-import { CountUp, FxLayer, PopIn, Rock, SlideIn } from '../squishdoku/fx';
-import { Overlay, Split, XpGain, XpPlus, useCompact } from '../squishdoku/Overlays';
+import { PopIn, Rock, SlideIn } from '../squishdoku/fx';
+import { Overlay, Split } from '../squishdoku/Overlays';
 import { BtnLabel, Head, SdButton } from '../squishdoku/ui';
 import { F, INK } from '../squishdoku/theme';
-import { BLITZ_ROUNDS, HEARTS, TIER_NAMES, clock } from './levels';
+import { HEARTS } from './levels';
 
 // Squish Sort's cards over the game: the win (stars popping in one by one,
 // coins counting up), the fail (out of hearts or time), pause, and how to
 // play.
 
-const STAR_D = 'M12 2.2 L14.9 8.6 L21.8 9.3 L16.6 14 L18.1 20.9 L12 17.4 L5.9 20.9 L7.4 14 L2.2 9.3 L9.1 8.6 Z';
-
-// a result star popping in (Squish Stack's result card too)
-export function Star({ earned, delay, big }) {
-  const t = useRef(new Animated.Value(0)).current;
-  const fx = useRef(null);
-  const compact = useCompact(); // (a one-column card in landscape: smaller, to fit the height)
-  const size = Math.round((big ? 74 : 60) * (compact ? 0.72 : 1));
-  useEffect(() => {
-    const timer = setTimeout(() => earned && fx.current?.burst('gold', size / 2 + 10, size / 2 + 10, 1), delay + 60);
-    Animated.spring(t, { toValue: 1, friction: earned ? 3.6 : 7, tension: earned ? 170 : 120, delay, useNativeDriver: true }).start();
-    return () => clearTimeout(timer);
-  }, [t, delay, earned, size]);
-  const scale = t.interpolate({ inputRange: [0, 1], outputRange: [earned ? 0 : 1.5, 1] });
-  const rotate = t.interpolate({ inputRange: [0, 1], outputRange: [earned ? '-40deg' : '0deg', '0deg'] });
-  return (
-    <View style={{ width: size + 20, height: size + 20, alignItems: 'center', justifyContent: 'center', marginTop: compact ? 0 : big ? -12 : 6 }}>
-      {earned ? (
-        <Animated.View pointerEvents="none" style={{ position: 'absolute', opacity: t }}>
-          <RaysSpin size={size * 1.8} color="#ffe45c" opacity={0.6} />
-        </Animated.View>
-      ) : null}
-      <Animated.View style={{ opacity: t.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 1, 1] }), transform: [{ scale }, { rotate }] }}>
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path d={STAR_D} fill={earned ? '#b86200' : 'rgba(107,68,38,0.25)'} transform="translate(0 1.2)" strokeLinejoin="round" />
-          <Path d={STAR_D} fill={earned ? '#ffd23a' : 'rgba(255,255,255,0.7)'} stroke="#ffffff" strokeWidth={1.6} strokeLinejoin="round" />
-          {earned ? <Path d="M8 9.6 L10.4 9.2 L11.3 7" stroke="#fff6c4" strokeWidth={1.4} strokeLinecap="round" fill="none" /> : null}
-        </Svg>
-      </Animated.View>
-      <FxLayer ref={fx} />
-    </View>
-  );
-}
-
-const TITLES = ['', 'SORTED!', 'NICE SORTING!', 'PERFECT MEMORY!'];
-const STEP = 480;
-
-// res: { stars, coins, xp, before, after, levelUps, mistakes, ms, unlocked };
-// `last`: level 50, no NEXT
-export function ResultCard({ visible, res, spec, theme, last, onNext, onReplay, onHub }) {
-  const [key, setKey] = useState(0);
-  useEffect(() => {
-    if (!visible || !res) return undefined;
-    setKey((k) => k + 1);
-    const timers = [0, 1, 2].map((i) => setTimeout(() => sfx.play(i < res.stars ? `sd_star${i + 1}` : 'sd_starEmpty'), 380 + i * STEP));
-    if (res.stars === 3) timers.push(setTimeout(() => sfx.play('sd_perfect'), 380 + 3 * STEP));
-    return () => timers.forEach(clearTimeout);
-  }, [visible, res]);
-  if (!res) return <Overlay visible={false} />;
-  const coinsAt = 380 + 3 * STEP + 200;
-  return (
-    <Overlay visible={visible} column>
-      <PopIn trigger={key} delay={80}>
-        <OutlinedTitle text={TITLES[res.stars]} size={res.stars === 3 ? 27 : 30} fill={res.stars === 3 ? 'gold' : 'pink'} />
-      </PopIn>
-      <Text style={styles.sub}>{`LEVEL ${spec.lv} · ${TIER_NAMES[spec.tier]} · ${clock(res.ms)}${res.mistakes ? ` · ${res.mistakes} MISTAKE${res.mistakes > 1 ? 'S' : ''}` : ' · NO MISTAKES'}`}</Text>
-      {res.stars < 3 && !res.mistakes ? <Text style={styles.hint}>{`Under ${clock(spec.parMs)} for 3 stars!`}</Text> : null}
-      <View key={key} style={styles.stars}>
-        {[0, 1, 2].map((i) => (
-          <Star key={i} earned={i < res.stars} delay={380 + i * STEP} big={i === 1} />
-        ))}
-      </View>
-      <Split />
-      <SlideIn trigger={key} delay={coinsAt - 150} dy={20} style={styles.rewardRow}>
-        <CoinIcon size={26} />
-        <CountUp value={res.coins} delay={coinsAt} ms={800} style={styles.coins} prefix="+" onTick={() => sfx.play('sd_coinTick')} />
-        <XpPlus xp={res.xp} />
-      </SlideIn>
-      <XpGain trigger={key} res={res} delay={coinsAt + 500} />
-      {res.unlocked ? (
-        <PopIn trigger={key} delay={coinsAt + 500}>
-          <Text style={styles.unlocked}>{`LEVEL ${spec.lv + 1} UNLOCKED`}</Text>
-        </PopIn>
-      ) : null}
-      <SlideIn trigger={key} delay={380 + 2 * STEP + 300} dy={30} style={styles.btnRow}>
-        <SdButton kind="white" onPress={onHub} sound="sd_select" faceStyle={styles.smallFace}>
-          <BtnLabel kind="white" size={15}>
-            MENU
-          </BtnLabel>
-        </SdButton>
-        <SdButton kind="purple" onPress={onReplay} sound="sd_select" faceStyle={styles.smallFace}>
-          <BtnLabel kind="purple" size={15}>
-            REPLAY
-          </BtnLabel>
-        </SdButton>
-        {!last ? (
-          <SdButton kind="green" onPress={onNext} sound="sd_select" faceStyle={styles.bigFace}>
-            <BtnLabel kind="green" size={18}>
-              NEXT ▶
-            </BtnLabel>
-          </SdButton>
-        ) : null}
-      </SlideIn>
-    </Overlay>
-  );
-}
+// (the result card is the shared one: squishdoku/Overlays.js ResultCard)
+// its titles here, for 1, 2 and 3 stars
+export const RESULT_TITLES = ['SORTED!', 'NICE SORTING!', 'PERFECT MEMORY!'];
 
 // Out of hearts, or out of time: the right spots were shown on the shelves.
 export function FailCard({ visible, reason, uri, onRetry, onHub }) {
@@ -142,40 +45,14 @@ export function FailCard({ visible, reason, uri, onRetry, onHub }) {
   );
 }
 
-// (the buttons: RESUME in the app's gold, the others white, as the fail cards: the user, 2026-11-16)
-export function PauseCard({ visible, onResume, onRestart, onQuit }) {
-  return (
-    <Overlay visible={visible} column>
-      <OutlinedTitle text="PAUSED" size={30} fill="gold" />
-      <Text style={styles.body}>The clock is stopped.</Text>
-      <Split />
-      <View style={styles.col}>
-        <SdButton kind="gold" onPress={onResume} sound="sd_resume" faceStyle={styles.wideFace}>
-          <BtnLabel kind="gold" size={18}>
-            RESUME
-          </BtnLabel>
-        </SdButton>
-        <SdButton kind="white" onPress={onRestart} sound="sd_select" faceStyle={styles.wideFace}>
-          <BtnLabel kind="white" size={16}>
-            RESTART LEVEL
-          </BtnLabel>
-        </SdButton>
-        <SdButton kind="white" onPress={onQuit} sound="sd_boardOut" faceStyle={styles.wideFace}>
-          <BtnLabel kind="white" size={16}>
-            QUIT
-          </BtnLabel>
-        </SdButton>
-      </View>
-    </Overlay>
-  );
-}
+// (the pause card is Squishdoku's, shared by every mini-game: squishdoku/Overlays.js)
 
 const RULES = [
   ['1', 'Look!', 'The doors open for about 5 seconds. Remember which spot each squishy sits on.'],
   ['2', 'Shake!', 'The doors shut, it shakes and jumps, and everyone tumbles out.'],
   ['3', 'Sort!', 'Drag each squishy back to its spot, or tap it and then tap the spot.'],
   ['!', 'Careful', `${HEARTS} mistakes and it's over. No mistakes and a quick sort: 3 stars.`],
-  ['?', 'Clutter', "Food and toys get knocked about by the shake. Don't use them to remember!"],
+  ['?', 'Clutter', "The food gets knocked about by the shake. Don't use it to remember!"],
 ];
 const TWISTS = [
   ['IMPOSTORS', 'Squishies in the tray that were never inside. Leave them out!'],
@@ -213,8 +90,8 @@ export function RulesCard({ visible, onClose }) {
         {'Seven sizes, from a mini fridge to a restaurant fridge (and a bedside cabinet to a giant wardrobe), each gaining shelves as you go.'}
       </Text>
       <Text style={styles.twist}>
-        <Text style={[styles.twistName, { color: '#0c5a9c' }]}>{'BLITZ ⚡  '}</Text>
-        {`${BLITZ_ROUNDS} rounds on one clock that runs while you sort. One mistake and it's back to round 1 (one revive per run).`}
+        <Text style={[styles.twistName, { color: '#0c5a9c' }]}>{'BLITZ MODE  '}</Text>
+        Round after round, each on its own clock. One mistake is GAME OVER, unless you save the run.
       </Text>
       <SdButton kind="gold" onPress={onClose} sound="sd_select" faceStyle={styles.bigFace} style={{ marginTop: 8 }}>
         <BtnLabel kind="gold" size={18}>
@@ -226,19 +103,10 @@ export function RulesCard({ visible, onClose }) {
 }
 
 const styles = StyleSheet.create({
-  sub: { fontFamily: F.display, fontSize: 12, letterSpacing: 0.6, color: '#9a6a3a', textAlign: 'center' },
-  hint: { fontFamily: F.heavy, fontSize: 11.5, color: '#b86200', textAlign: 'center' },
-  stars: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 4, marginBottom: 8 },
-  rewardRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  coins: { fontFamily: F.display, fontSize: 28, color: '#b86200', includeFontPadding: false, minWidth: 70 },
-  unlocked: { fontFamily: F.display, fontSize: 13, color: '#16a86a', letterSpacing: 0.8 },
   btnRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 8, marginTop: 6 },
-  col: { alignSelf: 'stretch', gap: 4, marginTop: 6 },
-  smallFace: { paddingHorizontal: 14, paddingVertical: 10 },
   bigFace: { paddingHorizontal: 22, paddingVertical: 12 },
   // a fail card's two buttons (MENU / MAP / UNDO and RETRY): the same size, RETRY in the app's gold (the user, 2026-11-16)
   pairFace: { width: 150, paddingVertical: 11, paddingHorizontal: 8 },
-  wideFace: { paddingVertical: 12 },
   body: { fontFamily: F.heavy, fontSize: 14, color: INK, textAlign: 'center', paddingHorizontal: 6 },
   rules: { alignSelf: 'stretch', gap: 8, marginTop: 4 },
   rule: { flexDirection: 'row', alignItems: 'center', gap: 10 },

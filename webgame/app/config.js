@@ -133,11 +133,14 @@
 
   // ---- creatures: switched off (nobody owns or sees it) and rarity, applied to the roster (squad-store.js) ----
   var squad = null;
+  // Rainbow in the design, Legendary in the game (functions/squad.js R: each chest holds only its own rarity, and no
+  // Rainbow chest holds these two)
+  var RAR_NOW = { avo: 3, duchess: 3 };
   function applySquad() {
     if (!squad || !squad.ROSTER) return;
     squad.ROSTER.forEach(function (c) {
       if (c.__rar0 === undefined) c.__rar0 = c.rar;
-      c.rar = C.rarity(c.key, c.__rar0);
+      c.rar = C.rarity(c.key, RAR_NOW[c.key] !== undefined ? RAR_NOW[c.key] : c.__rar0);
     });
   }
   function hookSquad(Q) {

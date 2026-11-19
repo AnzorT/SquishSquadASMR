@@ -1,19 +1,18 @@
 import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { FlatList, Image, ImageBackground, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path } from 'react-native-svg';
 import Pressable from '../../components/Pressable';
-import { BY_ID, GDEAL, LUCK_MAX, RAINBOW, SIZES, AD_CHESTS, owns, lineup } from '../../squad/data';
+import { BY_ID, GDEAL, RAINBOW, SIZES, AD_CHESTS, owns, lineup } from '../../squad/data';
 import GCHEST, { CHEST_NAMES } from '../../squad/groupChestArt';
 import { COIN, GEM } from '../../squad/currencyArt';
 import { Bob, TickingText, hms, untilMidnight } from '../../squad/ui';
 import TutTarget from '../../tutorial/Target';
 import { fmtNum } from '../../format';
 import { Btn, InkText, Lettering, Orb, Plaque, FONT, INK } from '../../royal';
-import { allChests, chestInfo } from '../ShopChests';
+import { allChests, chestInfo, groupCollected } from '../ShopChests';
 
 // The Shop's Chests tab, landscape. REDESIGN_V8 (the user's remodel): pages, one at a time, with arrows at the
-// screen's sides, one per group (today's free chests, deal and Lucky meter are the Daily tab: ShopDailyRoyal): its name above its four chests side by side (Common, Rare, Epic, Legendary; the Rainbow chest is never sold,
+// screen's sides, one per group (today's free chests and deal are the Daily tab: ShopDailyRoyal): its name above its four chests side by side (Common, Rare, Epic, Legendary; the Rainbow chest is never sold,
 // it's given when the group is collected). The same data and moves as before (ShopChests.js: chestInfo, allChests; the
 // Shop's handlers).
 
@@ -148,43 +147,27 @@ function RainbowLine({ gk, rb, onBuy }) {
         </Btn>
       </View>
     );
+  // have / need count what the server does (functions/squad.js rainbowProgress): the group's other pals that are out
+  // in chests (published to creatures/, not hidden), so the line says how many are left and who the chest holds
+  const left = Math.max(0, rb.need - rb.have);
   return (
     <View style={styles.rbLine}>
       <LinearGradient colors={SIZE_DOT[4]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.rbDot} />
       <Note size={11} color="#fff6e2">
-        {rb.opened ? `${rb.reward.name}, this group's Rainbow, is in your squad.` : `Collect all ${GROUP_LABEL[gk] || 'this group'} pals for its Rainbow chest · ${rb.have} / ${rb.need}`}
+        {rb.opened
+          ? `${rb.reward.name}, this group's Rainbow, is in your squad.`
+          : `Unlock ${left} more ${GROUP_LABEL[gk] || 'group'} ${left === 1 ? 'pal' : 'pals'} to earn the Rainbow chest with ${rb.reward.name} inside · ${rb.have} / ${rb.need}`}
       </Note>
     </View>
-  );
-}
-
-// the Lucky meter: an Epic or better at least every LUCK_MAX chests; how close the next one is
-function Lucky({ epic, onOdds }) {
-  const n = Math.min(epic || 0, LUCK_MAX);
-  const left = Math.max(1, LUCK_MAX - n);
-  return (
-    <Plaque variant="vel" radius={18} rim={3} ring={2} lip={4} style={styles.lucky}>
-      <Svg width={34} height={34} viewBox="0 0 24 24">
-        <Path d="M12 2L14.6 8.6L21.5 9.2L16.2 13.7L17.9 20.5L12 16.8L6.1 20.5L7.8 13.7L2.5 9.2L9.4 8.6Z" fill="#ffc928" stroke={INK} strokeWidth={1.4} strokeLinejoin="round" />
-      </Svg>
-      <Lettering text="Lucky meter" variant="white" size={16} />
-      <Note size={11} style={styles.center}>{`Epic or better in ${left} ${left === 1 ? 'chest' : 'chests'}`}</Note>
-      <View style={styles.luckyBar}>
-        {Array.from({ length: LUCK_MAX }, (_, i) => (
-          <View key={i} style={[styles.luckySeg, i < n ? { backgroundColor: i >= LUCK_MAX - 3 ? '#ff8a1e' : '#ffd24a' } : null]} />
-        ))}
-      </View>
-      <Pressable onPress={onOdds} style={styles.oddsLink}>
-        <Text style={styles.oddsLinkT}>Drop odds</Text>
-      </Pressable>
-    </Plaque>
   );
 }
 
 const SOLD = ['common', 'rare', 'epic', 'legendary'];
 function GroupPage({ x, first, width, profile, artIds, setRewards, rainbow, onOpenSheet, onBuy }) {
   const rb = rainbow === 'chest' ? chestInfo(x.k, 'set', profile, artIds, setRewards, rainbow).earned : null;
-  const c0 = chestInfo(x.k, 'common', profile, artIds, setRewards, rainbow);
+  // each chest holds only its own rarity, so a group shows only the chests it can fill
+  const sold = SOLD.map((size, ti) => ({ size, ti, info: chestInfo(x.k, size, profile, artIds, setRewards, rainbow) })).filter((s) => s.info.pool.length);
+  const all = groupCollected(x.k, profile, artIds, setRewards, rainbow);
   return (
     <View style={[styles.page, { width }]}>
       <View style={styles.pageHead}>
@@ -195,12 +178,12 @@ function GroupPage({ x, first, width, profile, artIds, setRewards, rainbow, onOp
         )}
         <Lettering text={GROUP_LABEL[x.k] || x.k} variant="gold" size={24} />
         <View style={styles.haveChip}>
-          <Text style={styles.haveChipT}>{`${c0.have} / ${c0.pool.length} collected`}</Text>
+          <Text style={styles.haveChipT}>{`${all.have} / ${all.total} collected`}</Text>
         </View>
       </View>
       <View style={styles.cards}>
-        {SOLD.map((size, ti) => (
-          <ChestCard key={size} gk={x.k} size={size} ti={ti} first={first && ti === 0} info={ti === 0 ? c0 : chestInfo(x.k, size, profile, artIds, setRewards, rainbow)} onOpen={onOpenSheet} onBuy={onBuy} />
+        {sold.map(({ size, ti, info }, i) => (
+          <ChestCard key={size} gk={x.k} size={size} ti={ti} first={first && i === 0} info={info} onOpen={onOpenSheet} onBuy={onBuy} />
         ))}
       </View>
       <RainbowLine gk={x.k} rb={rb} onBuy={onBuy} />
@@ -209,19 +192,19 @@ function GroupPage({ x, first, width, profile, artIds, setRewards, rainbow, onOp
 }
 
 // The Daily tab (REDESIGN_V8, the user: a tab of its own, left of Chests): today's free chest, the Rare chest for an
-// ad, the daily deal and the Lucky meter
-export const ShopDailyRoyal = memo(function ShopDailyRoyal({ profile, day, hidden, onFree, onAd, onDeal, onOdds }) {
+// ad and the daily deal. (The Lucky meter was here until 2026-11-16, when the user had it deleted.)
+export const ShopDailyRoyal = memo(function ShopDailyRoyal({ profile, day, hidden, onFree, onAd, onDeal }) {
   const hot = useMemo(() => lineup(day, hidden), [day, hidden]);
   const welcome = !!profile && !owns(profile, '1') && !profile.chestOpens;
   const adsLeft = Math.max(0, AD_CHESTS - (profile?.adChests?.day === day ? profile.adChests.n || 0 : 0));
   return (
     <View style={styles.dailyWrap}>
-      <TodayPage profile={profile} day={day} hot={hot} welcome={welcome} adsLeft={adsLeft} onFree={onFree} onAd={onAd} onDeal={onDeal} onOdds={onOdds} />
+      <TodayPage profile={profile} day={day} hot={hot} welcome={welcome} adsLeft={adsLeft} onFree={onFree} onAd={onAd} onDeal={onDeal} />
     </View>
   );
 });
 
-function TodayPage({ width, profile, day, hot, welcome, adsLeft, onFree, onAd, onDeal, onOdds }) {
+function TodayPage({ width, profile, day, hot, welcome, adsLeft, onFree, onAd, onDeal }) {
   const freeGk = welcome ? BY_ID['1'].set : hot[0];
   return (
     <View style={[styles.page, width ? { width } : null]}>
@@ -241,7 +224,6 @@ function TodayPage({ width, profile, day, hot, welcome, adsLeft, onFree, onAd, o
           </TutTarget>
         </Tile>
         <Deal gk={hot[0]} done={profile?.dealDay === day} onBuy={onDeal} />
-        <Lucky epic={profile?.epic || 0} onOdds={onOdds} />
       </View>
       <View style={styles.rbLine} />
     </View>
@@ -330,8 +312,6 @@ const styles = StyleSheet.create({
   dealBadge: { position: 'absolute', right: -6, top: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10, borderWidth: 2, borderColor: INK, transform: [{ rotate: '12deg' }] },
   dealBadgeT: { fontFamily: FONT.display, fontSize: 13, color: '#a3001f', includeFontPadding: false },
   was: { fontFamily: FONT.bodyHeavy, fontSize: 12, color: '#8a4a06', textDecorationLine: 'line-through', marginRight: 2 },
-  oddsLink: { marginTop: 6, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(107,68,38,0.45)' },
-  oddsLinkT: { fontFamily: FONT.bodyHeavy, fontSize: 11, color: '#fff6e2' },
   card: { width: 160, height: CARD_H, paddingTop: 8, paddingBottom: 10, paddingHorizontal: 8, justifyContent: 'space-between' },
   cardTopWrap: { alignSelf: 'stretch' },
   cardTop: { height: 112, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 12, borderWidth: 2, borderColor: '#ffd76a' },
@@ -343,9 +323,6 @@ const styles = StyleSheet.create({
   cardTagT: { fontFamily: FONT.bodyBlack, fontSize: 9, letterSpacing: 0.8, color: '#ffffff' },
   rbLine: { height: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   rbDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: '#ffffff' },
-  lucky: { width: 156, height: CARD_H, paddingVertical: 14, justifyContent: 'center', gap: 7 },
-  luckyBar: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 3, width: 140 },
-  luckySeg: { width: 10, height: 13, borderRadius: 4, backgroundColor: 'rgba(107,68,38,0.35)' },
   arrow: { position: 'absolute', top: '50%', marginTop: -36 },
   arrowL: { left: 16 },
   arrowR: { right: 16 },

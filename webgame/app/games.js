@@ -91,7 +91,12 @@
     // the MY HOUSE tab's look (main-menu.js .mm-tab v-gold), a little bigger: it's the backyard's one button
     + '.sq-yard{height:34px;padding:0 15px;display:flex;align-items:center;gap:6px;cursor:pointer;border:0;}'
     + '.sq-yard svg{width:16px;height:16px;flex:none;}.sq-yard span{font:700 14px Fredoka,sans-serif;color:#3d1268;letter-spacing:.6px;}'
-    + '.sq-yard:active{transform:translateY(2px);}';
+    + '.sq-yard:active{transform:translateY(2px);}'
+    // a game just bought: NEW on the button's corner (2026-11-18), until the Yard Games are opened
+    + '.sq-yard{position:relative;}'
+    + '.sq-yard-b{position:absolute;right:-10px;top:-11px;padding:3px 7px 2px;border-radius:999px;background:linear-gradient(180deg,#ff8a9e,#ff3d64);border:2px solid #ffffff;box-shadow:0 2px 0 #8e1030;'
+    + 'font:700 11px/1 Fredoka,sans-serif;letter-spacing:.5px;color:#ffffff;text-shadow:0 1px 0 #8e1030;pointer-events:none;animation:sqYardB 1.4s ease-in-out infinite;}'
+    + '@keyframes sqYardB{0%,100%{transform:scale(1);}50%{transform:scale(1.14);}}';
   var PAD = 'M6 9h12a3 3 0 0 1 3 3v2a3 3 0 0 1-5.4 1.8L14.5 14h-5l-1.1 1.8A3 3 0 0 1 3 14v-2a3 3 0 0 1 3-3Z M8 11v2 M7 12h2 M15.5 11.5h.01 M17 13h.01';
   var btn = null, wrap = null;
   function ensureBtn(parent) {
@@ -115,6 +120,268 @@
     var show = !!(inHouse && s && s.ready && s.cur === 'backyard' && !s.map && !s.shop && !s.edit && !s.det && !s.party && document.querySelector('.mm-hback'));
     if (show) ensureBtn(inHouse).style.display = '';
     else if (wrap) wrap.style.display = 'none';
+    // the NEW badge: how many games were bought since the Yard Games were last opened
+    if (btn) {
+      var n = typeof newList === 'function' ? newList().length : 0, b = btn.querySelector('.sq-yard-b');
+      if (n && !b) { b = document.createElement('i'); b.className = 'sq-yard-b'; btn.appendChild(b); }
+      if (b) { if (n) b.textContent = n > 1 ? n + ' NEW' : 'NEW'; else b.remove(); }
+    }
   }
   setInterval(tick, 300);
+
+  // ---- the Yard Games page (2026-11-18, the user: "in the menu of the yard games I want it to be in horizontal and put
+  // the images of the games on them (on all of them) and make the list of the games scrollable, I want the game to be
+  // unlocked only when the game got purchased") ----
+  // A yard game opens once one of its toys is bought in the house's Backyard (the house catalog's YRD rows; bought =
+  // the house's owned['R:<id>'] > 0). The ids are the catalog's today; rows whose name matches are counted too, so a
+  // new hoop or slide in the catalog opens its game as well.
+  var YARD_ITEMS = { hoop: ['YRD-102'], soccer: ['YRD-104'], hop: ['YRD-101'], tramp: ['YRD-120', 'YRD-121'], slide: ['YRD-123', 'YRD-124', 'YRD-125'], corn: ['YRD-037'], pong: ['YRD-057'] };
+  var YARD_RE = { hoop: /basketball hoop/i, soccer: /soccer goal/i, hop: /hopscotch/i, tramp: /trampoline/i, slide: /\bslide\b/i, corn: /cornhole/i, pong: /ping-?pong|table tennis/i };
+  var idCache = {};   // (per game, for the catalog rows it was worked out from: the catalog asks on every draw)
+  function yardIds(id) {
+    var sh = window.__sh, rows = sh && sh.rows, re = YARD_RE[id], c = idCache[id];
+    if (c && c.rows === rows) return c.ids;
+    var ids = (YARD_ITEMS[id] || []).slice();
+    if (rows && re) rows.forEach(function (r) { if (r && r.room === 'YRD' && re.test(r.name || '') && ids.indexOf(r.id) < 0) ids.push(r.id); });
+    idCache[id] = { rows: rows, ids: ids };
+    return ids;
+  }
+  // what the player owns in the house: the live house's, else its save (the menu without the house)
+  function houseOwned() {
+    var sh = window.__sh;
+    if (sh && !sh.dead && sh.H && sh.H.owned) return sh.H.owned;
+    try { var h = JSON.parse(localStorage.getItem('ssHouse5b') || 'null'); return (h && h.owned) || {}; } catch (e) { return {}; }
+  }
+  App.yardLocked = function (id) {
+    if (!YARD_ITEMS[id]) return false;
+    var own = houseOwned();
+    return !yardIds(id).some(function (i) { return (own['R:' + i] || 0) > 0; });
+  };
+  // the cheapest toy that opens it (the catalog row: name, cost, lv), when the house's catalog is loaded
+  function yardToy(id) {
+    var sh = window.__sh, by = sh && sh.byId, best = null;
+    if (!by || !by.get) return null;
+    yardIds(id).forEach(function (i) { var r = by.get(i); if (r && (!best || r.cost < best.cost)) best = r; });
+    return best;
+  }
+  function yardNeedText(id) {
+    var t = yardToy(id);
+    // (the name the catalog shows it under)
+    var nm = t && ((window.RenoShort && window.RenoShort[t.id]) || t.name);
+    return t ? 'Buy ' + nm + ' in the Backyard catalog' + (t.cost ? ' (' + Number(t.cost).toLocaleString('en-US') + ' coins)' : '') : 'Buy it in the Backyard catalog to play';
+  }
+  App.yardNeed = function (id) { return yardNeedText(id); };
+
+  // ---- the toys are bought, never placed (2026-11-18, the user: "in the yard, the games, they will not be placable,
+  // they will be purchasable and each game that is purchased will unlock in the yard games icon on the top right
+  // corner"). The house asks these (patches.mjs, Squad House v6): ----
+  var GAME_NAMES = { hoop: 'Hoop Shot', soccer: 'Penalty Kick', hop: 'Hopscotch', tramp: 'Bounce Up', slide: 'Slide & Splash', corn: 'Cornhole', pong: 'Ping-Pong' };
+  var ITEM_GAME = {};
+  Object.keys(YARD_ITEMS).forEach(function (g) { YARD_ITEMS[g].forEach(function (i) { ITEM_GAME[i] = g; }); });
+  function gameKey(id, row) {
+    var g = ITEM_GAME[String(id || '').replace(/^R:/, '')];
+    if (!g && row && (row.room === 'YRD' || row.room === 'backyard')) {
+      var nm = row.name || row.n || '';
+      for (var k in YARD_RE) if (YARD_RE[k].test(nm)) { g = k; break; }
+    }
+    return g || null;
+  }
+  // the yard game a house item opens, or null: { id, name, open } (open: the game is unlocked already, by this toy or
+  // another of its toys). id: the house's item id ('R:YRD-102' or 'YRD-102'); row (optional): its catalog row, so a new
+  // hoop or slide in the catalog counts by its name
+  App.yardGameOf = function (id, row) {
+    var g = gameKey(id, row);
+    if (!g) return null;
+    var G = window.YardGames && window.YardGames.GAMES && window.YardGames.GAMES.filter(function (x) { return x.id === g; })[0];
+    return { id: g, name: (G && G.name) || GAME_NAMES[g], open: !App.yardLocked(g) };
+  };
+  // the house's rooms without the yard games' toys (one placed before this rule is taken out; it stays bought)
+  App.yardStrip = function (rooms) {
+    var out = {};
+    Object.keys(rooms || {}).forEach(function (rk) {
+      var L = rooms[rk];
+      out[rk] = Array.isArray(L) ? L.filter(function (it) { return !(it && gameKey(it.t)); }) : L;
+    });
+    return out;
+  };
+  // a game just bought: the YARD GAMES button shows a NEW badge until the Yard Games are opened
+  var NEWK = 'squishsquad.yard.new.v1';
+  function newList() { try { var a = JSON.parse(localStorage.getItem(NEWK) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  App.yardNew = function (id) {
+    var a = newList();
+    if (a.indexOf(id) < 0) a.push(id);
+    try { localStorage.setItem(NEWK, JSON.stringify(a)); } catch (e) { /* full */ }
+    tick();
+  };
+  function yardSeen() { try { localStorage.removeItem(NEWK); } catch (e) { /* none */ } }
+
+  var YCSS = '.mm-gr.sq-yg{scroll-snap-type:none;touch-action:none;cursor:grab;gap:18px;padding:12px 26px 20px;}'
+    + '.mm-gr.sq-yg.drag{cursor:grabbing;}'
+    + '.mm-gc.sq-ygc{width:316px;height:262px;padding:8px 8px 10px;}'
+    + '.mm-gc.sq-ygc .win{height:146px;}'
+    + '.mm-gc.sq-ygc .win svg{width:100%;height:100%;display:block;}'
+    + '.mm-gc.sq-ygc .row{display:flex;align-items:center;justify-content:space-between;align-self:stretch;gap:8px;margin-top:10px;padding:0 4px;}'
+    + '.mm-gc.sq-ygc .row .nm{margin:0;}.mm-gc.sq-ygc .row .best{margin:0;flex:none;}'
+    + '.mm-gc.sq-ygc .it{align-self:flex-start;padding:0 6px;margin-top:1px;}'
+    + '.mm-gc.sq-ygc .go{width:62%;}'
+    + '.mm-gc.sq-ygc.lock{filter:none;}'
+    + '.mm-gc.sq-ygc.lock .win>svg{filter:saturate(.3) brightness(.78);}'
+    + '.mm-gc.sq-ygc .padlock{position:absolute;right:8px;top:8px;width:34px;height:34px;border-radius:50%;background:rgba(40,16,4,.6);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #ffd76a;}'
+    + '.mm-gc.sq-ygc .padlock svg{width:18px!important;height:18px!important;}'
+    + '.mm-gc.sq-ygc .need{margin-top:auto;align-self:stretch;display:flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:4px 10px;border-radius:12px;background:rgba(40,16,4,.45);box-shadow:inset 0 0 0 1px rgba(255,236,170,.5);font:800 11px/1.25 Nunito,sans-serif;color:#fff3d6;text-align:center;}';
+  var PADLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="#ffe9a8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+  function yardCss() { if (document.getElementById('sq-yg-css')) return; var st = document.createElement('style'); st.id = 'sq-yg-css'; st.textContent = YCSS; document.head.appendChild(st); }
+
+  // a game's card: its poster across the top (drawn in by yardPage), its name and best, its toy, PLAY or what to buy
+  App.yardCard = function (g, o) {
+    yardCss();
+    var col = g.color || '#ff8a3d', op = o.open, sh = o.shade;
+    var need = !o.backyard ? 'Opens with the Backyard at level ' + o.lv : yardNeedText(g.id);
+    return '<div class="mm-gc mm-p sq-ygc' + (op ? '' : ' lock') + '" data-g="' + g.id + '" style="--gc:' + col + ';--gcl:' + sh(col, 0.35) + ';--gcd:' + sh(col, -0.42) + '">'
+      + '<div class="win" data-poster="' + g.id + '">' + (g.icon || '') + (op ? '' : '<i class="padlock">' + PADLOCK + '</i>') + '</div>'
+      + '<div class="row"><div class="nm">' + o.ft(g.name, 'white', 18) + '</div><div class="best">' + (o.best ? '★ Best ' + o.best : op ? 'New!' : 'Locked') + '</div></div>'
+      + '<div class="it">' + o.esc(g.item || '') + '</div>'
+      + (op ? '<button class="go mm-p tip v-gold">' + o.ft('PLAY', 'whiteB', 17) + '</button>' : '<div class="need">' + o.esc(need) + '</div>')
+      + '</div>';
+  };
+
+  // ---- the yard games' popups in the app's look (2026-11-18, the user: "change the popups of the yard mini games to
+  // match the ones in the app"): the intro's how-to sheet and the results card become the app's cards (squishdoku/
+  // Overlays.js: cream paper, a white rim, a brown ink outline and lip), their titles its outlined lettering
+  // (OutlinedTitle: gradient fill, white outline, brown halo, a deep drop), the rules numbered in orange discs (Squish
+  // Hop's how-to), the buttons its SdButton (gold for the main one, cream for the other), and the back buttons its
+  // orange back orb. Sizes in cqh: the game's frame is 360 high, so 1cqh is a 3.6th of the design's px. Scoped to the
+  // games inside the menu's page (.mm-gp), on top of yard-games.js's own styles (:not(.yg-port) outranks them). ----
+  var P = '.mm-gp .yg-frame:not(.yg-port) ';
+  var INK = '#5b3418', BROWN = '#6b4426';
+  var GOLD_BTN = 'background:linear-gradient(180deg,#fff7b0 0%,#ffd23a 50%,#ff9c0a 100%);box-shadow:0 0 0 0.75cqh #9c4d06,0 1.5cqh 0 0.75cqh #9c4d06;color:#ffffff;'
+    + 'text-shadow:-.45cqh 0 0 #9c4d06,.45cqh 0 0 #9c4d06,0 -.45cqh 0 #9c4d06,0 .45cqh 0 #9c4d06,-.32cqh -.32cqh 0 #9c4d06,.32cqh -.32cqh 0 #9c4d06,-.32cqh .32cqh 0 #9c4d06,.32cqh .32cqh 0 #9c4d06;';
+  var CREAM_BTN = 'background:linear-gradient(180deg,#ffffff 0%,#fff6e8 50%,#f3dfbd 100%);box-shadow:0 0 0 0.75cqh ' + BROWN + ',0 1.5cqh 0 0.75cqh ' + BROWN + ';color:' + BROWN + ';text-shadow:none;';
+  var CARD = 'background:linear-gradient(180deg,#fffaf0 0%,#fff1dc 55%,#f6e2c4 100%);border:0.85cqh solid #ffffff;box-shadow:0 0 0 0.85cqh ' + BROWN + ',0 2.2cqh 0 0.85cqh ' + BROWN + ',0 5cqh 12cqh rgba(40,16,4,.35);';
+  var BACK = 'background:linear-gradient(180deg,#ffc58a 0%,#ff9a4a 55%,#e0601c 100%);border:0.7cqh solid #ffffff;color:#ffffff;box-shadow:0 0 0 0.6cqh #8a3a0e,0 1.1cqh 0 0.6cqh #8a3a0e;'
+    + 'text-shadow:0 .3cqh 0 #8a3a0e;font-weight:700;display:flex;align-items:center;justify-content:center;';
+  var YPOP = ''
+    // the dim behind a card (the app's warm brown), the results card
+    + P + '.yg-ov:not(.yg-intro){background:rgba(50,24,6,.55);}'
+    + P + '.yg-card{' + CARD + 'border-radius:8cqh;padding:3.6cqh 6cqh 4.6cqh;}'
+    // titles: the app's lettering (an SVG, yardPopup)
+    + P + '.sq-ttl{display:block;width:100%;overflow:visible;}'
+    + P + '.yg-res-t{line-height:0;color:transparent;}'
+    // stars: gold with a brown edge; the missed ones pale
+    + P + '.yg-star{color:#eadbc6;text-shadow:0 0 0 transparent,-.4cqh 0 0 #c9b293,.4cqh 0 0 #c9b293,0 -.4cqh 0 #c9b293,0 .6cqh 0 #c9b293;}'
+    + P + '.yg-star.on{color:#ffd23a;text-shadow:-.45cqh 0 0 #9c4d06,.45cqh 0 0 #9c4d06,0 -.45cqh 0 #9c4d06,0 .9cqh 0 #9c4d06;}'
+    + P + '.yg-res-score{font:700 12cqh/1 Fredoka,sans-serif;color:#8a3a0e;}'
+    + P + '.yg-res-sub{font:800 3.6cqh/1.3 Nunito,sans-serif;color:#9a6a3a;}'
+    // the coins line: the app's reward row (the coin, then the amount in amber)
+    + P + '.yg-res-coins{display:inline-flex;align-items:center;gap:1.4cqh;background:none;padding:0;margin:2.4cqh 0 3.6cqh;font:700 4.6cqh/1 Fredoka,sans-serif;color:#b86200;}'
+    + P + '.yg-res-coins img{width:6.6cqh;height:6.6cqh;object-fit:contain;}'
+    + P + '.yg-row{gap:3cqh;}'
+    // the buttons: the app's SdButton (gold, or cream with brown lettering), a white edge, a darker ring and lip
+    + P + '.yg-btn{position:relative;overflow:hidden;isolation:isolate;border:0.85cqh solid #ffffff;border-radius:99px;padding:2.6cqh 6cqh;font:700 5cqh/1 Fredoka,sans-serif;letter-spacing:.03em;text-transform:uppercase;' + GOLD_BTN + '}'
+    + P + '.yg-btn::before{content:"";position:absolute;left:8%;right:8%;top:.5cqh;height:42%;border-radius:99px;background:rgba(255,255,255,.45);pointer-events:none;z-index:-1;}'
+    + P + '.yg-btn:active{transform:translateY(1cqh) scale(.95);box-shadow:0 0 0 0.75cqh #9c4d06,0 .5cqh 0 0.75cqh #9c4d06;}'
+    + P + '.yg-ghost{' + CREAM_BTN + '}'
+    + P + '.yg-ghost:active{box-shadow:0 0 0 0.75cqh ' + BROWN + ',0 .5cqh 0 0.75cqh ' + BROWN + ';}'
+    // the intro's how-to sheet: an app card down the right
+    + P + '.yg-isheet{' + CARD + 'border-radius:8cqh;padding:3cqh 5cqh 4cqh;}'
+    + P + '.yg-ihead{display:block;color:transparent;line-height:0;}'
+    + P + '.yg-ihead::before,' + P + '.yg-ihead::after{display:none;}'
+    // the rules: numbered orange discs, brown words (Squish Hop's how-to)
+    + P + '.yg-isheet .yg-how{list-style:none;counter-reset:sqr;padding:0;margin:2.2cqh 0 .6cqh;display:flex;flex-direction:column;gap:1.6cqh;font:800 3.4cqh/1.32 Nunito,sans-serif;color:' + INK + ';}'
+    + P + '.yg-isheet .yg-how li{counter-increment:sqr;display:flex;align-items:flex-start;gap:2.2cqh;margin:0;}'
+    + P + '.yg-isheet .yg-how li::before{content:counter(sqr);flex:none;width:7cqh;height:7cqh;margin-top:-.4cqh;border-radius:50%;box-sizing:border-box;background:#ff8a3d;border:.7cqh solid #ffffff;box-shadow:0 0 0 .35cqh #e0601c;display:flex;align-items:center;justify-content:center;font:700 3.6cqh/1 Fredoka,sans-serif;color:#ffffff;}'
+    + P + '.yg-isheet .yg-go{margin-top:3cqh;padding:2.8cqh 12cqh;font-size:5.6cqh;}'
+    + P + '.yg-best{font:800 3.2cqh/1 Nunito,sans-serif;color:#9a6a3a;}'
+    // the game's options (e.g. the slide's look): cream chips, the chosen one gold
+    + P + '.yg-opt{border:.6cqh solid #ffffff;box-shadow:0 0 0 .4cqh ' + BROWN + ';background:#fff6e8;color:' + BROWN + ';font:800 3.2cqh/1 Nunito,sans-serif;}'
+    + P + '.yg-opt.on{background:linear-gradient(180deg,#fff7b0,#ffd23a 50%,#ff9c0a);box-shadow:0 0 0 .4cqh #9c4d06;color:#7a3a04;}'
+    // the back buttons (the intro's and the game's top bar): the app's orange back orb
+    + P + '.yg-iback,' + P + '.yg-back{' + BACK + '}'
+    + P + '.yg-iback:active,' + P + '.yg-back:active{transform:translateY(.6cqh);}';
+  function yardPopCss() { if (document.getElementById('sq-ypop-css')) return; var st = document.createElement('style'); st.id = 'sq-ypop-css'; st.textContent = YPOP; document.head.appendChild(st); }
+
+  // the app's outlined title (OutlinedTitle) as SVG: a deep drop, a brown halo, a white outline, the gradient letters;
+  // size in cqh of the game's frame
+  var tUid = 0;
+  var FILLS = { gold: ['#fffbd6', '#ffe045', '#ff9500'], orange: ['#fff0d6', '#ffb05a', '#e8681c'] };
+  function escT(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function sqTitle(text, fill, size) {
+    var id = 'sqtg' + (++tUid), F = FILLS[fill] || FILLS.gold, T = escT(String(text).toUpperCase());
+    var font = 'font:700 ' + size + 'cqh Fredoka,sans-serif;letter-spacing:.03em;';
+    var tx = function (style) { return '<text x="50%" y="' + (size * 1.06) + 'cqh" text-anchor="middle" style="' + font + style + '">' + T + '</text>'; };
+    var w = function (k) { return 'stroke-width:' + (size * k).toFixed(2) + 'cqh;stroke-linejoin:round;'; };
+    return '<svg class="sq-ttl" role="img" aria-label="' + T + '" style="height:' + (size * 1.42).toFixed(2) + 'cqh">'
+      + '<defs><linearGradient id="' + id + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + F[0] + '"/><stop offset=".5" stop-color="' + F[1] + '"/><stop offset="1" stop-color="' + F[2] + '"/></linearGradient></defs>'
+      + tx('fill:#3f2412;stroke:#3f2412;' + w(0.34) + 'transform:translateY(' + (size * 0.15).toFixed(2) + 'cqh);')
+      + tx('fill:' + BROWN + ';stroke:' + BROWN + ';' + w(0.34))
+      + tx('fill:#ffffff;stroke:#ffffff;' + w(0.2))
+      + tx('fill:url(#' + id + ');')
+      + '</svg>';
+  }
+  // yard-games.js calls this once a popup is built (patched in): 'intro' = the how-to sheet, 'result' = the results card
+  App.yardPopup = function (el, kind, stars) {
+    if (!el || !el.closest || !el.closest('.mm-gp')) return;   // only the games inside the app's page
+    yardPopCss();
+    if (kind === 'intro') {
+      var h = el.querySelector('.yg-ihead');
+      if (h) h.innerHTML = sqTitle('How to play', 'gold', 6.4);
+    } else if (kind === 'result') {
+      var t = el.querySelector('.yg-res-t');
+      if (t) t.innerHTML = sqTitle(t.textContent, stars >= 3 ? 'gold' : 'orange', 8.4);
+      var c = el.querySelector('.yg-res-coins'), src = window.SquishCoin && window.SquishCoin.coin && window.SquishCoin.coin(0);
+      if (c && src && !c.querySelector('img')) c.insertAdjacentHTML('afterbegin', '<img alt="" src="' + src + '">');
+    }
+  };
+
+  // after the page is up: each card gets its game's intro poster (yg-intros.js, your character in it), and the list
+  // drags sideways (finger or mouse, with a glide), a drag never counting as a tap on a card
+  App.yardPage = function (p, gr, G, c) {
+    yardCss();
+    yardPopCss();
+    yardSeen();   // the NEW badge goes once the games are seen
+    gr.classList.add('sq-yg');
+    var YG = window.YardGames, Q = window.SquishSquad, T = window.SQ_THUMBS || {};
+    var s = c && Q && Q.src ? Q.src(c.id) : '', src = T[s] || s;
+    var wins = [].slice.call(p.querySelectorAll('.sq-ygc .win[data-poster]'));
+    wins.forEach(function (win, i) {
+      var id = win.getAttribute('data-poster'), PO = YG && YG.POSTER && YG.POSTER[id];
+      if (!PO) return;
+      var art = '';
+      try { art = PO('sqyc' + id + '_', { src: src, name: c ? c.name : '' }); } catch (e) { console.warn('[yard card]', id, e); }
+      if (!art) return;
+      var lock = win.querySelector('.padlock');
+      win.innerHTML = art;
+      if (lock) win.appendChild(lock);
+      // the live character goes in one card at a time (each is a rig for ~1 s, then a still)
+      if (YG.posterRig && c && c.key) setTimeout(function () { if (win.isConnected) try { YG.posterRig(win, c.key, {}); } catch (e) { console.warn('[yard card rig]', id, e); } }, 120 + i * 180);
+    });
+    var down = null, dragged = false, vel = 0, lastX = 0, lastT = 0, raf = 0;
+    var scale = function () { return (gr.getBoundingClientRect().width / gr.offsetWidth) || 1; };
+    gr.addEventListener('pointerdown', function (e) {
+      if (e.button > 0) return;
+      cancelAnimationFrame(raf);
+      down = { x: e.clientX, s: gr.scrollLeft, id: e.pointerId, k: scale() };
+      dragged = false; vel = 0; lastX = e.clientX; lastT = performance.now();
+    });
+    gr.addEventListener('pointermove', function (e) {
+      if (!down || e.pointerId !== down.id) return;
+      var dx = e.clientX - down.x;
+      if (!dragged && Math.abs(dx) > 8) { dragged = true; gr.classList.add('drag'); try { gr.setPointerCapture(e.pointerId); } catch (x) { /* gone */ } }
+      if (!dragged) return;
+      gr.scrollLeft = down.s - dx / down.k;
+      var now = performance.now();
+      vel = (e.clientX - lastX) / Math.max(1, now - lastT) / down.k; lastX = e.clientX; lastT = now;
+    });
+    var end = function () {
+      if (!down) return;
+      down = null; gr.classList.remove('drag');
+      if (!dragged) return;
+      var v = -vel * 16;
+      (function glide() { if (Math.abs(v) < 0.4 || !gr.isConnected) return; gr.scrollLeft += v; v *= 0.93; raf = requestAnimationFrame(glide); })();
+    };
+    gr.addEventListener('pointerup', end);
+    gr.addEventListener('pointercancel', end);
+    // a drag isn't a tap: swallow the click it ends with
+    gr.addEventListener('click', function (e) { if (dragged) { e.stopPropagation(); e.preventDefault(); dragged = false; } }, true);
+  };
 })();

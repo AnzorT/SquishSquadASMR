@@ -20,7 +20,7 @@ import { selectedId } from '../squad/lobby';
 import { saveSquishdoku } from '../firebase/firestore';
 import { F, INK } from '../squishdoku/theme';
 import { useWide } from '../royal/GameFrame';
-import { MapBackdrop } from '../royal/WorldBg';
+import { ROW_ON_FLOOR, RoomBackdrop, useRoomStrip } from '../royal/WorldBg';
 import { Orb, WoodBg } from '../royal';
 
 // Squishdoku (SQUISHDOKU.md), opened from the Lobby's Puzzle tile: the hub,
@@ -43,6 +43,8 @@ function SquishdokuScreen({ profile, creatures, hidden, uid, adsFree, haptics, o
   const [playLv, setPlayLv] = useState(1);
   const [rules, setRules] = useState(false);
   const [justUnlocked, setJustUnlocked] = useState(null);
+  // the map's background: the room its chapter is played in, scrolling with it
+  const strip = useRoomStrip();
   // re-picked only when what the player owns changes
   const owned = ownedKey(profile);
   const roster = useMemo(() => rosterOf(creatures, profile, hidden), [creatures, owned, hidden]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -119,8 +121,8 @@ function SquishdokuScreen({ profile, creatures, hidden, uid, adsFree, haptics, o
     // a level or a Blitz run fills the screen, room and all (it keeps clear of
     // the status bar itself)
     <Bg style={{ paddingTop: view === 'play' || view === 'blitz' ? 0 : insets.top }} sparkles={view !== 'play' && view !== 'blitz'}>
-      {/* the level map stands in the menu's world (src/royal/WorldBg.js) */}
-      <MapBackdrop sw={sw} on={wide && view === 'map'} />
+      {/* the level map stands in its chapter's room (src/royal/WorldBg.js) */}
+      <RoomBackdrop sw={sw} on={wide && view === 'map'} spans={strip.spans} scrollX={strip.scrollX} />
       {view === 'hub' || view === 'map' ? (
         <View style={styles.header}>
           {wide ? (
@@ -130,7 +132,14 @@ function SquishdokuScreen({ profile, creatures, hidden, uid, adsFree, haptics, o
               <BackGlyph />
             </RoundButton>
           )}
-          <Text style={styles.headerTitle}>{view === 'map' ? 'LEVELS' : ''}</Text>
+          {wide && view === 'map' ? (
+            // (on the room's wall: on a wooden plaque, to read over the furniture)
+            <View style={styles.titleWrap}>
+              <Text style={[styles.headerTitle, styles.titlePlaque]}>LEVELS</Text>
+            </View>
+          ) : (
+            <Text style={styles.headerTitle}>{view === 'map' ? 'LEVELS' : ''}</Text>
+          )}
           {view === 'map' ? (
             <View style={styles.lvPill}>
               <Text style={styles.lvPillText}>{`LV ${pl.level}`}</Text>
@@ -143,7 +152,7 @@ function SquishdokuScreen({ profile, creatures, hidden, uid, adsFree, haptics, o
       <Animated.View style={[styles.fill, sw.style]}>
         {/* the map stays built under a level, so leaving the level is instant */}
         <KeptView sw={sw} name="map" keepWhile={view === 'play'} bones="map">
-          <LevelMap rec={rec} roster={roster} onPlay={startLevel} justUnlocked={justUnlocked} />
+          <LevelMap rec={rec} roster={roster} onPlay={startLevel} justUnlocked={justUnlocked} onSpans={strip.onSpans} scrollX={strip.scrollX} rowAt={ROW_ON_FLOOR} />
         </KeptView>
         {view !== 'map' ? (
           <ViewSlot sw={sw} bones={BONES[view]}>
@@ -178,6 +187,8 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 6, paddingBottom: 2 },
   headerTitle: { flex: 1, textAlign: 'center', fontFamily: F.display, fontSize: 22, color: '#ffffff', letterSpacing: 1.5, textShadowColor: INK, textShadowOffset: { width: 0, height: 2.5 }, textShadowRadius: 1 },
+  titleWrap: { flex: 1, alignItems: 'center' },
+  titlePlaque: { flex: 0, fontSize: 18, backgroundColor: '#b8641c', borderRadius: 999, borderWidth: 2.5, borderColor: '#ffffff', paddingHorizontal: 18, paddingVertical: 2, overflow: 'hidden' },
   lvPill: { backgroundColor: '#b8641c', borderRadius: 999, borderWidth: 2.5, borderColor: '#ffffff', paddingHorizontal: 10, paddingVertical: 4 },
   lvPillText: { fontFamily: F.display, fontSize: 13, color: '#ffffff' },
 });

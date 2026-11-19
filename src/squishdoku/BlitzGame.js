@@ -202,18 +202,22 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, bu
   }, [phase]);
 
   // --- a mistake or the clock: save the run, or GAME OVER -----------------------------------
-  const lose = (reason) => {
+  // Everyone on the board turns sad and droops one after another (nearest the
+  // mistake first, quicker than Regular's), the save card coming up as the
+  // last one sinks. `cell`: the mistake's.
+  const lose = (reason, cell = -1) => {
     clk.pause();
     setFailReason(reason);
     setWarn(false);
     setSaveErr(null);
+    setPhase('between');
     if (reason === 'time') {
-      setPhase('between');
       buddy.current?.react('timeup');
       sfx.play('sd_timeUp');
       board.current?.shake();
-      setTimeout(() => setPhase('save'), 900);
-    } else setPhase('save');
+    }
+    const sad = board.current?.sadAll(cell, { step: 100 }) || 0;
+    setTimeout(() => setPhase((p) => (p === 'between' ? 'save' : p)), Math.max(reason === 'time' ? 900 : 300, sad - 150));
   };
 
   // the run goes on from the same board: after a mistake its clock runs on, after the clock ran out it starts again
@@ -221,6 +225,7 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, bu
     setSaving(false);
     g.lastSecond = -1;
     sfx.play('sd_revive');
+    board.current?.cheerUp();
     setPhase('play');
     if (failReason === 'time') clk.start(game.spec.ms);
     else clk.resume();
@@ -276,13 +281,16 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, bu
     }
   };
 
-  const boardDone = () => {
+  // `cell`: the last creature: every one turns happy and a bounce ripples out from it (one jump each, quick: the
+  // next board is waiting), then the board goes
+  const boardDone = (cell) => {
     clk.pause();
     setPhase('between');
     g.cleared = idx + 1;
     buddy.current?.react('solve');
-    board.current?.hopAll();
-    for (let r = 0; r < game.spec.n; r++) sfx.play('sd_hop', { delay: r * 70, rate: 0.95 + r * 0.06 });
+    const beats = board.current?.hopAll(cell, { spread: 240, once: true }) || [];
+    beats.forEach((at, i) => sfx.play('sd_hop', { delay: at, rate: 0.95 + i * 0.06 }));
+    const out = Math.max(650, (beats.length ? beats[beats.length - 1] : 0) + 420);
     setTimeout(() => {
       setCleared(idx + 1);
       sfx.play('sd_pip', { rate: 0.9 + Math.min(12, idx) * 0.05 });
@@ -290,8 +298,8 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, bu
     setTimeout(() => {
       sfx.play('sd_blitzNext');
       board.current?.outro();
-    }, 650);
-    setTimeout(() => setIdx((i) => i + 1), 1000);
+    }, out);
+    setTimeout(() => setIdx((i) => i + 1), out + 350);
   };
 
   // --- touches ---------------------------------------------------------------------------
@@ -306,7 +314,7 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, bu
         g.combo++;
         if (g.placed + 1 < n) buddy.current?.react('right', g.combo);
         g.placed++;
-        if (g.placed === n) boardDone();
+        if (g.placed === n) boardDone(cell);
         return;
       }
       clk.pause();
@@ -316,11 +324,26 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, bu
       buddy.current?.react('wrong');
       setTimeout(() => haptics.wrong(), 200);
       g.combo = 0;
-      setTimeout(() => lose('mistake'), 1000);
+      // (as the wrong creature drops away)
+      setTimeout(() => lose('mistake', cell), 900);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [game, idx],
   );
+
+  // web, development only: the browser tests play a board without finding the cushions on screen (src/web/README.md)
+  if (__DEV__ && typeof window !== 'undefined' && window.document) {
+    window.__sdk = {
+      phase: () => phaseRef.current,
+      // the answer's cells, row by row (each row's creature), and a cell that isn't one
+      answer: () => (game ? game.puzzle.solution.map((c, r) => r * game.puzzle.n + c) : []),
+      miss: () => (game ? game.puzzle.solution.findIndex((c) => c !== 0) * game.puzzle.n : -1),
+      tap: (cell) => onTap(cell),
+      // the board's clock running out now; the save card's free save
+      timeUp: () => phaseRef.current === 'play' && lose('time'),
+      save: () => phaseRef.current === 'save' && goOn(),
+    };
+  }
   const onTapPiece = useCallback((cell) => {
     board.current?.wiggle(cell);
     sfx.play('sd_squeak', { rate: 0.85 + Math.random() * 0.35 });
@@ -472,7 +495,7 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, bu
         </>
       )}
 
-      <PauseCard blitz visible={phase === 'paused'} onResume={resume} onRestart={again} onQuit={exit} />
+      <PauseCard visible={phase === 'paused'} onResume={resume} onQuit={exit} />
       <BlitzSaveCard
         visible={phase === 'save'}
         reason={failReason}

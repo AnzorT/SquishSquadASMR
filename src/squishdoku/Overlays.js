@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path } from 'react-native-svg';
 import OutlinedTitle from '../components/candy/OutlinedTitle';
 import { RaysSpin } from '../components/candy/Decor';
 import { CoinIcon } from '../squad/ui';
@@ -11,6 +12,7 @@ import { BtnLabel, Head, SdButton } from './ui';
 import { clock } from './levels';
 import { F, INK } from './theme';
 import { useWide } from '../royal/GameFrame';
+import Trio, { RIGS_OK } from './Trio';
 
 // The cards over the board: the result (score creatures popping in one by
 // one, each with its own bigger sound; PERFECT's stamp; coins counting up;
@@ -118,7 +120,7 @@ function Slot({ uri, earned, delay, big }) {
 }
 
 // "PERFECT!" slamming down like a stamp.
-function Stamp({ delay, text = 'PERFECT!' }) {
+function Stamp({ delay, text = 'PERFECT!', style }) {
   const t = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(t, { toValue: 1, duration: 260, delay, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start();
@@ -128,6 +130,7 @@ function Stamp({ delay, text = 'PERFECT!' }) {
       pointerEvents="none"
       style={[
         styles.stamp,
+        style,
         {
           opacity: t.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 1, 1] }),
           transform: [{ scale: t.interpolate({ inputRange: [0, 1], outputRange: [3.2, 1] }) }, { rotate: t.interpolate({ inputRange: [0, 1], outputRange: ['-30deg', '-9deg'] }) }],
@@ -135,7 +138,6 @@ function Stamp({ delay, text = 'PERFECT!' }) {
       ]}
     >
       <Text style={styles.stampText}>{text}</Text>
-      <Text style={styles.stampSub}>NO ✕ · NO MISTAKES</Text>
     </Animated.View>
   );
 }
@@ -233,61 +235,138 @@ export function XpGain({ trigger, res, delay }) {
   );
 }
 
-// The result: `res` = { stars, perfect, ms, mistakes, levelCoins, coins, xp,
-// levelUps, before, after, unlocked }, `spec` the level, `uris` the three
-// score creatures.
-export function ResultCard({ visible, res, spec, uris, onNext, onReplay, onMap, last }) {
-  const [key, setKey] = useState(0);
-  const wide = useWide();
+// A result star popping in (it was Squish Sort's; every star result card's now)
+const STAR_D = 'M12 2.2 L14.9 8.6 L21.8 9.3 L16.6 14 L18.1 20.9 L12 17.4 L5.9 20.9 L7.4 14 L2.2 9.3 L9.1 8.6 Z';
+export function Star({ earned, delay, big }) {
+  const t = useRef(new Animated.Value(0)).current;
+  const fx = useRef(null);
+  const compact = useCompact(); // (a one-column card in landscape: smaller, to fit the height)
+  const size = Math.round((big ? 74 : 60) * (compact ? 0.72 : 1));
   useEffect(() => {
-    if (!visible || !res) return undefined;
+    const timer = setTimeout(() => earned && fx.current?.burst('gold', size / 2 + 10, size / 2 + 10, 1), delay + 60);
+    Animated.spring(t, { toValue: 1, friction: earned ? 3.6 : 7, tension: earned ? 170 : 120, delay, useNativeDriver: true }).start();
+    return () => clearTimeout(timer);
+  }, [t, delay, earned, size]);
+  const scale = t.interpolate({ inputRange: [0, 1], outputRange: [earned ? 0 : 1.5, 1] });
+  const rotate = t.interpolate({ inputRange: [0, 1], outputRange: [earned ? '-40deg' : '0deg', '0deg'] });
+  return (
+    <View style={{ width: size + 20, height: size + 20, alignItems: 'center', justifyContent: 'center', marginTop: compact ? 0 : big ? -12 : 6 }}>
+      {earned ? (
+        <Animated.View pointerEvents="none" style={{ position: 'absolute', opacity: t }}>
+          <RaysSpin size={size * 1.8} color="#ffe45c" opacity={0.6} />
+        </Animated.View>
+      ) : null}
+      <Animated.View style={{ opacity: t.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 1, 1] }), transform: [{ scale }, { rotate }] }}>
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d={STAR_D} fill={earned ? '#b86200' : 'rgba(107,68,38,0.25)'} transform="translate(0 1.2)" strokeLinejoin="round" />
+          <Path d={STAR_D} fill={earned ? '#ffd23a' : 'rgba(255,255,255,0.7)'} stroke="#ffffff" strokeWidth={1.6} strokeLinejoin="round" />
+          {earned ? <Path d="M8 9.6 L10.4 9.2 L11.3 7" stroke="#fff6c4" strokeWidth={1.4} strokeLinecap="round" fill="none" /> : null}
+        </Svg>
+      </Animated.View>
+      <FxLayer ref={fx} />
+    </View>
+  );
+}
+
+// Squishdoku's result titles, for 1, 2 and 3 stars (and `perfectTitle` PERFECT SQUISH!)
+export const SD_RESULT_TITLES = ['SOLVED!', 'NICE ONE!', 'SQUISHTASTIC!'];
+
+// The one result card: every mini-game's level win (the user, 2026-11-17, as with the pause card: one for all of them;
+// and "less text, UI not text"). The title, three stars popping in one by one (Squishdoku: its three score creatures,
+// `uris`, and on a perfect solve the PERFECT stamp and ×3 coins), the coins and XP, the XP bar, then MENU (Squishdoku:
+// MAP) and REPLAY in white and NEXT in the app's gold, as the pause and fail cards. No line of numbers under the title,
+// no "… for 3 stars" tip, and no NEXT: LEVEL n / LEVEL n UNLOCKED line any more.
+// Since 2026-11-17 the stars are three live characters (`keys`, their rigs: Trio.js), grey until they're filled, then
+// in colour, jumping for joy and happy (the user: "i dont want there to be the circle and a static image of the
+// creatures, i want a genuine character there"). The stars, their sounds, the stamp and the coins then start once the
+// page has drawn them; the stills above are what's shown if it can't.
+// res: { stars, coins, xp, before, after, levelUps } (Squishdoku's: perfect, and `coins` passed as its levelCoins);
+// titles: the 1, 2 and 3 star titles, `perfectTitle` Squishdoku's perfect solve; `last`: no NEXT.
+export function ResultCard({ visible, res, titles, perfectTitle, uris, keys, coins, backLabel = 'MENU', onBack, onReplay, onNext, last }) {
+  const [key, setKey] = useState(0);
+  // the stars' run (`run` counts them): from the card opening, or with the characters once their page has drawn them
+  const [run, setRun] = useState(0);
+  const [live, setLive] = useState(false);
+  const [rigFail, setRigFail] = useState(false);
+  const wide = useWide();
+  const faces = !!uris;
+  const want = RIGS_OK && Array.isArray(keys) && keys.length === 3 && keys.every(Boolean);
+  const rigs = want && !rigFail;
+  const T0 = rigs ? 420 : faces ? 420 : 380; // the first star (creature)
+  const STEP = rigs ? 760 : faces ? 520 : 480;
+  const top = faces ? !!res?.perfect : res?.stars === 3;
+  const stamp = faces && !!res?.perfect;
+  useEffect(() => {
+    if (!visible || !res) return;
     setKey((k) => k + 1);
-    const timers = [];
-    const at = (ms, fn) => timers.push(setTimeout(fn, ms));
-    const STEP = 520;
-    for (let i = 0; i < 3; i++) at(420 + i * STEP, () => sfx.play(i < res.stars ? `sd_star${i + 1}` : 'sd_starEmpty'));
-    if (res.perfect) at(420 + 3 * STEP, () => sfx.play('sd_perfect'));
-    return () => timers.forEach(clearTimeout);
+    setRigFail(false);
+    setLive(!want);
+    if (!want) setRun((r) => r + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, res]);
+  // the characters are drawn (or can't be: the stills then)
+  const go = useCallback((ok) => {
+    if (!ok) setRigFail(true);
+    setLive(true);
+    setRun((r) => r + 1);
+  }, []);
+  useEffect(() => {
+    if (!live || !visible || !res) return undefined;
+    const timers = [0, 1, 2].map((i) => setTimeout(() => sfx.play(i < res.stars ? `sd_star${i + 1}` : 'sd_starEmpty'), T0 + i * STEP));
+    if (top) timers.push(setTimeout(() => sfx.play('sd_perfect'), T0 + 3 * STEP));
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run]);
   if (!res) return <Overlay visible={false} />;
-  const STEP = 520;
-  const cAt = coinsAt(res);
-  const titles = res.perfect ? 'PERFECT SQUISH!' : res.stars === 3 ? 'SQUISHTASTIC!' : res.stars === 2 ? 'NICE ONE!' : 'SOLVED!';
+  // (what waits for the run, until it starts)
+  const after = (ms) => (live ? ms : 1e9);
+  const cAt = rigs ? T0 + 3 * STEP + (stamp ? 500 : 0) : faces ? coinsAt(res) : T0 + 3 * STEP + 200;
+  // the buttons from the card opening, the characters or not
+  const btnAt = want ? 1500 : faces ? 420 + 2 * 520 + 300 : 380 + 2 * 480 + 300;
+  const title = res.perfect && perfectTitle ? perfectTitle : titles[Math.max(0, res.stars - 1)];
   return (
     <Overlay visible={visible} column>
       <PopIn trigger={key} delay={80}>
-        <OutlinedTitle text={titles} size={res.perfect ? 26 : 30} fill={res.perfect ? 'gold' : 'pink'} />
+        <OutlinedTitle text={title} size={title.length > 13 ? 27 : 30} fill={top ? 'gold' : 'pink'} />
       </PopIn>
-      <Text style={styles.sub}>{`LEVEL ${spec.lv} · ${spec.n}×${spec.n} · ${clock(res.ms)}${res.mistakes ? ` · ${res.mistakes} MISTAKE${res.mistakes > 1 ? 'S' : ''}` : ''}${spec.head ? ' · HEAD START' : ''}`}</Text>
-      <View key={key} style={[styles.slots, wide && styles.slotsCompact]}>
-        {[0, 1, 2].map((i) => (
-          <Slot key={i} uri={uris[i]} earned={i < res.stars} delay={420 + i * STEP} big={i === 1} />
-        ))}
-        {res.perfect ? <Stamp delay={420 + 3 * STEP - 120} /> : null}
-      </View>
+      {rigs ? (
+        <View style={[styles.trio, wide && styles.trioCompact, stamp && styles.trioRoom]}>
+          <Trio key={`t${key}`} keys={keys} stars={res.stars} T0={T0} STEP={STEP} compact={wide} onGo={go} />
+          {stamp && live ? <Stamp key={`s${run}`} delay={T0 + 3 * STEP - 120} style={styles.trioStamp} /> : null}
+        </View>
+      ) : faces ? (
+        <View key={key} style={[styles.slots, wide && styles.slotsCompact, wide && stamp && styles.slotsStamp]}>
+          {[0, 1, 2].map((i) => (
+            <Slot key={i} uri={uris[i]} earned={i < res.stars} delay={T0 + i * STEP} big={i === 1} />
+          ))}
+          {stamp ? <Stamp delay={T0 + 3 * STEP - 120} /> : null}
+        </View>
+      ) : (
+        <View key={key} style={styles.stars}>
+          {[0, 1, 2].map((i) => (
+            <Star key={i} earned={i < res.stars} delay={T0 + i * STEP} big={i === 1} />
+          ))}
+        </View>
+      )}
       <Split />
-      <SlideIn trigger={key} delay={cAt - 150} dy={20} style={styles.rewardRow}>
+      <SlideIn trigger={run} delay={after(cAt - 150)} dy={20} style={styles.rewardRow}>
         <CoinIcon size={26} />
-        <CountUp value={res.levelCoins} delay={cAt} ms={800} style={styles.coins} prefix="+" onTick={() => sfx.play('sd_coinTick')} />
-        {res.perfect ? <Text style={styles.mult}>×3</Text> : null}
+        <CountUp key={run} value={coins != null ? coins : res.coins} delay={after(cAt)} ms={800} style={styles.coins} prefix="+" onTick={() => sfx.play('sd_coinTick')} />
+        {stamp ? <Text style={styles.mult}>×3</Text> : null}
         <XpPlus xp={res.xp} />
       </SlideIn>
-      <XpGain trigger={key} res={res} delay={cAt + 500} />
-      {res.unlocked ? (
-        <PopIn trigger={key} delay={cAt + 600}>
-          <Text style={styles.unlocked}>{`LEVEL ${spec.lv + 1} UNLOCKED`}</Text>
-        </PopIn>
-      ) : null}
-      <SlideIn trigger={key} delay={420 + 2 * STEP + 300} dy={30} style={styles.btnRow}>
-        <SdButton kind="white" onPress={onMap} sound="sd_select" faceStyle={styles.smallFace}>
-          <BtnLabel kind="white" size={15}>MAP</BtnLabel>
+      <XpGain trigger={run} res={res} delay={after(cAt + 500)} />
+      <SlideIn trigger={key} delay={btnAt} dy={30} style={styles.btnRow}>
+        {/* the three the same size (the user, 2026-11-17) */}
+        <SdButton kind="white" onPress={onBack} sound="sd_select" faceStyle={styles.trioFace}>
+          <BtnLabel kind="white" size={16}>{backLabel}</BtnLabel>
         </SdButton>
-        <SdButton kind="purple" onPress={onReplay} sound="sd_select" faceStyle={styles.smallFace}>
-          <BtnLabel kind="purple" size={15}>REPLAY</BtnLabel>
+        <SdButton kind="white" onPress={onReplay} sound="sd_select" faceStyle={styles.trioFace}>
+          <BtnLabel kind="white" size={16}>REPLAY</BtnLabel>
         </SdButton>
         {!last ? (
-          <SdButton kind="green" onPress={onNext} sound="sd_select" faceStyle={styles.bigFace}>
-            <BtnLabel kind="green" size={18}>NEXT ▶</BtnLabel>
+          <SdButton kind="gold" onPress={onNext} sound="sd_select" faceStyle={styles.trioFace}>
+            <BtnLabel kind="gold" size={16}>NEXT ▶</BtnLabel>
           </SdButton>
         ) : null}
       </SlideIn>
@@ -323,21 +402,17 @@ export function TimeUpCard({ visible, onRetry, onMap, uri, hearts = 0 }) {
   );
 }
 
-// (the buttons: RESUME in the app's gold, the others white, as the fail cards: the user, 2026-11-16)
-export function PauseCard({ visible, onResume, onRestart, onQuit, blitz }) {
+// The one pause card: every mini-game, Regular and Blitz (the user, 2026-11-17). RESUME in the app's gold, QUIT white
+// (as the fail cards: the user, 2026-11-16). No RESTART / START OVER (the user, 2026-11-17): the games with a RESTART
+// keep it on the level itself.
+export function PauseCard({ visible, onResume, onQuit }) {
   return (
     <Overlay visible={visible} column>
-      <PopIn trigger={visible} delay={40}>
-        <OutlinedTitle text="PAUSED" size={32} fill="pink" />
-      </PopIn>
-      <Text style={styles.body}>{blitz ? 'The Blitz clock is frozen. Take a breath!' : 'The clock is frozen. The board is hidden so no peeking!'}</Text>
+      <OutlinedTitle text="PAUSED" size={30} fill="gold" />
       <Split />
       <View style={styles.col}>
         <SdButton kind="gold" onPress={onResume} sound="sd_resume" faceStyle={styles.wideFace}>
           <BtnLabel kind="gold" size={18}>RESUME</BtnLabel>
-        </SdButton>
-        <SdButton kind="white" onPress={onRestart} sound="sd_select" faceStyle={styles.wideFace}>
-          <BtnLabel kind="white" size={16}>{blitz ? 'START OVER' : 'RESTART'}</BtnLabel>
         </SdButton>
         <SdButton kind="white" onPress={onQuit} sound="sd_boardOut" faceStyle={styles.wideFace}>
           <BtnLabel kind="white" size={16}>QUIT</BtnLabel>
@@ -527,7 +602,6 @@ const styles = StyleSheet.create({
   // across the creatures' feet, so they stay in view
   stamp: { position: 'absolute', bottom: -18, alignItems: 'center', borderWidth: 3.5, borderColor: '#e01e4a', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 1, backgroundColor: 'rgba(255,255,255,0.92)' },
   stampText: { fontFamily: F.display, fontSize: 22, color: '#e01e4a', letterSpacing: 2, includeFontPadding: false },
-  stampSub: { fontFamily: F.display, fontSize: 8.5, color: '#e01e4a', letterSpacing: 1, marginTop: -2 },
   rewardRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   coins: { fontFamily: F.display, fontSize: 28, color: '#b86200', includeFontPadding: false, minWidth: 70 },
   mult: { fontFamily: F.display, fontSize: 16, color: '#e01e4a' },
@@ -547,6 +621,15 @@ const styles = StyleSheet.create({
   levelUpTextCompact: { fontFamily: F.display, fontSize: 13, color: '#ffffff', includeFontPadding: false },
   levelUpSubCompact: { fontFamily: F.heavy, fontSize: 9, color: '#ffe9cc', marginTop: -1 },
   slotsCompact: { marginTop: 0, marginBottom: 2 },
+  // the result's three characters (Trio.js: the page reaches up over the title for their jumps)
+  trio: { alignItems: 'center', justifyContent: 'center', marginTop: 6, marginBottom: 8 },
+  trioCompact: { marginTop: 2, marginBottom: 4 },
+  // the PERFECT stamp lower than on the stills, across the characters' feet, and the room for it under them
+  trioStamp: { bottom: -28 },
+  trioRoom: { marginBottom: 30 },
+  // room for the PERFECT stamp hanging under them, so it doesn't sit on the coins
+  slotsStamp: { marginBottom: 26 },
+  stars: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 4, marginBottom: 8 },
   unlocked: { fontFamily: F.display, fontSize: 13, color: '#16a86a', letterSpacing: 0.8 },
   btnRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 8, marginTop: 6 },
   col: { alignSelf: 'stretch', gap: 4, marginTop: 6 },
@@ -554,6 +637,8 @@ const styles = StyleSheet.create({
   bigFace: { paddingHorizontal: 22, paddingVertical: 12 },
   // a fail card's two buttons (MENU / MAP / UNDO and RETRY): the same size, RETRY in the app's gold (the user, 2026-11-16)
   pairFace: { width: 150, paddingVertical: 11, paddingHorizontal: 8 },
+  // the result card's three buttons, all one size (fits the upright card's 380 dp too)
+  trioFace: { width: 100, height: 48, paddingVertical: 0, paddingHorizontal: 4 },
   wideFace: { paddingVertical: 12 },
   body: { fontFamily: F.heavy, fontSize: 14, color: INK, textAlign: 'center', paddingHorizontal: 6 },
   small: { fontFamily: F.bold, fontSize: 12, color: '#9a6a3a', textAlign: 'center' },

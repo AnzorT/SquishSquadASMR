@@ -2,7 +2,7 @@ import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Animated, BackHandler, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameBackground as CandyBackground, GameBack, useWide } from '../royal/GameFrame';
-import { MapBackdrop } from '../royal/WorldBg';
+import { ROW_ON_FLOOR, RoomBackdrop, useRoomStrip } from '../royal/WorldBg';
 import { KeptView, ViewSlot, useViewSwitch } from '../components/ViewSwitch';
 import RoundButton, { BackGlyph } from '../components/candy/RoundButton';
 import sfx from '../audio/sfx';
@@ -36,6 +36,8 @@ const bannerOf = (L) => {
   return `${ROOMS[L.room].name.toUpperCase()}${twist ? ` · ${TWISTS[twist.news].name}` : ''}`;
 };
 const iconOf = (L) => <RoomCard room={L.room} />;
+// the room a level is played in (the map's background)
+const roomOf = (L) => L.room;
 
 function HopScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack }) {
   const wide = useWide(); // landscape (REDESIGN_V8)
@@ -48,6 +50,8 @@ function HopScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack }
   const owned = ownedKey(profile);
   const cast = useMemo(() => castOf(creatures, profile, hidden), [creatures, hidden, owned]); // eslint-disable-line react-hooks/exhaustive-deps
   const uris = useMemo(() => cast.map((c) => c.uri), [cast]);
+  // the map's background: the rooms its levels are played in, scrolling with it
+  const strip = useRoomStrip();
 
   useEffect(() => {
     sfx.setBudget(SOUND_BUDGET);
@@ -94,16 +98,18 @@ function HopScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack }
 
   return (
     <CandyBackground style={{ paddingTop: playing ? 0 : insets.top }} sparkles={!playing}>
-      {/* the level map stands in the menu's world (src/royal/WorldBg.js) */}
-      <MapBackdrop sw={sw} on={wide && view === 'map'} />
+      {/* the level map runs through the rooms its levels are played in (src/royal/WorldBg.js) */}
+      <RoomBackdrop sw={sw} on={wide && view === 'map'} spans={strip.spans} scrollX={strip.scrollX} />
       {!playing ? (
         <View style={styles.header}>
           <GameBack onPress={() => (view === 'map' ? go('hub') : onBack())} />
           {view === 'map' ? (
             <>
               <View style={styles.titleBox}>
-                <Text style={styles.headerTitle}>SQUISH HOP</Text>
-                <Text style={styles.headerSub}>{`${doneOf(rec)} / ${LEVELS} levels`}</Text>
+                <View style={wide ? styles.plaque : null}>
+                  <Text style={styles.headerTitle}>SQUISH HOP</Text>
+                  <Text style={[styles.headerSub, wide && { textAlign: 'center' }]}>{`${doneOf(rec)} / ${LEVELS} levels`}</Text>
+                </View>
               </View>
               <View style={styles.starPill}>
                 <Text style={styles.starPillText}>{`★ ${starsOf(rec)}`}</Text>
@@ -115,7 +121,7 @@ function HopScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack }
       <Animated.View style={[styles.fill, sw.style]}>
         {/* the map stays built under a level, so leaving the level is instant */}
         <KeptView sw={sw} name="map" keepWhile={view === 'game'} bones="map">
-          <LevelMap rec={rec} uris={uris} onPlay={play} list={LEVEL_LIST} bannerOf={bannerOf} iconOf={iconOf} />
+          <LevelMap rec={rec} uris={uris} onPlay={play} list={LEVEL_LIST} bannerOf={bannerOf} iconOf={iconOf} roomOf={roomOf} onSpans={strip.onSpans} scrollX={strip.scrollX} rowAt={ROW_ON_FLOOR} />
         </KeptView>
         {view !== 'map' ? (
           <ViewSlot sw={sw} bones={BONES[view]}>
@@ -148,6 +154,8 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 6, paddingBottom: 2 },
   titleBox: { flex: 1, alignItems: 'center' },
+  // sideways the title sits on the room's wall: on a plaque, to read over the furniture
+  plaque: { alignItems: 'center', backgroundColor: 'rgba(255,247,234,0.94)', borderRadius: 16, borderWidth: 2, borderColor: '#e2b27a', paddingHorizontal: 16, paddingTop: 1, paddingBottom: 3 },
   headerTitle: { fontFamily: F.display, fontSize: 20, letterSpacing: 1, color: '#8a3a0e' },
   headerSub: { fontFamily: F.heavy, fontSize: 11.5, color: INK },
   starPill: { backgroundColor: '#ffffff', borderRadius: 999, borderWidth: 2.5, borderColor: '#ffd23a', paddingHorizontal: 10, paddingVertical: 4 },

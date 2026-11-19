@@ -92,7 +92,7 @@ function useFadeUp(text) {
 
 // "EMAIL" over a white rounded input whose border turns pink while focused;
 // `right` sits inside the input's right end (the password's Show / Hide).
-function Field({ label, style, right, ...input }) {
+function Field({ label, style, right, short, ...input }) {
   const [focus, setFocus] = useState(false);
   return (
     <View style={style}>
@@ -103,7 +103,7 @@ function Field({ label, style, right, ...input }) {
           {...input}
           onFocus={() => setFocus(true)}
           onBlur={() => setFocus(false)}
-          style={[styles.input, focus && { borderColor: FOCUS }, right && { paddingRight: 64 }, input.style]}
+          style={[styles.input, short && styles.inputShort, focus && { borderColor: FOCUS }, right && { paddingRight: short ? 52 : 64 }]}
         />
         {right}
       </View>
@@ -112,7 +112,7 @@ function Field({ label, style, right, ...input }) {
 }
 
 // Log in | Register: a lilac track with the pink pill under the chosen side
-function ModeSwitch({ mode, onChange }) {
+function ModeSwitch({ mode, onChange, short }) {
   const [w, setW] = useState(0);
   const x = useRef(new Animated.Value(mode === 'register' ? 1 : 0)).current;
   useEffect(() => {
@@ -151,7 +151,7 @@ function ModeSwitch({ mode, onChange }) {
         ['login', 'Log in'],
         ['register', 'Register'],
       ].map(([value, label]) => (
-        <Pressable key={value} onPress={() => onChange(value)} style={styles.tab}>
+        <Pressable key={value} onPress={() => onChange(value)} style={[styles.tab, short && styles.tabShort]}>
           <Text style={[styles.tabText, { color: mode === value ? INK : LABEL }]}>{label}</Text>
         </Pressable>
       ))}
@@ -187,6 +187,7 @@ export default function AuthScreen() {
   const isRegister = mode === 'register';
   const buttonLabel = isRegister ? 'Create my squad' : 'Log in';
   const labelStyle = useFadeUp(buttonLabel);
+  const subStyle = useFadeUp(error); // landscape: the error shows under the title
 
   const submit = async () => {
     if (submitting) return;
@@ -261,12 +262,14 @@ export default function AuthScreen() {
     setBlocked(false);
   };
 
-  // landscape (REDESIGN_V7; REDESIGN_V8, the user: "on a horizontal"): Mittens, the title and the line on the left; the
-  // card on the right, laid out sideways so it fits the screen: email and password side by side (and squad name + age
-  // above them to register), the button beside "Keep me signed in", the social buttons in one short row
+  // landscape (REDESIGN_V7; REDESIGN_V8, the user: "on a horizontal"; re-laid out 2026-11-16 from the user's marked-up
+  // screenshot): Mittens, the title and the line in one row along the top, the card centred under them and laid out
+  // sideways so it fits the screen: email and password side by side (to register, squad name + age join that row, so
+  // the card keeps its height), the button the card's whole width with "Keep me signed in" under it, the social buttons
+  // in one short row
   const submitBtn = (
-    <TutTarget name="enter" style={wide ? styles.flex : null}>
-      <CandyBtn kind="gold" onPress={submit} disabled={submitting} padV={wide ? 8 : 10} lip={5} stretch>
+    <TutTarget name="enter">
+      <CandyBtn kind="gold" onPress={submit} disabled={submitting} padV={wide ? 6 : 10} lip={5} stretch>
         {/* while it waits on the server: the loading screen's hopping dots */}
         {submitting ? (
           <HopDots size={14} style={styles.dots} />
@@ -281,7 +284,7 @@ export default function AuthScreen() {
     </TutTarget>
   );
   const keepBox = (
-    <Pressable onPress={() => setKeep((v) => !v)} style={styles.keep} hitSlop={6}>
+    <Pressable onPress={() => setKeep((v) => !v)} style={[styles.keep, wide && styles.keepWide]} hitSlop={6}>
       {keep ? (
         <LinearGradient colors={['#ffd23a', '#ff9c0a']} style={styles.box}>
           <Tick />
@@ -292,7 +295,9 @@ export default function AuthScreen() {
       <Text style={styles.keepText}>Keep me signed in</Text>
     </Pressable>
   );
-  const emailField = <Field label="EMAIL" value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="you@example.com" style={wide ? styles.flex : null} />;
+  const nameField = <Field label="SQUAD NAME" value={nickname} onChangeText={setNickname} placeholder="Captain Squish" maxLength={10} short={wide} style={wide ? styles.nameWide : styles.flex} />;
+  const ageField = <Field label="AGE" value={ageInput} onChangeText={setAgeInput} keyboardType="number-pad" placeholder="13+" maxLength={3} short={wide} style={wide ? styles.ageWide : styles.age} />;
+  const emailField = <Field label="EMAIL" value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="you@example.com" short={wide} style={wide ? (isRegister ? styles.emailWideReg : styles.flex) : null} />;
   const passField = (
     <Field
       label="PASSWORD"
@@ -300,8 +305,10 @@ export default function AuthScreen() {
       onChangeText={setPassword}
       secureTextEntry={!showPass}
       autoCapitalize="none"
-      placeholder="At least 6 characters"
-      style={wide ? styles.flex : null}
+      // (to register sideways it shares the row with three more fields in the narrower card: a shorter hint)
+      placeholder={wide && isRegister ? '6+ characters' : 'At least 6 characters'}
+      short={wide}
+      style={wide ? (isRegister ? styles.passWideReg : styles.flex) : null}
       right={
         <Pressable onPress={() => setShowPass((v) => !v)} hitSlop={8} style={styles.eye}>
           <Text style={styles.eyeText}>{showPass ? 'Hide' : 'Show'}</Text>
@@ -311,69 +318,73 @@ export default function AuthScreen() {
   );
   return (
     <IntroBackground>
-      <KeyboardAvoidingView style={[styles.flex, wide && styles.wideRow]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {wide ? (
-          <View style={styles.wideHero}>
-            <RigCreature creatureKey="mittens" style={styles.mittensWide} />
-            <ShadowText style={styles.title} shadows={[[0, 4, PURPLE], [2.5, 0, PURPLE], [-2.5, 0, PURPLE], [0, -2.5, PURPLE]]}>
-              Squish Squad
-            </ShadowText>
-            <Text style={styles.sub}>Log in or make an account to save your squad.</Text>
-          </View>
-        ) : null}
-        <ScrollView style={wide ? styles.wideCard : null} contentContainerStyle={[styles.scrollContent, wide && styles.scrollWide]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          {wide ? null : <RigCreature creatureKey="mittens" style={styles.mittens} />}
-          {wide ? null : <ShadowText
-            style={styles.title}
-            shadows={[
-              [0, 4, PURPLE],
-              [2.5, 0, PURPLE],
-              [-2.5, 0, PURPLE],
-              [0, -2.5, PURPLE],
-            ]}
-          >
-            Squish Squad
-          </ShadowText>}
-          {/* one line for both modes: it stays put while the card changes */}
-          {wide ? null : <Text style={styles.sub}>Log in or make an account to save your squad.</Text>}
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={[styles.scrollContent, wide && styles.scrollWide]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          {wide ? (
+            <View style={styles.wideHero}>
+              <RigCreature creatureKey="mittens" style={styles.mittensWide} />
+              <View>
+                <ShadowText style={[styles.title, styles.titleWide]} shadows={[[0, 3, PURPLE], [2, 0, PURPLE], [-2, 0, PURPLE], [0, -2, PURPLE]]}>
+                  Squish Squad
+                </ShadowText>
+                {/* an error shows here rather than in the card, so the card never grows past the screen's bottom (no line
+                    under the title otherwise: the user, 2026-11-16, "remove the text of 'log in.... your squad'") */}
+                {error ? (
+                  <Animated.View style={subStyle}>
+                    <Text style={[styles.error, styles.errorWide]} numberOfLines={1}>
+                      {error}
+                    </Text>
+                  </Animated.View>
+                ) : null}
+              </View>
+            </View>
+          ) : (
+            <>
+              <RigCreature creatureKey="mittens" style={styles.mittens} />
+              <ShadowText
+                style={[styles.title, styles.titleTall]}
+                shadows={[
+                  [0, 4, PURPLE],
+                  [2.5, 0, PURPLE],
+                  [-2.5, 0, PURPLE],
+                  [0, -2.5, PURPLE],
+                ]}
+              >
+                Squish Squad
+              </ShadowText>
+            </>
+          )}
 
-          <View style={styles.cardLip}>
+          <View style={[styles.cardLip, wide && styles.cardLipWide]}>
             <View style={[styles.card, wide && styles.cardWide]}>
-              <ModeSwitch mode={mode} onChange={switchMode} />
+              <ModeSwitch mode={mode} onChange={switchMode} short={wide} />
 
               {blocked ? (
                 <Text style={styles.blocked}>This game needs a parent or guardian to help set up an account. Ask them to continue!</Text>
               ) : (
                 <>
-                  {isRegister && (
-                    <View style={styles.row} onLayout={(e) => setExtraH(Math.round(e.nativeEvent.layout.height) + GAP)}>
-                      <Field label="SQUAD NAME" value={nickname} onChangeText={setNickname} placeholder="Captain Squish" maxLength={10} style={styles.flex} />
-                      <Field label="AGE" value={ageInput} onChangeText={setAgeInput} keyboardType="number-pad" placeholder="13+" maxLength={3} style={styles.age} />
-                    </View>
-                  )}
                   {wide ? (
-                    <View style={styles.row}>
+                    <View style={[styles.row, styles.rowWide]}>
+                      {isRegister && nameField}
+                      {isRegister && ageField}
                       {emailField}
                       {passField}
                     </View>
                   ) : (
                     <>
+                      {isRegister && (
+                        <View style={styles.row} onLayout={(e) => setExtraH(Math.round(e.nativeEvent.layout.height) + GAP)}>
+                          {nameField}
+                          {ageField}
+                        </View>
+                      )}
                       {emailField}
                       {passField}
                     </>
                   )}
-                  {!!error && <Text style={styles.error}>{error}</Text>}
-                  {wide ? (
-                    <View style={styles.wideSubmit}>
-                      {submitBtn}
-                      {keepBox}
-                    </View>
-                  ) : (
-                    <>
-                      {submitBtn}
-                      {keepBox}
-                    </>
-                  )}
+                  {!!error && !wide && <Text style={styles.error}>{error}</Text>}
+                  {submitBtn}
+                  {keepBox}
                   <View style={styles.orRow}>
                     <View style={styles.orLine} />
                     <Text style={styles.orText}>OR</Text>
@@ -431,14 +442,23 @@ const SOCIALS = [
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  wideRow: { flexDirection: 'row' },
-  wideHero: { width: '34%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
-  mittensWide: { width: 132, height: 132, marginBottom: -6 },
-  wideCard: { flex: 1 },
-  scrollWide: { paddingVertical: 10, paddingRight: 26, paddingLeft: 4 },
-  cardWide: { paddingTop: 10, paddingBottom: 12, gap: 8 },
-  wideSubmit: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  socialWide: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingTop: 6, paddingBottom: 5, borderBottomWidth: 4 },
+  // landscape: the header row (Mittens beside the title and the line), then the card centred under it
+  scrollWide: { paddingVertical: 6, paddingHorizontal: 16, alignItems: 'center' },
+  wideHero: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  mittensWide: { width: 62, height: 62 },
+  titleWide: { alignSelf: 'flex-start', fontSize: 32, lineHeight: 38 },
+  errorWide: { alignSelf: 'flex-start', fontSize: 12, lineHeight: 15, borderRadius: 9, paddingHorizontal: 9, paddingVertical: 3 },
+  // (the user, 2026-11-16: narrower, the Log in button looked wrong stretched across 700)
+  cardLipWide: { width: '100%', maxWidth: 580 },
+  cardWide: { paddingTop: 8, paddingBottom: 10, gap: 7 },
+  rowWide: { gap: 8 },
+  // (register sideways: four fields in one row, each wide enough for its hint)
+  nameWide: { flex: 0.9 },
+  emailWideReg: { flex: 1.1 },
+  ageWide: { width: 56 },
+  passWideReg: { flex: 1.1 },
+  keepWide: { alignSelf: 'center' },
+  socialWide: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingTop: 5, paddingBottom: 4, borderBottomWidth: 4 },
   mittens: { width: 130, height: 130, alignSelf: 'center', marginBottom: -6 },
   orRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
   orLine: { flex: 1, height: 2, borderRadius: 1, backgroundColor: '#ecd3ae' },
@@ -455,21 +475,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 40,
   },
+  // upright: the card under the title (the line that sat between them is gone)
+  titleTall: { marginBottom: 14 },
   title: {
     alignSelf: 'center',
     fontFamily: F.display,
     fontSize: 38,
     lineHeight: 44,
     color: '#ffffff',
-  },
-  sub: {
-    alignSelf: 'center',
-    textAlign: 'center',
-    fontFamily: F.heavy,
-    fontSize: 13.5,
-    color: PURPLE,
-    marginTop: 6,
-    marginBottom: 12,
   },
   // the card: cream in a brown outline with a brown lip under it, like the house's wood buttons (REDESIGN_V8)
   cardLip: { borderRadius: 26, backgroundColor: '#6b4426', paddingBottom: 5 },
@@ -502,6 +515,7 @@ const styles = StyleSheet.create({
   },
   pillFace: { ...StyleSheet.absoluteFillObject, borderRadius: 999 },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 9 },
+  tabShort: { paddingVertical: 6 },
   tabText: { fontFamily: F.display, fontSize: 16 },
   row: { flexDirection: 'row', gap: 10 },
   age: { width: 84 },
@@ -525,6 +539,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 0,
   },
+  inputShort: { height: 42, fontSize: 14 },
   eye: {
     position: 'absolute',
     right: 12,

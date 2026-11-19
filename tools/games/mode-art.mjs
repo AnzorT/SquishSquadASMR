@@ -3,9 +3,12 @@
 // (webgame/app/previews/<game>.mp4), as it is for REGULAR MODE, and for BLITZ MODE cooled to an electric blue with speed
 // streaks and two gold lightning bolts.
 // ffmpeg takes the frame (Playwright's Chromium can't decode the clips' H.264); Chromium paints the Blitz one.
+// Squish Sort's (2026-11-17, its hub made the same as the others') is a frame of the game itself instead, as it is now
+// (the realistic fridges in the kitchen): the web version (src/web, Metro on :8081) playing a level, mid-peek with the
+// doors open, laid out 1500 wide so the fridge stands clear of the side panel and the tray, cropped round it.
 //
-//   node tools/games/mode-art.mjs
-//     -> assets/stack/mode-regular.jpg, assets/stack/mode-blitz.jpg, assets/hop/mode-regular.jpg, assets/hop/mode-blitz.jpg
+//   node tools/games/mode-art.mjs [stack] [hop] [sort]      (all three by default)
+//     -> assets/<game>/mode-regular.jpg, assets/<game>/mode-blitz.jpg
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -17,17 +20,39 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 // the frame of each clip: Stack's tower almost built, Hop's board before the first hop
+// (Squish Sort's: level 12, a big fridge with a few squishies, from the running web version)
 const GAMES = [
   { key: 'stack', at: 4.9 },
   { key: 'hop', at: 0.3 },
-];
+  { key: 'sort', web: 'http://localhost:8081/?phone=1&preview=1&card=sort-level&lv=12', crop: { x: 330, y: 0, width: 1000, height: 400 } },
+].filter((g) => process.argv.length < 3 || process.argv.slice(2).includes(g.key));
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mode-art-'));
-const browser = await chromium.launch();
+// (Playwright's own Chromium, or the installed Chrome when that isn't downloaded)
+const browser = await chromium.launch().catch(() => chromium.launch({ channel: 'chrome' }));
 const page = await browser.newPage();
-for (const { key, at } of GAMES) {
+for (const { key, at, web, crop } of GAMES) {
   const png = path.join(tmp, `${key}.png`);
-  execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', String(at), '-i', path.join(REPO, `webgame/app/previews/${key}.mp4`), '-frames:v', '1', png]);
+  if (web) {
+    // the game, mid-peek: the deal is in and the REMEMBER! banner has gone
+    const shot = await browser.newPage({ viewport: { width: 1500, height: 400 } });
+    await shot.goto(web, { waitUntil: 'load', timeout: 180000 });
+    await shot.waitForFunction(() => window.__sort && window.__sort.state().phase === 'peek', null, { timeout: 180000 });
+    await shot.waitForTimeout(1700);
+    // (and the REMEMBER! words hidden: the picture is the fridge)
+    await shot.evaluate(() => {
+      // (the words' own boxes only: nothing with a picture in it, which would be the play area)
+      const only = (el) => /^(REMEMBER!)+$/.test(el.textContent.replace(/s+/g, '')) && !el.querySelector('svg, img, iframe, canvas');
+      for (const el of document.querySelectorAll('div')) {
+        if (!only(el) || el.children.length) continue;
+        let top = el;
+        while (top.parentElement && only(top.parentElement)) top = top.parentElement;
+        top.style.visibility = 'hidden';
+      }
+    });
+    await shot.screenshot({ path: png, clip: crop });
+    await shot.close();
+  } else execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', String(at), '-i', path.join(REPO, `webgame/app/previews/${key}.mp4`), '-frames:v', '1', png]);
   const src = `data:image/png;base64,${fs.readFileSync(png).toString('base64')}`;
   const shots = await page.evaluate(async (src) => {
     const img = new Image();

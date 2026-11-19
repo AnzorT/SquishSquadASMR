@@ -1,6 +1,6 @@
-import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useGameDims } from '../royal/GameFrame';
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import sfx from '../audio/sfx';
@@ -16,14 +16,14 @@ import { LEVEL_LIST, TIER_COLORS } from './levels';
 // Squishdoku's map): beaten levels gold with their stars, the next one pink
 // and pulsing with a squishy bobbing beside it, the rest locked. A banner
 // opens each size band (5 SHELVES × 4 …), with a picture over it when
-// `iconOf` draws one (Squish Sort's fridges and cupboards); the dot on a
+// `iconOf` draws one (Squish Sort's fridges); the dot on a
 // node is its tier. Squish Stack's map is this one with its own `list` and
 // `bannerOf`. The
 // nodes are built nearest the current one first, a few a frame
 // (useProgressive), so the map is up at once and fills outwards.
 
 const GAP = 92;
-const NODE = 60;
+export const NODE = 60;
 const TOP = 130;
 const BAND_GAP = 76;
 // a band's picture, over its banner
@@ -42,7 +42,7 @@ const Stars = ({ n }) => (
   </View>
 );
 
-const Node = memo(function Node({ lv, tier, x, y, state, stars, delay, onPress, mascot, mascotLeft }) {
+export const Node = memo(function Node({ lv, tier, x, y, state, stars, delay, onPress, mascot, mascotLeft }) {
   const t = useRef(new Animated.Value(0)).current;
   const shake = useRef(new Animated.Value(0)).current;
   // the next level's pulse: one native loop (src/components/idleLoop.js)
@@ -118,7 +118,12 @@ const SIGN_W = 210; // a sign with a picture (Squish Sort's fridges, Squish Hop'
 const SIGN_W_TEXT = 150; // a banner only
 const SIGN_GAP = 50; // from a node's centre to the sign's edge
 
-function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelves, iconOf }) {
+// rowAt (landscape): where the row's middle line runs, as a fraction of the map's height (lower over a room's floor)
+// landscape, the rooms behind the map (src/royal/WorldBg.js RoomBackdrop, useRoomStrip): roomOf(level) names the room
+// a band's levels are played in; onSpans([{ room, x0, x1 }]) gets where each room runs along the page (from just
+// before its first band's sign); scrollX (an Animated.Value) follows the page's scroll on the UI thread, so the rooms
+// scroll with the levels (2026-11-17, the user: the background stood still while the list scrolled)
+function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelves, iconOf, roomOf, onSpans, scrollX, rowAt = 0.5 }) {
   const { width, height: winH } = useGameDims(); // (the game panel in landscape: REDESIGN_V7)
   const wide = width > winH;
   const [boxH, setBoxH] = useState(0);
@@ -130,8 +135,8 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
   const points = useMemo(() => {
     if (wide) {
       // a gentle wave about the middle line (a little above it: the stars hang under a beaten level)
-      const amp = Math.min(22, H * 0.07);
-      const mid = H * 0.5 - 10;
+      const amp = Math.min(rowAt > 0.6 ? 14 : 22, H * 0.07);
+      const mid = H * rowAt - 10;
       const out = [];
       let x = 0;
       for (let i = 0; i < LEVELS; i++) {
@@ -155,10 +160,37 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
       y += GAP;
       return p;
     });
-  }, [width, list, LEVELS, iconOf, wide, H]);
+  }, [width, list, LEVELS, iconOf, wide, H, rowAt]);
   const height = points[LEVELS - 1].y + 120;
   const contentW = points[LEVELS - 1].x + 120;
   const mascot = uris.length ? uris[(cur * 11) % uris.length] : null;
+
+  // the rooms along the page: a room from where its first band starts (between the last band's last level and the
+  // sign) to the next room's
+  const spans = useMemo(() => {
+    if (!wide || !roomOf) return null;
+    const out = [];
+    for (let i = 0; i < LEVELS; i++) {
+      if (points[i].sign == null) continue;
+      const room = roomOf(list[i]);
+      const last = out[out.length - 1];
+      if (last && last.room === room) continue;
+      const x0 = i === 0 ? 0 : points[i].sign - (SIGN_GAP - NODE / 2) / 2;
+      if (last) last.x1 = x0;
+      out.push({ room, x0, x1: 0 });
+    }
+    out[out.length - 1].x1 = Math.max(contentW, width);
+    return out;
+  }, [wide, roomOf, LEVELS, points, list, contentW, width]);
+  // (before the first frame: the rooms drawn where the page opens, the current level in the middle)
+  useLayoutEffect(() => {
+    if (wide && scrollX) scrollX.setValue(Math.max(0, Math.min(points[Math.min(cur, LEVELS) - 1].x - width / 2, contentW - width)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useLayoutEffect(() => {
+    if (onSpans) onSpans(spans);
+  }, [spans, onSpans]);
+  const onScroll = useMemo(() => (scrollX ? Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: true }) : undefined), [scrollX]);
 
   const order = useMemo(() => Array.from({ length: LEVELS }, (_, i) => i).sort((a, b) => Math.abs(a + 1 - cur) - Math.abs(b + 1 - cur)), [cur, LEVELS]);
   const n = useProgressive(LEVELS, 12, 10);
@@ -196,7 +228,7 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
       const icon = iconOf ? iconOf(L) : null;
       banners.push(
         wide ? (
-          <View key={`b${L.band}`} style={[styles.signWide, { left: points[i].sign, width: icon ? SIGN_W : SIGN_W_TEXT, top: -10, height: H }]}>
+          <View key={`b${L.band}`} style={[styles.signWide, { left: points[i].sign, width: icon ? SIGN_W : SIGN_W_TEXT, top: H * rowAt - 10 - H / 2, height: H }]}>
             {icon ? <View style={styles.iconWide}>{built.has(i) ? icon : null}</View> : null}
             <Text style={styles.bannerText}>{bannerOf(L)}</Text>
           </View>
@@ -211,7 +243,7 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
   }
 
   return (
-    <ScrollView
+    <Animated.ScrollView
       ref={scroll}
       horizontal={wide}
       style={styles.fill}
@@ -219,6 +251,9 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
       showsVerticalScrollIndicator={false}
       showsHorizontalScrollIndicator={false}
       onLayout={(e) => wide && setBoxH(Math.round(e.nativeEvent.layout.height))}
+      onScroll={onScroll}
+      // (every frame: the rooms behind follow the scroll)
+      scrollEventThrottle={16}
     >
       {dots}
       {banners}
@@ -242,7 +277,7 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
           />
         );
       })}
-    </ScrollView>
+    </Animated.ScrollView>
   );
 }
 

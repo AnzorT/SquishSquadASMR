@@ -15,8 +15,8 @@
 //                        the finishes owned, the one shown, the growth stage
 //   pity                 Gold/Crystal/Rainbow chests since the last
 //                        Legendary (30 = a guaranteed Legendary)
-//   epic                 chests since the last Epic or better (10 = a
-//                        guaranteed Epic)
+//   epic                 the old tier chests only: chests since the last Epic
+//                        or better (10 = a guaranteed Epic)
 //   chestBag             { basic: 2, … } — the old My Chests (pre-v6; no
 //                        longer shown or filled by the app),
 //                        (`chests` is taken: the daily chests opened)
@@ -84,12 +84,12 @@ const R = [
   [18, 'bubbly', 'Bubbly', 'sky', 1], [19, 'twinkle', 'Twinkle', 'sky', 2], [20, 'zappi', 'Zappi', 'sky', 1],
   [21, 'scoop', 'Scoop', 'snack', 2], [22, 'teddy', 'Teddy', 'forest', 0], [23, 'hoot', 'Hoot', 'forest', 1],
   [24, 'leo', 'Leo', 'forest', 2], [25, 'nibbles', 'Nibbles', 'pet', 3], [26, 'quill', 'Quill', 'pet', 1],
-  [27, 'panko', 'Panko', 'forest', 1], [28, 'boba', 'Boba', 'snack', 3], [29, 'avo', 'Avo', 'fruit', 4],
+  [27, 'panko', 'Panko', 'forest', 1], [28, 'boba', 'Boba', 'snack', 3], [29, 'avo', 'Avo', 'fruit', 3],
   [30, 'berri', 'Berri', 'fruit', 3], [31, 'lemmy', 'Lemmy', 'fruit', 3], [32, 'kiwi', 'Kiwi', 'fruit', 3],
   [33, 'melo', 'Melo', 'fruit', 2], [34, 'peachy', 'Peachy', 'fruit', 2], [35, 'pitaya', 'Pitaya', 'fruit', 3],
   [36, 'tutti', 'Tutti', 'fruit', 4], [37, 'puff', 'Puff', 'ocean', 0], [38, 'seaturtle', 'Sea Turtle', 'ocean', 0],
   [39, 'octo', 'Octo', 'ocean', 1], [40, 'marina', 'Marina', 'ocean', 3], [41, 'pearl', 'Pearl', 'ocean', 4],
-  [42, 'waffles', 'Waffles', 'pet', 3], [43, 'poppy', 'Poppy', 'pet', 2], [44, 'duchess', 'Duchess', 'pet', 4],
+  [42, 'waffles', 'Waffles', 'pet', 3], [43, 'poppy', 'Poppy', 'pet', 2], [44, 'duchess', 'Duchess', 'pet', 3],
   [45, 'mamapaws', 'Mama Paws', 'pet', 1], [46, 'acorn', 'Acorn', 'forest', 0], [47, 'fawn', 'Fawn', 'forest', 0],
   [48, 'moss', 'Moss', 'forest', 0], [49, 'sprout', 'Sprout', 'forest', 4], [50, 'plip', 'Plip', 'sky', 0],
   [51, 'breeze', 'Breeze', 'sky', 0], [52, 'dusty', 'Dusty', 'sky', 0], [53, 'aurora', 'Aurora', 'sky', 4],
@@ -121,8 +121,9 @@ const R = [
   [116, 'grana', 'Grana', 'fruit', 3], [117, 'mangie', 'Mangie', 'fruit', 1], [118, 'razzy', 'Razzy', 'fruit', 0],
 ];
 // Each group's reward creature (its Rainbow chest; set rewards), by key: the Nov 13 design's REWARD
-// (squad-store.js). A Rainbow-rarity creature that isn't a reward (Avo, Duchess) drops from chests as a
-// Legendary (dropRar). Pet Shop and Dreamland have no reward.
+// (squad-store.js). These are the only Rainbow creatures. Avo and Duchess, Rainbow in the design but in no Rainbow
+// chest, are Legendaries since 2026-11-18, when each chest began to hold only its own rarity (chestPool). Pet Shop
+// and Dreamland have no reward.
 const REWARD_KEYS = new Set(['tutti', 'pearl', 'sprout', 'aurora', 'sugarplum', 'corny']);
 const ROSTER = R.map(([id, key, name, set, rar, flag]) => ({
   id: String(id),
@@ -227,15 +228,22 @@ function rainbowReady(p, k, artIds) {
 // A creature has to be found several times before it joins the squad (user,
 // 2026-10-24): every pull of one not unlocked yet is a copy of it (the
 // profile's `copies`), and it unlocks at its rarity's count, Common 5 up to
-// Rainbow 15. Once unlocked, a pull is a duplicate (coins) as before. Only
+// Legendary 14. Once unlocked, a pull is a duplicate (coins) as before. Only
 // the welcome chest's Mittens comes whole. Nothing is sold for coins (user,
 // 2026-10-24: "no character can be unlocked with coins … they are all
 // unlocked by opening X times from the chests"). config/roster { copies:
-// [5, 10, 12, 14, 15] } replaces the counts for the app and the server alike.
-const COPIES = [5, 10, 12, 14, 15];
-const copiesOf = (cfg) => (cfg && Array.isArray(cfg.copies) && cfg.copies.length === COPIES.length && cfg.copies.every((n) => Number.isInteger(n) && n >= 1 && n <= 99) ? cfg.copies : COPIES);
-// how many copies creature `c` needs, under the counts `need`
-const needOf = (c, need = COPIES) => (c ? need[c.rar] || 1 : 1);
+// [5, 10, 12, 14] } replaces the counts for the app and the server alike.
+// No Rainbow count (user, 2026-11-17: "get rid of the rainbow"): a Rainbow
+// creature that needs copies takes Legendary's. An old five-count list in
+// config/roster still works; its 5th count is ignored.
+const COPIES = [5, 10, 12, 14];
+const copiesOf = (cfg) => {
+  const c = cfg && cfg.copies;
+  const ok = Array.isArray(c) && (c.length === COPIES.length || c.length === COPIES.length + 1) && c.every((n) => Number.isInteger(n) && n >= 1 && n <= 99);
+  return ok ? c.slice(0, COPIES.length) : COPIES;
+};
+// how many copies creature `c` needs, under the counts `need` (Rainbow: Legendary's)
+const needOf = (c, need = COPIES) => (c ? need[Math.min(c.rar, COPIES.length - 1)] || 1 : 1);
 const copiesHad = (p, id) => {
   const n = p && p.copies && typeof p.copies === 'object' ? p.copies[id] : 0;
   return typeof n === 'number' && Number.isFinite(n) ? n : 0;
@@ -272,24 +280,29 @@ const START = { gems: 600 };
 const GEM_PACKS = { gems_80: 80, gems_450: 450, gems_950: 950, gems_2000: 2000, gems_5500: 5500, gems_12000: 12000 };
 
 // --- the v6 group chests (REDESIGN_V6 step 5: Shop Screen v5, chest-loot.js) --
-// Every group has a chest in five sizes. Each drops one creature of its group
-// at its size's odds (the rarity nearest the roll that the group has, never a
-// pass creature, nor a set reward while those are on: SET_REWARDS; unowned
-// ones 3x as likely), and nothing else: no coins, unless it's a duplicate,
-// which pays DUPE_SHARE of what the chest is worth (dupeCoinsFor; the user,
-// 2026-10-25). Common and Rare chests can upgrade on the first smash
-// (UPGRADE): rolled here, at the purchase, and played by the smash.
-// The Lucky meter is `epic`: an Epic or better at least every LUCK_MAX
-// chests. Group chests drop no finishes (the design's grant is always
-// Normal).
+// Every group has a chest in five sizes, in rarity order. Each drops one
+// creature of its group and of the chest's own rarity (chestPool: never a pass
+// creature, nor a set reward while those are on: SET_REWARDS; unowned ones 3x
+// as likely), and nothing else: no coins, unless it's a duplicate, which pays
+// DUPE_SHARE of what the chest is worth (dupeCoinsFor; the user, 2026-10-25).
+// Common and Rare chests can upgrade on the first smash (UPGRADE): rolled
+// here, at the purchase, and played by the smash; one that upgrades holds the
+// rarity it became. Group chests drop no finishes (the design's grant is
+// always Normal).
 const SIZES = [
-  { k: 'common', odds: [72, 22, 5, 1], price: { cur: 'coins', n: 300 } },
-  { k: 'rare', odds: [55, 33, 9.5, 2.5], price: { cur: 'coins', n: 1200 } },
-  { k: 'epic', odds: [30, 45, 20, 5], price: { cur: 'gems', n: 120 } },
-  { k: 'legendary', odds: [0, 50, 38, 12], price: { cur: 'gems', n: 320 } },
-  { k: 'set', odds: [0, 0, 70, 30], price: { cur: 'gems', n: 680 } },
+  { k: 'common', price: { cur: 'coins', n: 300 } },
+  { k: 'rare', price: { cur: 'coins', n: 1200 } },
+  { k: 'epic', price: { cur: 'gems', n: 120 } },
+  { k: 'legendary', price: { cur: 'gems', n: 320 } },
+  { k: 'set', price: { cur: 'gems', n: 680 } },
 ];
 const SIZE_I = Object.fromEntries(SIZES.map((t, i) => [t.k, i]));
+// What a chest of group `k` holds (user, 2026-11-18: "common chests gives you
+// only common, rare gives you only rare, epic epic, legendary gives only
+// legendary and of course rainbow only the rainbow characters"): the group's
+// creatures of that rarity that are out. A size's place in SIZES is its rarity.
+const chestPool = (k, size, artIds, setRewards = SET_REWARDS, rainbow = RAINBOW) =>
+  ROSTER.filter((c) => c.rar === SIZE_I[size] && inGroupChest(c, k, setRewards, rainbow) && artIds.includes(c.id));
 // A chest's worth in coins: its price, a gem counted at the Shop's first
 // swap (50 gems → 2,000 coins). A duplicate pays 7% of it — of the chest it
 // opened as, when it upgraded: Common 21, Rare 84, Epic 336, Legendary 896,
@@ -301,7 +314,6 @@ const chestWorth = (size) => {
   return T ? T.price.n * (T.price.cur === 'gems' ? GEM_COINS : 1) : 0;
 };
 const dupeCoinsFor = (size) => Math.round(chestWorth(size) * DUPE_SHARE);
-const LUCK_MAX = 10;
 // first-smash upgrade: % chance for a Common / Rare chest; then Epic 78%,
 // Legendary 19%, Rainbow the rest (Chest Smash v2's commonUp / rareUp /
 // epicShare / legendaryShare)
@@ -560,33 +572,22 @@ function openChest(p, { tier, artIds, random = Math.random, setRewards, need, ra
   };
 }
 
-// One group chest: the upgrade, the size's rarity (the Lucky meter can lift
-// it to Epic), the creature, the coins inside. `fixed`: the creature it holds
-// (the welcome chest's), with no upgrade and no Lucky meter.
+// One group chest: the upgrade, then a creature of the rarity it opens as.
+// `fixed`: the creature it holds (the welcome chest's), with no upgrade.
 function rollGroup(p, group, size, artIds, random, fixed, setRewards = SET_REWARDS, rainbow = RAINBOW) {
-  if (fixed) return { final: SIZES[SIZE_I[size]].k, id: fixed, rar: BY_ID[fixed].rar, epic: num(p.epic), luck: false };
+  if (fixed) return { final: SIZES[SIZE_I[size]].k, id: fixed, rar: BY_ID[fixed].rar };
   let to = SIZE_I[size];
   if ((size === 'common' || size === 'rare') && random() * 100 < UPGRADE[size]) {
     const r = random() * 100;
     // (no upgrade to a Rainbow chest while those are earned: a Legendary)
-    to = r < UPGRADE.epic ? 2 : r < UPGRADE.epic + UPGRADE.legendary || rainbow === 'chest' ? 3 : 4;
+    const up = r < UPGRADE.epic ? 2 : r < UPGRADE.epic + UPGRADE.legendary || rainbow === 'chest' ? 3 : 4;
+    // (only to a chest this group can fill)
+    if (chestPool(group, SIZES[up].k, artIds, setRewards, rainbow).length) to = up;
   }
   const T = SIZES[to];
-  const due = num(p.epic) + 1 >= LUCK_MAX;
-  let r = pickWeighted(T.odds, random);
-  if (due && r < 2) r = 2;
-  const ok = (c) => inGroupChest(c, group, setRewards, rainbow) && artIds.includes(c.id);
-  let c = null;
-  for (let d = 0; d < 4 && !c; d++) {
-    for (const rr of [r - d, r + d]) {
-      const pool = ROSTER.filter((x) => ok(x) && dropRar(x) === rr);
-      if (pool.length) {
-        c = pool[pickWeighted(pool.map((x) => (owns(p, x.id) ? 1 : 3)), random)];
-        break;
-      }
-    }
-  }
-  return { final: T.k, id: c ? c.id : null, rar: c ? c.rar : r, epic: r >= 2 ? 0 : Math.min(LUCK_MAX, num(p.epic) + 1), luck: due && r >= 2 };
+  const pool = chestPool(group, T.k, artIds, setRewards, rainbow);
+  const c = pool.length ? pool[pickWeighted(pool.map((x) => (owns(p, x.id) ? 1 : 3)), random)] : null;
+  return { final: T.k, id: c ? c.id : null, rar: to };
 }
 
 // Opens a group chest for `p` (already charged): `extra` is what the move
@@ -595,9 +596,13 @@ function rollGroup(p, group, size, artIds, random, fixed, setRewards = SET_REWAR
 // one more copy of it (`whole`: the creature itself, as the welcome chest
 // gives Mittens). `rainbow` (RAINBOW): a Rainbow chest from here opens as a
 // Legendary while those are earned, and the result's `rainbow` names the
-// group whose Rainbow chest this pull has just earned.
-function openGroup(p, group, size0, { artIds, random = Math.random, fixed, whole, setRewards, need, rainbow = RAINBOW }, extra = {}) {
+// group whose Rainbow chest this pull has just earned. A chest that's given
+// (the free chest, a prize, a bundle's) for a group with none of its rarity
+// comes from the first group that has some: the rarity is the promise.
+function openGroup(p, group0, size0, { artIds, random = Math.random, fixed, whole, setRewards, need, rainbow = RAINBOW }, extra = {}) {
   const size = givenSize(size0, rainbow);
+  const fills = (k) => chestPool(k, size, artIds, setRewards, rainbow).length > 0;
+  const group = fixed || fills(group0) ? group0 : GROUP_KEYS.find(fills) || group0;
   const pull = rollGroup(p, group, size, artIds, random, fixed, setRewards, rainbow);
   const g = pull.id ? grant(p, pull.id, 'n', dupeCoinsFor(pull.final), setRewards, { whole, need }) : { set: {}, result: { coins: 0, isNew: false, reward: null } };
   const k = pull.id && BY_ID[pull.id].set;
@@ -606,7 +611,6 @@ function openGroup(p, group, size0, { artIds, random = Math.random, fixed, whole
     ...extra,
     ...g.set,
     coins: g.set.coins != null ? g.set.coins : num(p.coins),
-    epic: pull.epic,
     chestOpens: num(p.chestOpens) + 1,
     passXp: num(p.passXp) + passXpFor(pull.final),
   };
@@ -614,7 +618,7 @@ function openGroup(p, group, size0, { artIds, random = Math.random, fixed, whole
   const bonus = g.result.reward ? SET_BONUS : 0;
   return {
     set,
-    result: { group, size, final: pull.final, upgraded: pull.final !== size, id: pull.id, rar: pull.rar, isNew: !!g.result.isNew, copies: g.result.copies || null, need: g.result.need || null, coins: 0, dupeCoins: g.result.coins - bonus, reward: g.result.reward, setBonus: bonus, luck: pull.luck, rainbow: earned ? k : null },
+    result: { group, size, final: pull.final, upgraded: pull.final !== size, id: pull.id, rar: pull.rar, isNew: !!g.result.isNew, copies: g.result.copies || null, need: g.result.need || null, coins: 0, dupeCoins: g.result.coins - bonus, reward: g.result.reward, setBonus: bonus, rainbow: earned ? k : null },
   };
 }
 
@@ -630,7 +634,7 @@ function rainbowChest(p, args) {
   const g = grant(p, s.reward, 'n', 0, false, { whole: true, need: args.need });
   return {
     set: { ...g.set, chestOpens: num(p.chestOpens) + 1, passXp: num(p.passXp) + passXpFor('set'), tierPulls: pulled(p, { rar: 4, f: 'n' }) },
-    result: { group, size: 'set', final: 'set', upgraded: false, id: s.reward, rar: 4, isNew: true, copies: g.result.copies || null, need: g.result.need || null, coins: 0, dupeCoins: 0, reward: null, setBonus: 0, luck: false, rainbow: null },
+    result: { group, size: 'set', final: 'set', upgraded: false, id: s.reward, rar: 4, isNew: true, copies: g.result.copies || null, need: g.result.need || null, coins: 0, dupeCoins: 0, reward: null, setBonus: 0, rainbow: null },
   };
 }
 
@@ -814,6 +818,8 @@ function groupChest(p, args) {
   const { group, size } = args;
   if (!GROUP_KEYS.includes(group) || !groupOut(group, args.hidden) || SIZE_I[size] == null) return bad('unknown_chest');
   if (size === 'set' && (args.rainbow || RAINBOW) === 'chest') return bad('unknown_chest');
+  // (nothing of this rarity in the group: not for sale, and nothing is charged)
+  if (!chestPool(group, size, args.artIds || [], args.setRewards, args.rainbow).length) return bad('empty_chest');
   const T = SIZES[SIZE_I[size]];
   const paid = pay(p, T.price.cur, T.price.n);
   if (!paid) return bad(T.price.cur === 'gems' ? 'not_enough_gems' : 'not_enough_coins');
@@ -942,6 +948,7 @@ module.exports = {
   copiesHad,
   dropRar,
   inGroupChest,
+  chestPool,
   DUPE,
   SET_BONUS,
   FIN,
@@ -962,7 +969,6 @@ module.exports = {
   DUPE_SHARE,
   chestWorth,
   dupeCoinsFor,
-  LUCK_MAX,
   UPGRADE,
   FREE_MS,
   AD_CHESTS,
