@@ -358,15 +358,15 @@ body .mm-house:has([data-screen-label="House map"]) .mm-hback{display:none;}
 .mm-root .mm-page2.sq-chars{background:radial-gradient(34% 50% at 50% 44%,rgba(255,246,214,.55) 0%,rgba(255,246,214,0) 70%),${WOOD_BG};}
 .sq-c2{position:absolute;inset:0;pointer-events:none;}
 .sq-c2 > *{pointer-events:auto;}
-.sq-c2 .rays{position:absolute;left:426px;top:170px;width:820px;height:820px;margin:-410px 0 0 -410px;border-radius:50%;pointer-events:none;
+.sq-c2 .rays{position:absolute;left:50%;top:170px;width:820px;height:820px;margin:-410px 0 0 -410px;border-radius:50%;pointer-events:none;
   background:repeating-conic-gradient(rgba(255,255,255,.55) 0deg 7deg,rgba(255,255,255,0) 7deg 18deg);
   -webkit-mask-image:radial-gradient(circle,#000 8%,rgba(0,0,0,0) 58%);mask-image:radial-gradient(circle,#000 8%,rgba(0,0,0,0) 58%);animation:sqSpin 60s linear infinite;opacity:.6;}
 /* REDESIGN_V9 (the user: the character doesn't look inside the circle): stands on the plate, its shadow on the
    plate's middle (y 210), not 30 px over its back edge */
-.sq-c2 .rig{position:absolute;left:351px;top:68px;width:150px;height:150px;z-index:2;}
+.sq-c2 .rig{position:absolute;left:calc(50% - 75px);top:68px;width:150px;height:150px;z-index:2;}
 .sq-c2 .rig.pop{animation:sqPop .55s cubic-bezier(.2,1.4,.4,1);}
 .sq-c2 .rig.sil{filter:saturate(.3) brightness(.78) drop-shadow(0 0 8px rgba(255,255,255,.9));}
-.sq-c2 .ring{position:absolute;left:326px;top:190px;width:200px;height:40px;z-index:1;}
+.sq-c2 .ring{position:absolute;left:calc(50% - 100px);top:190px;width:200px;height:40px;z-index:1;}
 /* the platform: its gold side (the plate's thickness), then the plate turning slowly (12 s a turn) with its lights
    riding round its rim (bulbRun) */
 .sq-c2 .ring .side{position:absolute;left:-12px;right:-12px;top:5px;height:44px;border-radius:50%;background:linear-gradient(180deg,#d98a24,#a85a12);box-shadow:0 0 0 2.5px #6b4426,0 6px 14px rgba(107,50,10,.45);}
@@ -383,7 +383,7 @@ ${bulbRun()}
 .sq-c2 .who .np .pips{position:absolute;left:50%;top:-9px;transform:translateX(-50%);display:flex;gap:1px;}
 .sq-c2 .who .np .pips svg{width:12px;height:12px;filter:drop-shadow(0 1px 0 #6b4426);}
 .sq-c2 .sq-chip.tag{cursor:default;height:22px;font-size:10.5px;color:#5b3418;background:#fff6e2;box-shadow:0 0 0 1.6px #6b4426,0 2px 0 1.6px #6b4426;}
-.sq-c2 .act-at{position:absolute;left:560px;top:118px;width:200px;display:flex;justify-content:center;}
+.sq-c2 .act-at{position:absolute;left:calc(50% + 134px);top:118px;width:200px;display:flex;justify-content:center;}
 .sq-c2 .act{width:190px;height:46px;border-radius:15px;display:flex;align-items:center;justify-content:center;gap:6px;font:700 15px Fredoka,sans-serif;}
 .sq-c2 .act > svg:not(.mm-ft){width:18px;height:18px;}
 .sq-c2 .row{position:absolute;left:0;right:0;top:284px;bottom:0;display:flex;align-items:flex-start;gap:22px;padding:2px 54px 0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;touch-action:none;cursor:grab;}
