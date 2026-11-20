@@ -1,7 +1,8 @@
 // THE GAME INTRO (2026-11-16, the user: "squad-intro file in desktop holds the new game intro, delete the old one and put
 // the new one"): the designer's Desktop/squad-intro.js, copied here below this note, unchanged but for the changes marked
-// PERF (2026-11-16, the user: "the intro has very low FPS"; the look is the same) and APP (2026-11-17: api.awake(), the
-// third squish, when the app starts its music). It replaces the app's old
+// PERF (2026-11-16, the user: "the intro has very low FPS"; the look is the same), APP (2026-11-17: api.awake(), the
+// third squish, when the app starts its music) and FLICKER (2026-11-20: the UI flickered while the rooms lit up and in
+// the dawn, from the WebView running out of tile memory; the look is the same). It replaces the app's old
 // splash screen (src/screens/SplashScreen.js, deleted): App.js asks for it once a launch, the first time the menu shows
 // (start data `intro`, src/game/GameScreen.js), and app/menu.js (SquishMenu.intro) hands it the menu's api it was written
 // for (the Nov 14 menu's startIntro; our menu is the Nov 13 one, so menu.js builds the same api from its insides).
@@ -108,14 +109,15 @@
     // PERF: the rain was 80 lines each moved by a CSS animation inside the `top` SVG (repainted every frame); now it's drawn
     // once on two layers, near and far, that the compositor slides (rainBuild below)
     const rainL = document.createElement('div'); rainL.className = 'si-rainl'; rainL.style.cssText = 'position:absolute;inset:0;overflow:hidden;pointer-events:none;';
-    world.insertBefore(sceneB, scene.nextSibling); world.insertBefore(back, sceneB.nextSibling); world.insertBefore(peekL, back.nextSibling); world.insertBefore(boxB, stage); world.insertBefore(boxF, stage.nextSibling); world.insertBefore(rainL, boxF.nextSibling); world.insertBefore(top, rainL.nextSibling);
+    world.insertBefore(sceneB, scene.nextSibling); world.insertBefore(back, sceneB.nextSibling); world.insertBefore(peekL, back.nextSibling); world.insertBefore(boxB, stage); world.insertBefore(boxF, stage.nextSibling); world.insertBefore(top, boxF.nextSibling);
+    frame.insertBefore(rainL, world.nextSibling);
     stage.style.willChange = 'transform';   // PERF: Mittens (and the night's filter on him) on his own layer while the intro plays
     const hitBox = document.createElement('div'); hitBox.className = 'si-hit'; hitBox.style.display = 'none'; world.appendChild(hitBox);
     // ---- frame overlay (does not move with the camera), designed at 852 x 393 and scaled like the menu HUD ----
     const ov = document.createElement('div'); ov.className = 'si-ov'; frame.appendChild(ov);
     const black = document.createElement('div'); black.className = 'si-black'; frame.appendChild(black);
     const fit = () => { const W = frame.clientWidth, H = frame.clientHeight, k = H / 393; ov.style.width = (W / k) + 'px'; ov.style.height = '393px'; ov.style.transform = 'scale(' + k + ')'; };
-    fit(); let ro = null; if (window.ResizeObserver) { ro = new ResizeObserver(fit); ro.observe(frame); }
+    fit(); let ro = null; if (window.ResizeObserver) { ro = new ResizeObserver(() => { fit(); veilFit(); }); ro.observe(frame); }   // (FLICKER: veilFit, below)
     const cap = document.createElement('div'); cap.className = 'si-cap mm-p tip v-vel tx-w'; ov.appendChild(cap);
     const skip = document.createElement('button'); skip.className = 'si-skip mm-p v-vel tx-w'; skip.textContent = 'Skip ›'; ov.appendChild(skip);
     let capN = 0;
@@ -129,21 +131,25 @@
       holes += shape(w, 'class="h-' + room + '" fill="#000" opacity="0"');
       halos += '<ellipse class="g-' + room + '" cx="' + r1(cx) + '" cy="' + r1(cy) + '" rx="' + r1(R * 1.3) + '" ry="' + r1(R * 1.1) + '" fill="url(#siGlow)" opacity="0"/>';
       panes += shape(w, 'class="p-' + room + '" fill="url(#siPane)" opacity="0"'); }));
+    const VEIL = 'x="0" y="0" width="1000" height="460"';
+    const veilFit = () => { const W = frame.clientWidth, H = frame.clientHeight; if (!W || !H) return; const s = Math.max(W / 1000, H / 460), w = W / s, h = H / s;
+      back.querySelectorAll('.si-veil').forEach(r => { r.setAttribute('x', r1(500 - w / 2 - 1)); r.setAttribute('y', r1(460 - h - 1)); r.setAttribute('width', r1(w + 2)); r.setAttribute('height', r1(h + 2)); }); };
     back.innerHTML = '<defs>'
       + '<linearGradient id="siNight" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#090d2e"/><stop offset="0.55" stop-color="#141a46"/><stop offset="1" stop-color="#1b1838"/></linearGradient>'
       + '<linearGradient id="siDawn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7a8a"/><stop offset="0.5" stop-color="#ffaa66"/><stop offset="1" stop-color="#ffd890"/></linearGradient>'
       + '<radialGradient id="siMoon"><stop offset="0" stop-color="#fff8dc" stop-opacity="0.9"/><stop offset="0.25" stop-color="#e8ecff" stop-opacity="0.35"/><stop offset="1" stop-color="#c8d4ff" stop-opacity="0"/></radialGradient>'
       + '<radialGradient id="siGlow"><stop offset="0" stop-color="#ffe7a6" stop-opacity="0.8"/><stop offset="0.45" stop-color="#ffc45a" stop-opacity="0.3"/><stop offset="1" stop-color="#ff9a2a" stop-opacity="0"/></radialGradient>'
       + '<linearGradient id="siPane" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2c0"/><stop offset="1" stop-color="#ffb347"/></linearGradient>'
-      + '<mask id="siVeilM" maskUnits="userSpaceOnUse" x="-300" y="-300" width="1600" height="1100"><rect x="-300" y="-300" width="1600" height="1100" fill="#fff"/>' + holes + '</mask>'
+      + '<mask id="siVeilM" class="si-veil" maskUnits="userSpaceOnUse" ' + VEIL + '><rect class="si-veil" ' + VEIL + ' fill="#fff"/>' + holes + '</mask>'
       + '</defs>'
-      + '<rect class="si-dawn" x="-300" y="-300" width="1600" height="1100" fill="url(#siDawn)" opacity="0" style="mix-blend-mode:multiply"/>'
-      + '<rect class="si-night" x="-300" y="-300" width="1600" height="1100" fill="url(#siNight)" opacity="0.8" mask="url(#siVeilM)"/>'
+      + '<rect class="si-dawn si-veil" ' + VEIL + ' fill="url(#siDawn)" opacity="0" style="mix-blend-mode:multiply"/>'
+      + '<rect class="si-night si-veil" ' + VEIL + ' fill="url(#siNight)" opacity="0.8" mask="url(#siVeilM)"/>'
       + '<g class="si-moon" opacity="0.6"><circle cx="846" cy="56" r="74" fill="url(#siMoon)"/><circle cx="846" cy="56" r="14" fill="#fffbe8" opacity="0.75"/></g>'
       + '<g class="si-halo" style="mix-blend-mode:screen">' + halos + '</g><g class="si-pane" style="mix-blend-mode:soft-light">' + panes + '</g><g class="si-peek"></g>';
     const night = back.querySelector('.si-night'), dawn = back.querySelector('.si-dawn'), moon = back.querySelector('.si-moon'), peekG = peekL;   // PERF: was back's .si-peek group
-    const setLit = (room, v, flash) => { const f = flash || 0, dk = room === 'dance' ? 0.6 : 1;
-      back.querySelectorAll('.h-' + room).forEach(e => e.setAttribute('opacity', (clamp(v * 0.9 + f * 0.1, 0, 1) * dk).toFixed(3)));
+    veilFit();
+    const setLit = (room, v, flash, keepHoles) => { const f = flash || 0, dk = room === 'dance' ? 0.6 : 1;
+      if (!keepHoles) back.querySelectorAll('.h-' + room).forEach(e => e.setAttribute('opacity', (clamp(v * 0.9 + f * 0.1, 0, 1) * dk).toFixed(3)));
       back.querySelectorAll('.g-' + room).forEach(e => e.setAttribute('opacity', clamp(v * 0.85 + f * 0.6, 0, 1.4).toFixed(3)));
       back.querySelectorAll('.p-' + room).forEach(e => e.setAttribute('opacity', (clamp(v * 0.75 + f * 0.25, 0, 1) * dk).toFixed(3))); };
     const center = room => { const B = WIN[room].map(box); return [B.reduce((a, b) => a + b[0] + b[2] / 2, 0) / B.length, B.reduce((a, b) => a + b[1] + b[3] / 2, 0) / B.length]; };
@@ -159,7 +165,7 @@
     function rainBuild() {
       rainAnims.forEach(a => { try { a.cancel(); } catch (e) { /* gone */ } }); rainAnims.length = 0; rainL.innerHTML = '';
       const W = frame.clientWidth, H = frame.clientHeight; if (!W || !H) return;
-      const s = Math.max(W / 1000, H / 460), B = Math.round(115 * s), rows = Math.ceil(H / B) + 2, DX = 26 / 620;
+      const s = Math.max(W / 1000, H / 460), B = Math.round(115 * s), rows = Math.ceil(H / B) + 1, DX = 26 / 620;
       [[9, 1.4, 0.6, 900], [7, 1.1, 0.4, 680]].forEach(([n, sw, op, v], li) => {
         let band = '';
         for (let i = 0; i < n; i++) { const h = k => { const t = Math.sin((i + li * 50) * 12.9898 + k * 78.233) * 43758.5453; return t - Math.floor(t); };
@@ -337,14 +343,17 @@
       sceneB.innerHTML = api.sceneSvg({ level: 1, season: 'sunny' }); noSigns(sceneB);
       const sunny = api.lightFor(Sc.state({ level: 1, season: 'sunny' }));
       play('dance');
+      [night, moon, dawn].forEach(e => { e.style.opacity = e.getAttribute('opacity'); e.style.willChange = 'opacity'; });
       await tween(2800, (e, t) => {
-        night.setAttribute('opacity', (0.8 * (1 - e)).toFixed(3)); moon.setAttribute('opacity', (0.6 * (1 - Math.min(1, t * 2))).toFixed(3));
-        dawn.setAttribute('opacity', (0.6 * Math.sin(Math.min(1, t * 1.1) * Math.PI)).toFixed(3)); rainG.setAttribute('opacity', (0.5 * (1 - Math.min(1, t * 1.8))).toFixed(3));
+        night.style.opacity = (0.8 * (1 - e)).toFixed(3); moon.style.opacity = (0.6 * (1 - Math.min(1, t * 2))).toFixed(3);
+        dawn.style.opacity = (0.6 * Math.sin(Math.min(1, t * 1.1) * Math.PI)).toFixed(3); rainG.setAttribute('opacity', (0.5 * (1 - Math.min(1, t * 1.8))).toFixed(3));
         sceneB.style.opacity = clamp((t - 0.2) / 0.6, 0, 1).toFixed(3);
-        const day = clamp((t - 0.45) / 0.5, 0, 1); Object.keys(WIN).forEach(r => setLit(r, 1 - 0.7 * day));
+        const day = clamp((t - 0.45) / 0.5, 0, 1); Object.keys(WIN).forEach(r => setLit(r, 1 - 0.7 * day, 0, true));
         if (Math.floor(t * 12) !== Math.floor((t - 0.02) * 12)) api.light(t < 0.55 ? nightLight(3) : sunny);
       }, t => t); if (dead) return;
       api.light(sunny);
+      rainAnims.forEach(a => { try { a.cancel(); } catch (e) { /* gone */ } }); rainAnims.length = 0; rainL.innerHTML = '';
+      [night, moon, dawn].forEach(e => { e.style.display = 'none'; });
       // the squad peeks out of the windows and waves
       const peeks = PEEK.map(([key, room, wi, pcx], i) => { const w = WIN[room][wi], [x, y, ww, hh] = box(w), id = 'siPk' + i, sz = Math.min(ww * 1.1, hh * 1.3), cx = pcx || x + ww / 2;
         peekG.insertAdjacentHTML('beforeend', '<clipPath id="' + id + '">' + shape(w, '') + '</clipPath><g clip-path="url(#' + id + ')"><image href="export/thumbs/c-' + key + '.webp" x="' + r1(cx - sz / 2) + '" y="' + r1(y + hh) + '" width="' + r1(sz) + '" height="' + r1(sz) + '"/></g>');
