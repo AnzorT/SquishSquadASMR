@@ -12,11 +12,13 @@ import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
-const GAME = path.join(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..'), 'webgame/test/out/webgame/App.dc.html');
+const GAME = process.env.GAME ? path.resolve(process.env.GAME, 'App.dc.html') : path.join(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..'), 'webgame/test/out/webgame/App.dc.html');   // GAME=<a build dir> (PERF 2026-11-20)
 const INIT = { screen: 'menu', intro: true, state: { level: 6, coins: 31342, gems: 975, owned: ['mittens', 'frybo', 'dunkie', 'bao', 'nimbo'], sel: 'frybo', hiddenKeys: [], games: [], xp: { level: 6, into: 28, need: 700, per: 100 }, road: [] }, config: {} };
 const season = process.env.SEASON || 'sunny';
+// VIEW=<w>x<h>: the CSS viewport (default 796x384, the Galaxy A16's landscape WebView; the A15 was 832x384) (PERF 2026-11-20)
+const VIEW = (([w, h]) => ({ width: +w, height: +h }))((process.env.VIEW || '796x384').split('x'));
 const browser = await chromium.launch({ args: ['--allow-file-access-from-files', '--use-gl=swiftshader', '--enable-gpu-rasterization', '--ignore-gpu-blocklist'] });
-const ctx = await browser.newContext({ viewport: { width: 832, height: 384 }, deviceScaleFactor: 2.8125, hasTouch: true });
+const ctx = await browser.newContext({ viewport: VIEW, deviceScaleFactor: 2.8125, hasTouch: true });
 const page = await ctx.newPage();
 page.on('pageerror', e => console.log('  pageerror', e.message.slice(0, 160)));
 await page.addInitScript(([init, season]) => { window.__SQUISH_INIT__ = init; window.ReactNativeWebView = { postMessage() {} }; try { localStorage.setItem('squishsquad.menu.v1', JSON.stringify({ season })); } catch (e) {} }, [INIT, season]);

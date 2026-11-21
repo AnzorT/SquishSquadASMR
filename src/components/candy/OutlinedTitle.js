@@ -1,7 +1,8 @@
-import React, { memo, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import React, { memo, useMemo, useState } from 'react';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { candyColors, candyFonts, TITLE_FILLS } from '../../theme/candyTheme';
+import { usePingPong } from '../idleLoop';
 
 // The design's sticker title: gradient-filled Fredoka inside a white outline,
 // a thinner purple halo outside that, and a hard deep-purple drop underneath.
@@ -43,20 +44,10 @@ function OutlinedTitle({
   const height = Math.ceil(size * 1.22 + halo * 2 + drop);
   const baseline = halo + size * 0.96;
 
-  const wob = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (!wobble) return undefined;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(wob, { toValue: 1, duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(wob, { toValue: 0, duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [wobble, wob]);
-  const rotate = wob.interpolate({ inputRange: [0, 1], outputRange: ['-3deg', '3deg'] });
-  const scale = wob.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] });
+  // the wobble: 0 → 1 → 0 every 2.6 s, eased, as one native loop (idleLoop.js)
+  const wob = usePingPong(2600, { on: !!wobble });
+  const rotate = useMemo(() => wob.interpolate({ inputRange: [0, 1], outputRange: ['-3deg', '3deg'] }), [wob]);
+  const scale = useMemo(() => wob.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] }), [wob]);
 
   const shown = svgSafe(text);
   const common = {

@@ -1,8 +1,8 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Animated, BackHandler, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GameBackground as CandyBackground, GameBack, useWide } from '../royal/GameFrame';
-import { ROW_ON_FLOOR, RoomBackdrop, useRoomStrip } from '../royal/WorldBg';
+import { GameBackground, GameBack } from '../royal/GameFrame';
+import { ROW_ON_FLOOR, RoomBackdrop, useRoomStrip, useRoomUnder } from '../royal/WorldBg';
 import { KeptView, ViewSlot, useViewSwitch } from '../components/ViewSwitch';
 import RoundButton, { BackGlyph } from '../components/candy/RoundButton';
 import sfx from '../audio/sfx';
@@ -17,7 +17,7 @@ import { poolOf } from '../sort/themes';
 import { saveSort } from '../firebase/firestore';
 import { F, INK } from '../squishdoku/theme';
 
-// Squish Sort (SQUISH_SORT.md), opened from the Lobby's PLAY game picker, laid out as the other games (2026-11-17, the
+// Squish Sort (SQUISH_SORT.md), opened from the Menu's Game Park, laid out as the other games (2026-11-17, the
 // user: "make sure the screens of squish sort matches the other game's screen"): the hub (REGULAR MODE and BLITZ MODE
 // cards), the fridge's 50-level map and a level, each sliding in over the last as placeholders first
 // (src/components/ViewSwitch.js); or BLITZ MODE, straight from the hub. Only the fridge since 2026-11-17 ("lets make it
@@ -41,7 +41,6 @@ function SortScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack 
   const insets = useSafeAreaInsets();
   const rec = record(profile);
   const sw = useViewSwitch('hub'); // hub | map | game | blitz
-  const wide = useWide();
   const { view, go } = sw;
   const [playLv, setPlayLv] = useState(1);
   const [rules, setRules] = useState(false);
@@ -49,6 +48,8 @@ function SortScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack 
   const mapUris = useMemo(() => pool.map((c) => c.uri), [pool]);
   // the map's background: the kitchen, scrolling with it
   const strip = useRoomStrip();
+  // the map's room held under a level that's starting, until the level has drawn its own (WorldBg useRoomUnder)
+  const roomUnder = useRoomUnder(sw, sw.view === 'game');
 
   useEffect(() => {
     sfx.setBudget(SOUND_BUDGET);
@@ -94,18 +95,18 @@ function SortScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack 
   const playing = view === 'game' || view === 'blitz';
 
   return (
-    <CandyBackground style={{ paddingTop: playing ? 0 : insets.top }} sparkles={!playing}>
+    <GameBackground style={{ paddingTop: playing ? 0 : insets.top }}>
       {/* the level map stands in the kitchen, where every level is played (src/royal/WorldBg.js) */}
-      <RoomBackdrop sw={sw} on={wide && view === 'map'} spans={strip.spans} scrollX={strip.scrollX} />
+      <RoomBackdrop sw={sw} on={view === 'map' || roomUnder} under={roomUnder} spans={strip.spans} scrollX={strip.scrollX} />
       {!playing ? (
         <View style={styles.header}>
           <GameBack onPress={() => (view === 'map' ? go('hub') : onBack())} />
           {view === 'map' ? (
             <>
               <View style={styles.titleBox}>
-                <View style={wide ? styles.plaque : null}>
+                <View style={styles.plaque}>
                   <Text style={styles.headerTitle}>SQUISH SORT</Text>
-                  <Text style={[styles.headerSub, wide && { textAlign: 'center' }]}>{`${doneIn(rec, 'fridge')} / ${LEVELS} levels`}</Text>
+                  <Text style={styles.headerSub}>{`${doneIn(rec, 'fridge')} / ${LEVELS} levels`}</Text>
                 </View>
               </View>
               <View style={styles.starPill}>
@@ -143,7 +144,7 @@ function SortScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack 
         ) : null}
       </Animated.View>
       <RulesCard visible={rules} onClose={() => setRules(false)} />
-    </CandyBackground>
+    </GameBackground>
   );
 }
 
@@ -151,10 +152,10 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 6, paddingBottom: 2 },
   titleBox: { flex: 1, alignItems: 'center' },
-  // sideways the title sits on the room's wall: on a plaque, to read over the furniture
+  // the title sits on the room's wall: on a plaque, to read over the furniture
   plaque: { alignItems: 'center', backgroundColor: 'rgba(255,247,234,0.94)', borderRadius: 16, borderWidth: 2, borderColor: '#e2b27a', paddingHorizontal: 16, paddingTop: 1, paddingBottom: 3 },
   headerTitle: { fontFamily: F.display, fontSize: 20, letterSpacing: 1, color: '#8a3a0e' },
-  headerSub: { fontFamily: F.heavy, fontSize: 11.5, color: INK },
+  headerSub: { fontFamily: F.heavy, fontSize: 11.5, color: INK, textAlign: 'center' },
   starPill: { backgroundColor: '#ffffff', borderRadius: 999, borderWidth: 2.5, borderColor: '#ffd23a', paddingHorizontal: 10, paddingVertical: 4 },
   starPillText: { fontFamily: F.display, fontSize: 14, color: '#b86200' },
   wait: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30, gap: 16 },

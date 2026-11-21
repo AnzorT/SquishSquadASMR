@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useGameDims } from '../royal/GameFrame';
-import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import sfx from '../audio/sfx';
@@ -12,22 +12,16 @@ import { Head } from '../squishdoku/ui';
 import { F, INK } from '../squishdoku/theme';
 import { LEVEL_LIST, TIER_COLORS } from './levels';
 
-// A container's 50 levels on a winding path, level 1 at the top (as
-// Squishdoku's map): beaten levels gold with their stars, the next one pink
-// and pulsing with a squishy bobbing beside it, the rest locked. A banner
-// opens each size band (5 SHELVES × 4 …), with a picture over it when
-// `iconOf` draws one (Squish Sort's fridges); the dot on a
-// node is its tier. Squish Stack's map is this one with its own `list` and
-// `bannerOf`. The
-// nodes are built nearest the current one first, a few a frame
-// (useProgressive), so the map is up at once and fills outwards.
+// A container's 50 levels in a row, level 1 at the left: beaten levels gold
+// with their stars, the next one pink and pulsing with a squishy bobbing
+// beside it, the rest locked. A sign opens each size band (5 SHELVES × 4 …),
+// with a picture over its banner when `iconOf` draws one (Squish Sort's
+// fridges); the dot on a node is its tier. Squish Hop's map is this one with
+// its own `list` and `bannerOf`; Squish Stack's forest map (ForestMap.js)
+// uses its Node. The nodes are built nearest the current one first, a few a
+// frame (useProgressive), so the map is up at once and fills outwards.
 
-const GAP = 92;
 export const NODE = 60;
-const TOP = 130;
-const BAND_GAP = 76;
-// a band's picture, over its banner
-const ICON_H = 116;
 const STAR_D = 'M12 2.2 L14.9 8.6 L21.8 9.3 L16.6 14 L18.1 20.9 L12 17.4 L5.9 20.9 L7.4 14 L2.2 9.3 L9.1 8.6 Z';
 
 const shelves = (L) => `${L.rows} ${L.rows > 1 ? 'SHELVES' : 'SHELF'} · ${L.cols} SPOTS`;
@@ -109,7 +103,7 @@ export const Node = memo(function Node({ lv, tier, x, y, state, stars, delay, on
 
 // list: [{ band, tier, … }] a level each; bannerOf(level) names its band,
 // iconOf(level) draws its picture (or null)
-// landscape (REDESIGN_V8, the user: the level maps sideways): the levels run left to right, the page scrolling
+// (REDESIGN_V8, the user: the level maps sideways): the levels run left to right, the page scrolling
 // sideways, in one row along the middle of the screen (2026-11-16, the user: the list in the middle). Each band opens
 // with its sign, its picture over its banner, standing in the row before its first level (it was over the row, which
 // pushed the row down to the bottom edge).
@@ -118,14 +112,13 @@ const SIGN_W = 210; // a sign with a picture (Squish Sort's fridges, Squish Hop'
 const SIGN_W_TEXT = 150; // a banner only
 const SIGN_GAP = 50; // from a node's centre to the sign's edge
 
-// rowAt (landscape): where the row's middle line runs, as a fraction of the map's height (lower over a room's floor)
-// landscape, the rooms behind the map (src/royal/WorldBg.js RoomBackdrop, useRoomStrip): roomOf(level) names the room
+// rowAt: where the row's middle line runs, as a fraction of the map's height (lower over a room's floor)
+// the rooms behind the map (src/royal/WorldBg.js RoomBackdrop, useRoomStrip): roomOf(level) names the room
 // a band's levels are played in; onSpans([{ room, x0, x1 }]) gets where each room runs along the page (from just
 // before its first band's sign); scrollX (an Animated.Value) follows the page's scroll on the UI thread, so the rooms
 // scroll with the levels (2026-11-17, the user: the background stood still while the list scrolled)
 function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelves, iconOf, roomOf, onSpans, scrollX, rowAt = 0.5 }) {
-  const { width, height: winH } = useGameDims(); // (the game panel in landscape: REDESIGN_V7)
-  const wide = width > winH;
+  const { width, height: winH } = useGameDims(); // (the window)
   const [boxH, setBoxH] = useState(0);
   const H = boxH || winH - 60;
   const scroll = useRef(null);
@@ -133,42 +126,30 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
   const LEVELS = list.length;
   const bandOf = (i) => list[i].band;
   const points = useMemo(() => {
-    if (wide) {
-      // a gentle wave about the middle line (a little above it: the stars hang under a beaten level)
-      const amp = Math.min(rowAt > 0.6 ? 14 : 22, H * 0.07);
-      const mid = H * rowAt - 10;
-      const out = [];
-      let x = 0;
-      for (let i = 0; i < LEVELS; i++) {
-        let sign = null;
-        if (i === 0 || list[i].band !== list[i - 1].band) {
-          sign = i === 0 ? 20 : out[i - 1].x + SIGN_GAP;
-          const w = iconOf && iconOf(list[i]) ? SIGN_W : SIGN_W_TEXT;
-          x = sign + w + SIGN_GAP;
-        }
-        out.push({ x, y: mid + Math.sin(i * 1.05) * amp, sign });
-        x += GAP_X;
+    // a gentle wave about the middle line (a little above it: the stars hang under a beaten level)
+    const amp = Math.min(rowAt > 0.6 ? 14 : 22, H * 0.07);
+    const mid = H * rowAt - 10;
+    const out = [];
+    let x = 0;
+    for (let i = 0; i < LEVELS; i++) {
+      let sign = null;
+      if (i === 0 || list[i].band !== list[i - 1].band) {
+        sign = i === 0 ? 20 : out[i - 1].x + SIGN_GAP;
+        const w = iconOf && iconOf(list[i]) ? SIGN_W : SIGN_W_TEXT;
+        x = sign + w + SIGN_GAP;
       }
-      return out;
+      out.push({ x, y: mid + Math.sin(i * 1.05) * amp, sign });
+      x += GAP_X;
     }
-    const amp = Math.min(110, width * 0.27);
-    let y = TOP;
-    return Array.from({ length: LEVELS }, (_, i) => {
-      if (i > 0 && list[i].band !== list[i - 1].band) y += BAND_GAP;
-      if (iconOf && (i === 0 || list[i].band !== list[i - 1].band) && iconOf(list[i])) y += ICON_H;
-      const p = { x: width / 2 + Math.sin(i * 1.05) * amp, y };
-      y += GAP;
-      return p;
-    });
-  }, [width, list, LEVELS, iconOf, wide, H, rowAt]);
-  const height = points[LEVELS - 1].y + 120;
+    return out;
+  }, [list, LEVELS, iconOf, H, rowAt]);
   const contentW = points[LEVELS - 1].x + 120;
   const mascot = uris.length ? uris[(cur * 11) % uris.length] : null;
 
   // the rooms along the page: a room from where its first band starts (between the last band's last level and the
   // sign) to the next room's
   const spans = useMemo(() => {
-    if (!wide || !roomOf) return null;
+    if (!roomOf) return null;
     const out = [];
     for (let i = 0; i < LEVELS; i++) {
       if (points[i].sign == null) continue;
@@ -181,10 +162,10 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
     }
     out[out.length - 1].x1 = Math.max(contentW, width);
     return out;
-  }, [wide, roomOf, LEVELS, points, list, contentW, width]);
+  }, [roomOf, LEVELS, points, list, contentW, width]);
   // (before the first frame: the rooms drawn where the page opens, the current level in the middle)
   useLayoutEffect(() => {
-    if (wide && scrollX) scrollX.setValue(Math.max(0, Math.min(points[Math.min(cur, LEVELS) - 1].x - width / 2, contentW - width)));
+    if (scrollX) scrollX.setValue(Math.max(0, Math.min(points[Math.min(cur, LEVELS) - 1].x - width / 2, contentW - width)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useLayoutEffect(() => {
@@ -198,7 +179,7 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
 
   useEffect(() => {
     const p = points[cur - 1];
-    const tm = setTimeout(() => (wide ? scroll.current?.scrollTo({ x: Math.max(0, p.x - width / 2), animated: false }) : scroll.current?.scrollTo({ y: Math.max(0, p.y - 260), animated: false })), 0);
+    const tm = setTimeout(() => scroll.current?.scrollTo({ x: Math.max(0, p.x - width / 2), animated: false }), 0);
     const pops = [];
     for (let k = 0; k < 6; k++) pops.push(setTimeout(() => sfx.play('sd_nodePop', { rate: 0.9 + k * 0.07 }), 120 + k * 70));
     return () => {
@@ -211,8 +192,8 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
   const dots = [];
   for (let i = 0; i < LEVELS - 1; i++) {
     if (!built.has(i) || !built.has(i + 1)) continue;
-    // (in landscape a band's sign stands between its levels and the last band's: no dots through it)
-    if (wide && points[i + 1].sign != null) continue;
+    // (a band's sign stands between its levels and the last band's: no dots through it)
+    if (points[i + 1].sign != null) continue;
     const a = points[i];
     const b = points[i + 1];
     for (let k = 1; k <= 3; k++) {
@@ -227,17 +208,10 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
       // (the picture comes with its level's node, a few a frame)
       const icon = iconOf ? iconOf(L) : null;
       banners.push(
-        wide ? (
-          <View key={`b${L.band}`} style={[styles.signWide, { left: points[i].sign, width: icon ? SIGN_W : SIGN_W_TEXT, top: H * rowAt - 10 - H / 2, height: H }]}>
-            {icon ? <View style={styles.iconWide}>{built.has(i) ? icon : null}</View> : null}
-            <Text style={styles.bannerText}>{bannerOf(L)}</Text>
-          </View>
-        ) : (
-          <View key={`b${L.band}`} style={[styles.banner, { top: points[i].y - 104 - (icon ? ICON_H : 0) }]}>
-            {icon ? <View style={styles.icon}>{built.has(i) ? icon : null}</View> : null}
-            <Text style={styles.bannerText}>{bannerOf(L)}</Text>
-          </View>
-        ),
+        <View key={`b${L.band}`} style={[styles.sign, { left: points[i].sign, width: icon ? SIGN_W : SIGN_W_TEXT, top: H * rowAt - 10 - H / 2, height: H }]}>
+          {icon ? <View style={styles.icon}>{built.has(i) ? icon : null}</View> : null}
+          <Text style={styles.bannerText}>{bannerOf(L)}</Text>
+        </View>,
       );
     }
   }
@@ -245,12 +219,11 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
   return (
     <Animated.ScrollView
       ref={scroll}
-      horizontal={wide}
+      horizontal
       style={styles.fill}
-      contentContainerStyle={wide ? { width: contentW, height: H } : { height }}
-      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ width: contentW, height: H }}
       showsHorizontalScrollIndicator={false}
-      onLayout={(e) => wide && setBoxH(Math.round(e.nativeEvent.layout.height))}
+      onLayout={(e) => setBoxH(Math.round(e.nativeEvent.layout.height))}
       onScroll={onScroll}
       // (every frame: the rooms behind follow the scroll)
       scrollEventThrottle={16}
@@ -273,7 +246,7 @@ function LevelMap({ rec, uris = [], onPlay, list = LEVEL_LIST, bannerOf = shelve
             delay={Math.min(700, Math.abs(lv - cur) * 45)}
             onPress={onPlay}
             mascot={lv === cur ? mascot : null}
-            mascotLeft={wide ? p.sign == null : p.x > width / 2}
+            mascotLeft={p.sign == null}
           />
         );
       })}
@@ -296,12 +269,10 @@ const styles = StyleSheet.create({
   stars: { flexDirection: 'row', marginTop: 4, gap: 1 },
   mascot: { position: 'absolute', top: 8, zIndex: 3 },
   dot: { position: 'absolute', width: 8, height: 8, borderRadius: 4 },
-  banner: { position: 'absolute', alignSelf: 'center', left: 0, right: 0, alignItems: 'center' },
   // a sign in the row: centred on the row's middle line (H / 2 - 10)
-  signWide: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  iconWide: { marginBottom: 8, alignItems: 'center' },
+  sign: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  icon: { marginBottom: 8, alignItems: 'center' },
   bannerText: { fontFamily: F.display, fontSize: 14, letterSpacing: 1.5, color: '#ffffff', textAlign: 'center', backgroundColor: '#b8641c', borderRadius: 16, borderWidth: 2.5, borderColor: '#ffffff', paddingHorizontal: 14, paddingVertical: 3, overflow: 'hidden' },
-  icon: { height: ICON_H - 8, justifyContent: 'flex-end', marginBottom: 6 },
 });
 
 export default memo(LevelMap);

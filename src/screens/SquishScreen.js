@@ -1,5 +1,5 @@
-import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { View, Text, StyleSheet, PanResponder, Animated, Easing, Dimensions, useWindowDimensions } from 'react-native';
+import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, PanResponder, Animated, Easing, Dimensions } from 'react-native';
 import Pressable from '../components/Pressable';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,8 @@ import { InterstitialAd, AdEventType } from 'react-native-google-mobile-ads';
 import SquishyToy from '../components/SquishyToy';
 import SquishyToy2D from '../components/SquishyToy2D';
 import Supersample from '../components/Supersample';
+import { stepKeys, useKeyLoop } from '../components/idleLoop';
+import { useAfterFirstFrame } from '../components/Skeleton';
 import { INTERSTITIAL_AD_UNIT_ID } from '../firebase/ads';
 
 // A creature with a `card` (every roster creature since REDESIGN_V6 step 4:
@@ -22,10 +24,7 @@ import { pressHaptic, moveHaptic, releaseHaptic } from '../haptics/squishHaptics
 import CoinSound from '../audio/CoinSound';
 import PopSound from '../audio/PopSound';
 import { candyColors, candyFonts, BUTTON_VARIANTS } from '../theme/candyTheme';
-import AdStrip from '../components/AdStrip';
 import WatchAdButton from '../components/WatchAdButton';
-import TutTarget from '../tutorial/Target';
-import { report as tutReport } from '../tutorial/store';
 import { AD_FREE_BOOST_RECHARGE_MS } from '../economy';
 import SkyBackground from '../squad/SkyBackground';
 import CandyButton, { Shine } from '../components/candy/CandyButton';
@@ -36,9 +35,9 @@ import ToggleSwitch from '../components/candy/ToggleSwitch';
 import sfx from '../audio/sfx';
 import { fmtNum } from '../format';
 
-// Stage size: the full screen width (capped for tablets). The creature's
-// own size inside it is MODEL_TUNING.visual in SquishyToy.js.
-// (the screen's shorter side: in landscape, REDESIGN_V7 step 5, the height)
+// Stage size: the screen's shorter side, its height (REDESIGN_V7 step 5),
+// capped for tablets. The creature's own size inside it is
+// MODEL_TUNING.visual in SquishyToy.js.
 const STAGE_SIZE = Math.min(Math.round(Math.min(Dimensions.get('window').width, Dimensions.get('window').height)), 420);
 const RIPPLE_LIFETIME_MS = 620;
 // 60s window where an ad-watch doubles squish rewards.
@@ -427,20 +426,19 @@ function SettingsHint({ top, opacity, bobAnim, pulseAnim }) {
   );
 }
 
+// 0 → 1 → 0, `config.duration` each way, eased, forever: one native loop
+// (idleLoop.js; a loop around the two timings went back to JS at every turn)
+const LOOP_EASE = Easing.inOut(Easing.ease);
 function useLoopAnim(config) {
-  const anim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(anim, { toValue: 1, duration: config.duration, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(anim, { toValue: 0, duration: config.duration, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  return anim;
+  const keys = useMemo(
+    () =>
+      stepKeys(0, [
+        [1, config.duration, LOOP_EASE],
+        [0, config.duration, LOOP_EASE],
+      ]),
+    [config.duration]
+  );
+  return useKeyLoop(keys.ms, keys);
 }
 
 // The stage itself: touch surface, 3D Canvas (or the 2D rig), touch effects
@@ -580,7 +578,7 @@ function SettingsRow({ label, children }) {
 
 // Settings dropdown opened from the gear: v5's white card hanging under the
 // gear, with no scrim. Tapping anywhere outside it (the gear included) or
-// the ✕ closes it; the ✕ is also the tutorial's gearClose target.
+// the ✕ closes it.
 function SettingsModal({
   top,
   onClose,
@@ -599,9 +597,7 @@ function SettingsModal({
   pokeOutward,
   onChangePokeOutward,
 }) {
-  // landscape (REDESIGN_V8): wider, in two columns (sound and display | the squish), so it fits under the gear
-  const win = useWindowDimensions();
-  const wide = win.width > win.height;
+  // REDESIGN_V8: wide, in two columns (sound and display | the squish), so it fits under the gear
   const sound = (
     <>
       <Text style={styles.settingsSection}>SOUND</Text>
@@ -637,26 +633,19 @@ function SettingsModal({
   return (
     <View style={styles.settingsOverlay}>
       <Pressable silent style={StyleSheet.absoluteFillObject} onPress={onClose} />
-      <View style={[styles.settingsCard, wide && styles.settingsCardWide, { top }]}>
+      <View style={[styles.settingsCard, { top }]}>
         <View style={styles.settingsHeader}>
           <Text style={styles.settingsTitle}>Settings</Text>
-          <TutTarget name="gearClose">
+          <View>
             <RoundButton size={26} onPress={onClose} hitSlop={10}>
               <CloseGlyph />
             </RoundButton>
-          </TutTarget>
-        </View>
-        {wide ? (
-          <View style={styles.settingsCols}>
-            <View style={styles.settingsCol}>{sound}</View>
-            <View style={styles.settingsCol}>{squish}</View>
           </View>
-        ) : (
-          <>
-            {sound}
-            {squish}
-          </>
-        )}
+        </View>
+        <View style={styles.settingsCols}>
+          <View style={styles.settingsCol}>{sound}</View>
+          <View style={styles.settingsCol}>{squish}</View>
+        </View>
       </View>
     </View>
   );
@@ -750,21 +739,15 @@ function PunishCard({ children }) {
   );
 }
 
-// 🚨 that won't sit still (the design's hintShake, looped).
+// 🚨 that won't sit still (the design's hintShake, looped): a 360 ms shake,
+// then still for 420 ms. One native loop, the pause a rest in its keyframes
+// (an Animated.delay ran on JS, and held InteractionManager while it did).
+const SIREN_AT = [0, 360 / 780, 1];
+const SIREN_T = [0, 1, 1];
 function Siren() {
-  const t = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(t, { toValue: 1, duration: 360, easing: Easing.linear, useNativeDriver: true }),
-        Animated.delay(420),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [t]);
-  const translateX = t.interpolate({ inputRange: [0, 0.25, 0.75, 1], outputRange: [0, -6, 6, 0] });
-  const rotate = t.interpolate({ inputRange: [0, 0.25, 0.75, 1], outputRange: ['0deg', '-10deg', '10deg', '0deg'] });
+  const t = useKeyLoop(780, { at: SIREN_AT, values: SIREN_T });
+  const translateX = useMemo(() => t.interpolate({ inputRange: [0, 0.25, 0.75, 1], outputRange: [0, -6, 6, 0] }), [t]);
+  const rotate = useMemo(() => t.interpolate({ inputRange: [0, 0.25, 0.75, 1], outputRange: ['0deg', '-10deg', '10deg', '0deg'] }), [t]);
   return <Animated.Text style={[styles.punishEmoji, { transform: [{ translateX }, { rotate }] }]}>🚨</Animated.Text>;
 }
 
@@ -792,16 +775,17 @@ function SquishScreen({
   pokeOutward = false,
   onChangePokeOutward,
   adsFree = false,
-  // the streak's +5% a day and the tutorial's ×10 (src/progression.js), on
-  // top of a ×N boost
+  // the streak's +5% a day (src/progression.js), on top of a ×N boost
   coinMultiplier = 1,
-  // the guided tutorial is on: its coach marks replace the stage's own hints
-  hideHints = false,
+  // called once the screen's views are built and drawn (App.js: the loading beat over it waits for this)
+  onShown,
 }) {
-  // landscape (REDESIGN_V7 step 5): live, so a turn of the phone after it opens is caught
-  const win = useWindowDimensions();
-  const wideScreen = win.width > win.height;
   const insets = useSafeAreaInsets();
+  const shown = useAfterFirstFrame();
+  useEffect(() => {
+    if (shown && onShown) onShown();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown]);
   const toyRef = useRef(null);
   const soundRef = useRef(null);
   const coinSoundRef = useRef(null);
@@ -844,19 +828,18 @@ function SquishScreen({
   const [bonusMultiplier, setBonusMultiplier] = useState(2);
 
   const wheelAnim = useRef(new Animated.Value(0)).current;
-  const gestureSquishAnim = useLoopAnim({ duration: 1700 });
-  const gestureRotateAnim = useLoopAnim({ duration: 1700 });
-  const gestureTouchAnim = useLoopAnim({ duration: 1700 });
+  // the gesture hints' squish, turn and touch rings, in step: one loop for the three
+  const gestureAnim = useLoopAnim({ duration: 1700 });
   // Fades the on-stage gesture tutorial out the first time the player
   // actually touches the toy — see onPanResponderGrant below. Stays hidden
   // for the rest of this screen's lifetime (hintDismissedRef).
   const gestureHintOpacity = useRef(new Animated.Value(1)).current;
-  const hintDismissedRef = useRef(hideHints);
-  const [showHints, setShowHints] = useState(!hideHints);
+  const hintDismissedRef = useRef(false);
+  const [showHints, setShowHints] = useState(true);
   // The settings pointer fades when the gear is opened, or 4 s after the
   // first squish, then unmounts (its loops stop with it).
   const settingsHintOpacity = useRef(new Animated.Value(1)).current;
-  const [showSettingsHint, setShowSettingsHint] = useState(!hideHints);
+  const [showSettingsHint, setShowSettingsHint] = useState(true);
   const settingsHintTimerRef = useRef(null);
   const settingsPointAnim = useLoopAnim({ duration: 650 });
   const gearPulseAnim = useLoopAnim({ duration: 900 });
@@ -924,14 +907,10 @@ function SquishScreen({
     (visible) => {
       sfx.play(visible ? 'popOpen' : 'popClose');
       setSettingsOpen(visible);
-      tutReport({ settingsOpen: visible });
       Animated.timing(wheelAnim, { toValue: visible ? 1 : 0, duration: 400, useNativeDriver: true }).start();
     },
     [wheelAnim]
   );
-  // the tutorial watches the finger and the twist (src/tutorial/steps.js)
-  const rotateAccRef = useRef(0);
-  useEffect(() => () => tutReport({ holdActive: false, settingsOpen: false }), []);
   const openSettings = useCallback(() => {
     dismissSettingsHint();
     setSettingsVisible(true);
@@ -1012,7 +991,6 @@ function SquishScreen({
     }
     return earned;
   }, []);
-
 
   // Trips the punishment after too many quick taps. Every rule's tap-rate is
   // expressed as a percentage of its allowance (count / limit); crossing
@@ -1108,7 +1086,6 @@ function SquishScreen({
           return;
         }
         gestureModeRef.current = 'poke';
-        tutReport({ holdActive: true });
         const { locationX, locationY } = evt.nativeEvent;
         lastTouch.current = { x: locationX, y: locationY };
         soundAnchorRef.current = { x: locationX, y: locationY };
@@ -1135,12 +1112,6 @@ function SquishScreen({
           }
           const c = centroidOf(touches);
           toyRef.current?.orbit(c.x - lastCentroidRef.current.x, c.y - lastCentroidRef.current.y);
-          // the tutorial's rotate step counts the twist (every 20 px)
-          rotateAccRef.current += Math.abs(c.x - lastCentroidRef.current.x) * 1.5;
-          if (rotateAccRef.current - (tutReport.lastRot || 0) >= 20) {
-            tutReport.lastRot = rotateAccRef.current;
-            tutReport({ rotateAcc: Math.round(rotateAccRef.current) });
-          }
           lastCentroidRef.current = c;
           return;
         }
@@ -1175,7 +1146,6 @@ function SquishScreen({
         const hadTwo = gestureHadTwoRef.current;
         gestureModeRef.current = 'none';
         gestureHadTwoRef.current = false;
-        tutReport({ holdActive: false });
         // Orbit gestures never earn coins or play the release sound.
         if (mode === 'orbit' || hadTwo) {
           toyRef.current?.endOrbit();
@@ -1212,7 +1182,6 @@ function SquishScreen({
       onPanResponderTerminate: () => {
         gestureModeRef.current = 'none';
         gestureHadTwoRef.current = false;
-        tutReport({ holdActive: false });
         toyRef.current?.endOrbit();
         toyRef.current?.pointerUp();
         soundRef.current?.stop();
@@ -1223,14 +1192,14 @@ function SquishScreen({
   ).current;
 
   return (
-    <SkyBackground style={[styles.container, wideScreen && styles.containerWide]}>
+    <SkyBackground style={styles.container}>
       <View style={styles.stageArea}>
         <View style={[styles.topLeft, { top: insets.top + 14 }]}>
-          <TutTarget name="back">
+          <View>
             <RoundButton size={34} onPress={onBack} hitSlop={8}>
               <BackGlyph />
             </RoundButton>
-          </TutTarget>
+          </View>
           <CoinCounter ref={coinCounterRef} />
           {showFps && <FpsCounter />}
         </View>
@@ -1239,15 +1208,15 @@ function SquishScreen({
           <SettingsHint top={insets.top + 14} opacity={settingsHintOpacity} bobAnim={settingsPointAnim} pulseAnim={gearPulseAnim} />
         ) : null}
 
-        <TutTarget name="gear" style={[styles.wheelButton, { top: insets.top + 14 }]}>
+        <View style={[styles.wheelButton, { top: insets.top + 14 }]}>
           <RoundButton size={GEAR_SIZE} onPress={openSettings}>
             <Animated.View style={{ transform: [{ rotate: wheelRotate }] }}>
               <GearIcon />
             </Animated.View>
           </RoundButton>
-        </TutTarget>
+        </View>
 
-        <TutTarget name="stage">
+        <View>
           <SquishStage
             toy={toy}
             toyRef={toyRef}
@@ -1257,37 +1226,34 @@ function SquishScreen({
             onRelease={handleToyRelease}
             hintOpacity={gestureHintOpacity}
             showHints={showHints}
-            squishAnim={gestureSquishAnim}
-            rotateAnim={gestureRotateAnim}
-            touchAnim={gestureTouchAnim}
+            squishAnim={gestureAnim}
+            rotateAnim={gestureAnim}
+            touchAnim={gestureAnim}
             dentScale={dentScale}
             dentOutward={pokeOutward}
           />
-        </TutTarget>
-      </View>
-
-      {/* landscape (REDESIGN_V7 step 5): the bonus and the boosts in a panel at the right, no banner ad */}
-      <View style={wideScreen ? styles.sidePanel : null}>
-      <BonusBanner endsAt={bonusEndsAt} multiplier={bonusMultiplier} coinAnim={bonusCoinAnim} />
-
-      <View style={wideScreen ? styles.sideInner : styles.bottomPanel}>
-        <View style={wideScreen ? styles.sideCol : styles.bottomRow}>
-          {[2, 3, 4].map((m) => (
-            <WatchAdButton
-              key={m}
-              multiplier={m}
-              onRewardEarned={() => handleAdReward(m)}
-              activeMultiplier={bonusActive ? bonusMultiplier : null}
-              adFree={adsFree}
-              rechargeUntil={boostRechargeUntil}
-            />
-          ))}
         </View>
       </View>
 
-      {/* the same full-width strip as Home's (none with Remove Ads) */}
+      {/* REDESIGN_V7 step 5: the bonus and the boosts in a panel at the right, no banner ad */}
+      <View style={styles.sidePanel}>
+        <BonusBanner endsAt={bonusEndsAt} multiplier={bonusMultiplier} coinAnim={bonusCoinAnim} />
+
+        <View style={styles.sideInner}>
+          <View style={styles.sideCol}>
+            {[2, 3, 4].map((m) => (
+              <WatchAdButton
+                key={m}
+                multiplier={m}
+                onRewardEarned={() => handleAdReward(m)}
+                activeMultiplier={bonusActive ? bonusMultiplier : null}
+                adFree={adsFree}
+                rechargeUntil={boostRechargeUntil}
+              />
+            ))}
+          </View>
+        </View>
       </View>
-      {wideScreen ? null : adsFree ? <View style={{ height: insets.bottom }} /> : <AdStrip />}
 
       {doubleFlash && (
         <View style={styles.flashOverlay} pointerEvents="none">
@@ -1324,14 +1290,12 @@ function SquishScreen({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  containerWide: { flexDirection: 'row' },
+  container: { flex: 1, flexDirection: 'row' },
   sidePanel: { width: 210, justifyContent: 'center', paddingRight: 14, paddingLeft: 4, gap: 10 },
   sideInner: { borderRadius: 22, backgroundColor: 'rgba(107,68,38,0.4)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)', padding: 10 },
   // (the boost buttons stretch to fill (flex: 1): a column needs a height for them)
   sideCol: { gap: 10, height: 230 },
-  // Bottom panel no longer carries a tall hint list, so the stage claims
-  // whatever's left instead of a fixed 70/30 split (see bottomPanel below).
+  // the stage claims whatever the side panel leaves
   stageArea: { flex: 1, position: 'relative', alignItems: 'center', justifyContent: 'center' },
   topLeft: { position: 'absolute', left: 14, flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 3 },
   coinPill: {
@@ -1398,7 +1362,7 @@ const styles = StyleSheet.create({
   settingsCard: {
     position: 'absolute',
     right: GEAR_RIGHT,
-    width: 244,
+    width: 470,
     backgroundColor: '#ffffff',
     borderRadius: 16,
     borderWidth: 1.5,
@@ -1411,7 +1375,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 12 },
     elevation: 10,
   },
-  settingsCardWide: { width: 470 },
   settingsCols: { flexDirection: 'row', gap: 22 },
   settingsCol: { flex: 1 },
   settingsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -1443,8 +1406,6 @@ const styles = StyleSheet.create({
   segmentText: { color: candyColors.ink, fontFamily: candyFonts.display, fontSize: 13 },
   segmentTextActive: { color: '#ffffff', textShadowColor: candyColors.pinkRing, textShadowOffset: { width: 0, height: 1.5 }, textShadowRadius: 1 },
 
-  bottomPanel: { backgroundColor: 'rgba(107,68,38,0.4)', borderTopWidth: 2, borderTopColor: 'rgba(255,255,255,0.6)' },
-  bottomRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 10 },
   gestureHint: { position: 'absolute', top: '50%', alignItems: 'center', gap: 6 },
   gestureHandWrap: { width: HAND_W, height: HAND_W * HAND_ASPECT },
   touchRing: {
@@ -1581,6 +1542,6 @@ const styles = StyleSheet.create({
   punishButtonText: { fontSize: 15 },
 });
 
-// memo: App re-renders on things the stage doesn't show (tutorial reports,
-// sheets, toasts); each of those used to re-render this whole screen
+// memo: App re-renders on things the stage doesn't show (sheets, toasts);
+// each of those used to re-render this whole screen
 export default React.memo(SquishScreen);

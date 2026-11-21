@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing } from 'react-native';
+import { Animated, Easing, Platform } from 'react-native';
 
 // Idle motion that loops forever (a bob, a twinkle, a pulse) as ONE native
 // animation: a linear phase 0 → 1 repeated on the UI thread, read through
@@ -16,6 +16,28 @@ export const TRIANGLE = PHASE.map((p) => (p < 0.5 ? 2 * p : 2 - 2 * p));
 // 0 → 1 → -1 → 0 (a sine: a quarter out, half across, a quarter back)
 export const SWING = PHASE.map((p) => Math.sin(2 * Math.PI * p));
 
+// A looping Animated.sequence of timings as keyframes for useKeyLoop: from
+// `from`, each step [to, ms, easing] (straight if no easing; a step to where
+// it already is, a rest), an eased step sampled about once a frame (at most
+// `n` keyframes). Returns { ms, at, values }: the period and its keyframes.
+export function stepKeys(from, steps, n = 8) {
+  const ms = steps.reduce((sum, s) => sum + s[1], 0);
+  const at = [0];
+  const values = [from];
+  let t = 0;
+  let v = from;
+  steps.forEach(([to, d, ease]) => {
+    const k = to === v || !ease || ease === Easing.linear ? 1 : Math.max(1, Math.min(n, Math.ceil(d / 16)));
+    for (let i = 1; i <= k; i++) {
+      at.push((t + (d * i) / k) / ms);
+      values.push(k === 1 ? to : v + (to - v) * ease(i / k));
+    }
+    t += d;
+    v = to;
+  });
+  return { ms, at, values };
+}
+
 // Off for a subtree that's on screen but hidden (Home kept laid out under a
 // screen that covers it, App.js): its loops stop, so a hidden screen's bobs
 // and twinkles don't keep the RenderThread busy. They start again with it.
@@ -27,9 +49,12 @@ export const LoopsOn = createContext(true);
 // memory back and stayed blank (2026-10-28).
 export const RigAway = createContext(false);
 
-// The native loop of a phase value (0 → 1 every `ms`).
+// The native loop of a phase value (0 → 1 every `ms`). (On the web it runs
+// on JS: react-native-web has no native driver, and its stand-in played a
+// "native" loop's timing once and stopped, 2026-11-20.)
+const NATIVE = Platform.OS !== 'web';
 export function phaseLoop(phase, ms) {
-  return Animated.loop(Animated.timing(phase, { toValue: 1, duration: ms, easing: Easing.linear, useNativeDriver: true }));
+  return Animated.loop(Animated.timing(phase, { toValue: 1, duration: ms, easing: Easing.linear, useNativeDriver: NATIVE }));
 }
 
 // A value going `from` → `to` → `from` every `ms` (eased, or in straight

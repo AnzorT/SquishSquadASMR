@@ -50,6 +50,10 @@
   // A creature's still picture: its border look when the app has one for it (REDESIGN_V9: the look config/roster picks,
   // sent by the app as state.looks, src/squad/looks.js; the pictures are the app's own, android assets/looks), else the
   // design's own still.
+  // the small copy of a card picture (webgame/tools/small-cards.py), or the picture itself (PERF 2026-11-20)
+  const smallPic = u => typeof u !== 'string' ? u : u
+    .replace(/^(?:\.\/)?export\/cards4\/((?:frame|bg)-[\w-]+\.webp|names\/[\w-]+\.webp)(?:\?[\w=.&-]*)?$/, 'app/sm/cards4/$1')
+    .replace(/^\.\.\/looks\/(\d+)\/([\w-]+\.webp)$/, '../looks-sm/$1/$2');
   function still(c, Q) {
     const L = S().looks, key = c && c.key;
     if (L && key && L.keys && L.keys.indexOf(key) >= 0) { const n = L.over && L.over[key] != null ? L.over[key] : L.n; if (n > 0) return '../looks/' + n + '/' + key + '.webp'; }
@@ -105,6 +109,17 @@ body .mm-hback{width:44px;height:44px;background:radial-gradient(circle at 34% 2
 body .mm-hback svg{width:21px;height:21px;filter:drop-shadow(0 1.4px 0 #6b4426);}
 /* 2026-11-17 (the user): not on the house map, which has its own Back (top left) and its hint sits where the orb is */
 body .mm-house:has([data-screen-label="House map"]) .mm-hback{display:none;}
+/* 2026-11-20: nor over the open Catalog, which has its own close (the orb covered its first category tab, "Walls") */
+body .mm-house:has([data-screen-label="Catalog"]) .mm-hback{display:none;}
+/* PERF 2026-11-21: room first, creatures after (houseDrawn): the furniture fades in after the bare room */
+.sq-items{transition:opacity .35s ease;}
+.sq-filling .sq-items{opacity:0;transition:none;}
+/* PERF 2026-11-20: the house map on a layer of its own (opening it doesn't make the WebView raster the room under it again
+   with it), and once its picture is up (SquishMapShown) the SVG is not drawn at all, only hit: its shapes still take the
+   taps (pointer-events painted ignores visibility) */
+[data-screen-label="House map"]{will-change:transform;}
+svg.sq-baked{visibility:hidden;}
+svg.sq-baked *{pointer-events:painted;}
 .mm-root .mm-page2{background:${WOOD_BG};}
 .mm-root .mm-frame{background:#6b4426;}
 /* HUD (REDESIGN_V8): no SQUAD (patched out), the tabs start at the left with room between them; the coin and gem
@@ -167,9 +182,9 @@ body .mm-house:has([data-screen-label="House map"]) .mm-hback{display:none;}
 .sq-pk.in .mm-pgh{opacity:1;transform:none;}
 .sq-pk .mm-pgh .s{font:700 11.5px Nunito,sans-serif;color:#f3eaff;text-shadow:0 1px 2px rgba(30,0,60,.8);}
 .sq-car{position:absolute;right:0;top:56px;bottom:0;pointer-events:auto;touch-action:pan-y;}
-.sq-rays{position:absolute;left:50%;top:50%;width:560px;height:560px;margin:-294px 0 0 -280px;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .6s ease .2s;
+.sq-rays{position:absolute;left:50%;top:50%;width:492px;height:492px;margin:-260px 0 0 -246px;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .6s ease .2s;
   background:repeating-conic-gradient(from 0deg,rgba(255,240,180,.5) 0deg 9deg,rgba(255,240,180,0) 9deg 22deg);
-  -webkit-mask-image:radial-gradient(circle,#000 12%,rgba(0,0,0,0) 62%);mask-image:radial-gradient(circle,#000 12%,rgba(0,0,0,0) 62%);}
+  -webkit-mask-image:radial-gradient(circle 246px at 50% 50%,#000 47.52px,rgba(0,0,0,0) 245.51px);mask-image:radial-gradient(circle 246px at 50% 50%,#000 47.52px,rgba(0,0,0,0) 245.51px);}
 .sq-pk.in .sq-rays{opacity:.55;}
 @keyframes sqSpin{to{transform:rotate(360deg);}}
 .sq-halo{position:absolute;left:50%;top:50%;width:320px;height:320px;margin:-174px 0 0 -160px;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .6s ease .2s;
@@ -272,16 +287,21 @@ body .mm-house:has([data-screen-label="House map"]) .mm-hback{display:none;}
 /* ---- Heading home (REDESIGN_V9): night on the house while it loads ---- */
 .sq-hh-night{position:absolute;inset:0;pointer-events:none;}
 .sq-hh-night .lay{position:absolute;inset:0;width:100%;height:100%;overflow:visible;}
-.sq-hh-night .sky{mix-blend-mode:multiply;opacity:0;transition:opacity .9s ease;}
-.sq-hh-night .stars{position:absolute;inset:0;opacity:0;transition:opacity 1.2s ease .5s;}
+/* PERF 2026-11-20: each part its own GPU layer, faded by Web Animations (headingHome): the night multiplied over the
+   house, then each lit window's day picture, the stars and the moon, the halos (screen) and the warm panes (soft-light) */
+.sq-hh-night .skyl{mix-blend-mode:multiply;will-change:opacity;opacity:0;}
+.sq-hh-night .holes,.sq-hh-night .glows,.sq-hh-night .hal,.sq-hh-night .pan{position:absolute;left:0;top:0;width:100%;height:100%;}
+/* PERF 2026-11-20: the night and each lit window as canvases drawn once (headingHome nightPics), faded in */
+.sq-hh-night .pics{position:absolute;inset:0;}
+.sq-hh-night .hl,.sq-hh-night .gl,.sq-hh-night .pn{position:absolute;overflow:visible;will-change:opacity;opacity:0;}
+.sq-hh-night .gl{mix-blend-mode:screen;}
+.sq-hh-night .pn{mix-blend-mode:soft-light;}
+.sq-hh-night .stars{position:absolute;inset:0;opacity:0;}
 .sq-hh-night .stars i{position:absolute;width:2px;height:2px;border-radius:50%;background:#fff;box-shadow:0 0 4px 1px rgba(255,255,255,.6);animation:sqTw 2.4s ease-in-out infinite;}
 @keyframes sqTw{0%,100%{opacity:.35;}50%{opacity:1;}}
-.sq-hh-night .moon{position:absolute;right:9%;top:8%;width:52px;height:52px;opacity:0;transform:translateY(10px);transition:opacity 1s ease .4s,transform 1.2s ease .4s;filter:drop-shadow(0 0 10px rgba(255,246,200,.7));}
-.sq-hh-night.on .sky,.sq-hh-night.on .stars{opacity:1;}
-.sq-hh-night.on .moon{opacity:1;transform:none;}
-.sq-hh-ui{position:absolute;inset:0;z-index:6;pointer-events:none;opacity:0;transition:opacity .6s ease;}
-.sq-hh-ui.on{opacity:1;}
-.sq-hh-ui.out{opacity:0;transition:opacity .35s ease;}
+
+.sq-hh-night .moon{position:absolute;right:9%;top:8%;width:52px;height:52px;opacity:0;transform:translateY(10px);filter:drop-shadow(0 0 10px rgba(255,246,200,.7));}
+.sq-hh-ui{position:absolute;inset:0;z-index:6;pointer-events:none;opacity:0;}
 .sq-hh-ui .in{position:absolute;left:0;top:0;transform-origin:0 0;}
 .sq-hh-ui .ttl{position:absolute;left:0;right:0;top:16px;display:flex;justify-content:center;line-height:0;}
 .sq-hh-ui .bot{position:absolute;left:0;right:0;bottom:14px;display:flex;flex-direction:column;align-items:center;gap:7px;}
@@ -291,7 +311,10 @@ body .mm-house:has([data-screen-label="House map"]) .mm-hback{display:none;}
 /* ---- Gathering your squad (REDESIGN_V9): the Characters page's loading screen ---- */
 .sq-gs{position:absolute;left:0;top:0;right:0;height:100%;min-height:393px;z-index:40;background:${WOOD_BG};opacity:1;transition:opacity .45s ease;overflow:hidden;}
 .sq-gs.out{opacity:0;}
-.sq-gs .rays{position:absolute;left:50%;top:44%;width:900px;height:900px;margin:-450px 0 0 -450px;border-radius:50%;pointer-events:none;background:repeating-conic-gradient(rgba(255,246,214,.30) 0deg 7deg,rgba(255,246,214,0) 7deg 18deg);-webkit-mask-image:radial-gradient(circle,#000 6%,rgba(0,0,0,0) 56%);mask-image:radial-gradient(circle,#000 6%,rgba(0,0,0,0) 56%);animation:sqSpin 60s linear infinite;}
+/* PERF 2026-11-20: the turning rays were a 900 px square, the mask shows only a 357 px circle of it (56% of the 636 px
+   reach of "circle" to the corner): the box is cut to that circle, the mask written in px (the same pixels, 37% less GPU
+   memory for a layer redrawn as it turns). The same for the Characters page's (32% less) and the Game Park's (23% less) rays below. */
+.sq-gs .rays{position:absolute;left:50%;top:44%;width:714px;height:714px;margin:-357px 0 0 -357px;border-radius:50%;pointer-events:none;background:repeating-conic-gradient(rgba(255,246,214,.30) 0deg 7deg,rgba(255,246,214,0) 7deg 18deg);-webkit-mask-image:radial-gradient(circle 357px at 50% 50%,#000 38.18px,rgba(0,0,0,0) 356.38px);mask-image:radial-gradient(circle 357px at 50% 50%,#000 38.18px,rgba(0,0,0,0) 356.38px);animation:sqSpin 60s linear infinite;}
 .sq-gs .ttl{position:absolute;left:0;right:0;top:12px;display:flex;justify-content:center;line-height:0;}
 .sq-gs .cnt{position:absolute;left:50%;top:56px;transform:translateX(-50%);padding:2px 12px;border-radius:999px;background:#fff6e2;color:#5b3418;font:800 11.5px Nunito,sans-serif;box-shadow:0 0 0 2px #6b4426,0 2px 0 2px #6b4426;white-space:nowrap;}
 .sq-gs .table{position:absolute;left:50%;top:176px;width:0;height:0;}
@@ -320,6 +343,7 @@ body .mm-house:has([data-screen-label="House map"]) .mm-hback{display:none;}
 /* ---- Characters ---- */
 .sq-cs{position:absolute;left:14px;top:60px;bottom:12px;width:278px;display:flex;flex-direction:column;align-items:center;}
 .sq-cs .stage{position:relative;width:236px;height:200px;flex:none;}
+.sq-gs canvas.rays,.sq-c2 canvas.rays{background:none;-webkit-mask-image:none;mask-image:none;border-radius:0;will-change:transform;}
 .sq-cs .stage .rays{position:absolute;left:50%;top:52%;width:300px;height:300px;margin:-150px 0 0 -150px;border-radius:50%;background:repeating-conic-gradient(rgba(255,240,180,.45) 0deg 9deg,rgba(255,240,180,0) 9deg 22deg);-webkit-mask-image:radial-gradient(circle,#000 10%,rgba(0,0,0,0) 62%);mask-image:radial-gradient(circle,#000 10%,rgba(0,0,0,0) 62%);opacity:.5;}
 .sq-cs .stage .pad{position:absolute;left:50%;bottom:6px;width:170px;height:34px;margin-left:-85px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,255,255,.75),rgba(255,236,170,.4) 55%,rgba(255,236,170,0));}
 .sq-cs .stage .pad::after{content:'';position:absolute;left:30px;right:30px;top:9px;bottom:9px;border-radius:50%;background:radial-gradient(circle at 45% 35%,#f6efe4,#cbbca6);box-shadow:0 0 0 2px rgba(107,68,38,.5);}
@@ -355,16 +379,24 @@ body .mm-house:has([data-screen-label="House map"]) .mm-hback{display:none;}
 .sq-cc.me::after{content:'IN USE';position:absolute;left:50%;top:-6px;transform:translateX(-50%);padding:1px 7px;border-radius:999px;background:linear-gradient(180deg,#fff1b0,#ffd650 45%,#f6a524);color:#6b4426;font:900 8px Nunito,sans-serif;letter-spacing:.8px;box-shadow:0 0 0 1.5px #6b4426;white-space:nowrap;z-index:3;}
 .sq-cc .nw{position:absolute;right:-4px;top:-4px;width:12px;height:12px;border-radius:50%;background:#ff4fbf;box-shadow:0 0 0 2px #fff;z-index:3;}
 /* ---- Characters, REDESIGN_V8: bright, warm and shiny ---- */
-.mm-root .mm-page2.sq-chars{background:radial-gradient(34% 50% at 50% 44%,rgba(255,246,214,.55) 0%,rgba(255,246,214,0) 70%),${WOOD_BG};}
+.mm-root .mm-page2.sq-chars{background:radial-gradient(34% 50% at 50% 44%,rgba(255,246,214,.55) 0%,rgba(255,246,214,0) 70%),${WOOD_BG};animation:none;}
+.mm-root .mm-page2.sq-pass{animation:none;}
+.sq-pass .sq-lvtrack,.sq-pass .sq-lvpan > *{transition:opacity .18s ease;}
+.sq-pass.sq-filling .sq-lvtrack,.sq-pass.sq-filling .sq-lvpan > *{opacity:0;will-change:opacity;}
+/* (PERF 2026-11-20: no fade-in under its loading screen: on the phone the fade froze part-way for up to 2 s while the
+   page's tiles were made, a see-through ghost of the loader over the menu; the loader is whole from its first frame) */
 .sq-c2{position:absolute;inset:0;pointer-events:none;}
 .sq-c2 > *{pointer-events:auto;}
-.sq-c2 .rays{position:absolute;left:50%;top:170px;width:820px;height:820px;margin:-410px 0 0 -410px;border-radius:50%;pointer-events:none;
+.sq-c2 .rays{position:absolute;left:50%;top:170px;width:674px;height:674px;margin:-337px 0 0 -337px;border-radius:50%;pointer-events:none;
   background:repeating-conic-gradient(rgba(255,255,255,.55) 0deg 7deg,rgba(255,255,255,0) 7deg 18deg);
-  -webkit-mask-image:radial-gradient(circle,#000 8%,rgba(0,0,0,0) 58%);mask-image:radial-gradient(circle,#000 8%,rgba(0,0,0,0) 58%);animation:sqSpin 60s linear infinite;opacity:.6;}
+  -webkit-mask-image:radial-gradient(circle 337px at 50% 50%,#000 46.38px,rgba(0,0,0,0) 336.29px);mask-image:radial-gradient(circle 337px at 50% 50%,#000 46.38px,rgba(0,0,0,0) 336.29px);animation:sqSpin 60s linear infinite;opacity:.6;}
 /* REDESIGN_V9 (the user: the character doesn't look inside the circle): stands on the plate, its shadow on the
    plate's middle (y 210), not 30 px over its back edge */
 .sq-c2 .rig{position:absolute;left:calc(50% - 75px);top:68px;width:150px;height:150px;z-index:2;}
 .sq-c2 .rig.pop{animation:sqPop .55s cubic-bezier(.2,1.4,.4,1);}
+/* PERF 2026-11-20: not drawn under the loading screen (it animates, so it was rastered again every frame, unseen: ~1 s
+   of the WebView's GPU thread on the first open on the A16); shown as the loading screen starts to leave */
+.sq-chars:has(.sq-gs:not(.sq-leaving)) .sq-c2 .rig{visibility:hidden;}
 .sq-c2 .rig.sil{filter:saturate(.3) brightness(.78) drop-shadow(0 0 8px rgba(255,255,255,.9));}
 .sq-c2 .ring{position:absolute;left:calc(50% - 100px);top:190px;width:200px;height:40px;z-index:1;}
 /* the platform: its gold side (the plate's thickness), then the plate turning slowly (12 s a turn) with its lights
@@ -397,7 +429,7 @@ ${bulbRun()}
 .sq-c2 .row .grp{flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:3px;position:relative;}
 .sq-c2 .row .grp + .grp::before{content:'';position:absolute;left:-12px;top:20px;bottom:6px;width:2px;border-radius:1px;background:rgba(107,68,38,.35);}
 .sq-c2 .row .gl{position:sticky;left:0;z-index:2;height:16px;padding:0 9px;border-radius:999px;font:800 10px/16px Nunito,sans-serif;color:#5b3418;background:#fff6e2;box-shadow:0 0 0 1.4px #6b4426;white-space:nowrap;}
-.sq-c2 .row .gc{display:flex;gap:7px;}
+.sq-c2 .row .gc{display:flex;gap:7px;padding:18px;margin:-18px;}
 .sq-c2 .row .sq-cc{flex:none;width:56px;}
 /* ---- performance (2026-11-14): what moves is on its own layer, glows pulse by opacity, nothing repaints every frame ---- */
 .mm-stage{will-change:transform;}
@@ -412,6 +444,15 @@ ${bulbRun()}
 .sq-away .mm-hud *,.sq-away .mm-hud *::before,.sq-away .mm-hud *::after{animation-play-state:paused !important;}
 .sq-away .sq-wx{display:none;}
 .sq-intro .sq-wx{display:none;}
+/* PERF 2026-11-20: the scene as a picture (see picture()), the live SVG hidden under it; the menu not drawn at all while
+   the house or a page covers it whole */
+.mm-scene > img.sq-pic{position:absolute;left:0;top:0;width:100%;height:100%;display:none;pointer-events:none;-webkit-user-drag:none;}
+.mm-scene.sq-pic-on > img.sq-pic:not(.hh),.mm-scene.sq-pic-hh > img.sq-pic.hh{display:block;}
+.mm-scene > .sq-live{position:absolute;left:0;top:0;width:100%;height:100%;}
+.mm-scene.sq-pic-on > .sq-live,.mm-scene.sq-pic-hh > .sq-live{content-visibility:hidden;}
+.mm-scene > img.sq-pic.nov{opacity:0;transition:opacity .45s ease;}
+.mm-scene > img.sq-pic.nov.on{opacity:1;}
+.mm-frame.sq-covered > .mm-world,.mm-frame.sq-covered > .mm-hud,.mm-frame.sq-covered > .sq-wx,.mm-frame.sq-covered > .mm-veil{content-visibility:hidden;}
 @media (prefers-reduced-motion: reduce){.sq-crest .sq-cin,.sq-crest .mm-crest,.sq-wing1,.sq-wing-1,.sq-cstar,.sq-sweep,.sq-rays{animation:none;}}
 `;
     document.head.appendChild(s);
@@ -424,6 +465,9 @@ ${bulbRun()}
   const rndS = (i, k) => { const v = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return v - Math.floor(v); };
   const stripAnim = svg => svg.replace(/<animate(?:Transform|Motion)?\b[^>]*\/>/g, '');
   let wx = null; // { el, key, anims }
+  // the weather moving (on) or held where it is (off: the menu is covered); a sleeping page's own pause comes first
+  // (SquishSleep pauses and plays only what was running)
+  const weatherOn = on => { if (!wx) return; wx.anims.forEach(a => { try { if (!on && a.playState === 'running') a.pause(); else if (on && a.playState === 'paused' && !(window.SquishSleep && window.SquishSleep.asleep)) a.play(); } catch (e) { /* gone */ } }); };
   function weather(frame, st) {
     if (!frame) return;
     const W = frame.clientWidth, H = frame.clientHeight; if (!W || !H) return;
@@ -462,26 +506,285 @@ ${bulbRun()}
   // the door's white veil (walking into the house) is a full-screen layer even at opacity 0: hidden while see-through
   function veilWatch(frame) {
     const v = frame.querySelector('.mm-veil'); if (!v || v._sqW) return; v._sqW = 1;
-    const sync = () => { const o = parseFloat(v.style.opacity || '0'); v.style.visibility = o > 0 ? '' : 'hidden'; };
+    const sync = () => { if (v._sqZ) return; const o = parseFloat(v.style.opacity || '0'); v.style.visibility = o > 0 ? '' : 'hidden'; };
+    v._sqSync = sync;
     sync(); new MutationObserver(sync).observe(v, { attributes: true, attributeFilter: ['style'] });
   }
   M.still = function (svg, st, sceneEl) {
     addCss();
     const frame = sceneEl && sceneEl.closest ? sceneEl.closest('.mm-frame') : null;
     if (frame) setTimeout(() => { weather(frame, st); veilWatch(frame); }, 0);   // (after the frame has its size)
-    return stripAnim(svg);
+    const s = stripAnim(svg);
+    if (sceneEl) picture(sceneEl, s);
+    // (in a box of its own: hidden under the picture by content-visibility, which keeps its styles and layout, so
+    // showing or hiding it costs one paint, not a restyle of its thousands of shapes)
+    return '<div class="sq-live">' + s + '</div>';
   };
+  // PERF 2026-11-20: the scene as one picture, when it pays. The live scene SVG is thousands of shapes, and each frame
+  // the creature moves Chrome re-sorts every shape of the page into GPU layers ("layerize"): ~12 ms a frame at the
+  // bench's 4x slowdown, the biggest cost of the menu, and of every page or loader over it while the menu still shows.
+  // The same markup drawn as an <img> (an SVG picture: no text, no fonts, nothing outside its box) is one shape. It is
+  // not bit-for-bit the live SVG (its edges are smoothed a hair differently: on the bench 1.75/255 on average, the shapes'
+  // edges only, nothing moved), so it's used only where it buys frames, and the live SVG (kept under it, hidden) shows
+  // otherwise:
+  //   - a slow phone: once the frame-rate guard has had to slow the creatures (app/perf.js step 2 or 3)
+  //   - while a page opens over the menu, if the picture is already made (under its fade-in; then the menu isn't drawn at
+  //     all: cover() below), and the trip home under Heading home (a picture of the scene with its door open: the house
+  //     loads meanwhile)
+  //   - never while something in the scene moves: the door on the trip home and back (main-menu.js goHome / back call
+  //     SquishMenu.live, patched in), and the game intro (which draws its own scene)
+  // SquishMenu.picture: 'auto' (that), 'on' (always), 'off' (never).
+  // The vignette, faded out while the Game Park is beside the house, is a second picture without it, faded in on top
+  // (the same fade as the live one).
+  const VIG = /<rect x="-60" y="-20" width="1120" height="500" fill="url\(#[^)]*Vig\)" pointer-events="none"\/>/;
+  let liveOn = false, picPage = false;
+  M.picture = 'auto';
+  // made only where it's used for good (a slow phone, or 'on'): each picture is a whole SVG document of its own in
+  // memory (the scene's ~1,600 shapes again), not worth keeping on a phone that keeps up. Once made, a page opening
+  // uses it too.
+  const picBuild = () => M.picture === 'on' || (M.picture === 'auto' && !!(window.SquishPerf && window.SquishPerf.step >= 2));
+  function picWanted() {
+    if (liveOn || M.picture === 'off') return false;
+    return picBuild() || picPage;
+  }
+  function picSync() {
+    const x = M._x, sc = x && x.scene; if (!sc) return;
+    if (!sc._sqPic && sc._sqMarkup && picBuild()) picture(sc, sc._sqMarkup, true);
+    sc.classList.toggle('sq-pic-on', picWanted() && !!sc.querySelector(':scope > img.sq-pic:not(.hh)'));
+  }
+  function picture(scene, markup, now) {
+    scene._sqPic = null; scene._sqMarkup = markup;
+    scene.classList.remove('sq-pic-on', 'sq-pic-hh');
+    scene.querySelectorAll('img.sq-pic').forEach(im => { URL.revokeObjectURL(im.src); im.remove(); });
+    if (!window.Blob || !window.URL || !URL.createObjectURL) return;
+    if (!now && !picBuild()) return;   // (made later, if the phone turns out slow: picSync)
+    const tok = scene._sqPic = {};
+    const mk = (s, cls) => { const im = new Image(); im.className = 'sq-pic' + (cls ? ' ' + cls : ''); im.alt = ''; im.src = URL.createObjectURL(new Blob([s], { type: 'image/svg+xml' })); return im; };
+    const base = mk(markup), nov = VIG.test(markup) ? mk(markup.replace(VIG, ''), 'nov') : null;
+    Promise.all([base, nov].filter(Boolean).map(im => im.decode ? im.decode() : Promise.resolve())).then(() => {
+      if (scene._sqPic !== tok || !scene.isConnected) { [base, nov].forEach(im => im && URL.revokeObjectURL(im.src)); return; }
+      const live = scene.querySelector(':scope > .sq-live');
+      if (!live) return;
+      scene.insertBefore(base, live); if (nov) scene.insertBefore(nov, live);
+      const v = live.querySelector('rect[fill$="Vig)"]'); if (nov && v && v.style.opacity === '0') nov.classList.add('on');
+      picSync();
+    }).catch(() => { [base, nov].forEach(im => im && URL.revokeObjectURL(im.src)); });
+  }
+  // the live scene shown (on: the door opens and shuts in it) or back to the picture where it's wanted (off)
+  M.live = function (on) { liveOn = !!on; picSync(); };
+  // Heading home: the scene with its door open, as a picture, under the night (url: a picture of it; null: done)
+  // PERF 2026-11-20: an SVG drawn into pixels once, on the CPU, as a JPEG blob URL (w x h user units at k px each). An SVG
+  // shown as an image is still vectors: the WebView rasters it on its GPU thread, which every frame of the app waits
+  // for, each time it shows at a new scale. Drawn into a CPU canvas (willReadFrequently) the work is the page's main
+  // thread's, which Web Animations and the compositor don't wait for; JPEG: the scene has no see-through parts.
+  // (the same, as the CPU canvas it was drawn into; `bands`: drawn a horizontal strip at a time, one strip a task, so
+  //  frames go out between them: one drawImage of the menu scene held the page's main thread ~0.28 s on the Galaxy A16,
+  //  under Heading home; the drawing skips what lies outside each strip)
+  function svgCanvas(svgText, w, h, k, bands) {
+    return new Promise((res, rej) => {
+      const W = Math.round(w * k), H = Math.round(h * k), cut = svgText.indexOf('>') + 1;
+      const head = svgText.slice(0, cut).replace(/\s(width|height)="[^"]*"/g, '').replace(/^<svg/, '<svg width="' + w + '" height="' + h + '"');
+      const src = URL.createObjectURL(new Blob([head + svgText.slice(cut)], { type: 'image/svg+xml' }));
+      const im = new Image();
+      im.onload = () => {
+        try {
+          const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+          const c = cv.getContext('2d', { willReadFrequently: true });
+          const n = Math.max(1, bands | 0), bh = Math.ceil(H / n);
+          let i = 0;
+          const strip = () => {
+            try {
+              c.save(); c.beginPath(); c.rect(0, i * bh, W, bh); c.clip(); c.drawImage(im, 0, 0, W, H); c.restore();
+              if (++i < n) { setTimeout(strip, 0); return; }
+              URL.revokeObjectURL(src);
+              res(cv);
+            } catch (e) { URL.revokeObjectURL(src); rej(e); }
+          };
+          strip();
+        } catch (e) { URL.revokeObjectURL(src); rej(e); }
+      };
+      im.onerror = () => { URL.revokeObjectURL(src); rej(new Error('svg')); };
+      im.src = src;
+    });
+  }
+  function bitmapOf(svgText, w, h, k, type) {
+    return svgCanvas(svgText, w, h, k).then(cv => new Promise((res, rej) => {
+      cv.toBlob(b => { cv.width = cv.height = 0; if (b) res(URL.createObjectURL(b)); else rej(new Error('toBlob')); }, type || 'image/jpeg', 0.9);
+    }));
+  }
+  function picDoor(url) {
+    const x = M._x, sc = x && x.scene; if (!sc) return;
+    sc.querySelectorAll(':scope > img.sq-pic.hh').forEach(im => im.remove());
+    sc.classList.remove('sq-pic-hh');
+    if (!url || M.picture === 'off') return;
+    const im = new Image(); im.className = 'sq-pic hh'; im.alt = ''; im.src = url;
+    (im.decode ? im.decode() : Promise.resolve()).then(() => { if (!HH || !sc.isConnected) return; sc.insertBefore(im, sc.firstChild); sc.classList.add('sq-pic-hh'); }).catch(() => {});
+  }
   // a rotation or resize redraws the weather for the new size
   window.addEventListener('resize', () => { const f = document.querySelector('.mm-frame'), x = M._x; if (f && x && x.st) { wx && (wx.key = ''); weather(f, x.st); } });
   // the menu's own creature isn't drawn while it can't be seen: under the house, or under a full-screen page
   // and the menu's own animations (HUD, weather) pause while the house or a page covers them
-  setInterval(() => { const x = M._x; if (!x) return; const away = !!(x.inside || (x.ov && x.ov.querySelector('.mm-page2'))), I = x.ctrl && x.ctrl._I; if (I) I.sqHold = away; if (x.frame) x.frame.classList.toggle('sq-away', away); }, 400);
+  // PERF 2026-11-20: and once the house or a page fully covers the menu (its opening fade done, the door's veil white),
+  // the menu isn't drawn at all (sq-covered: its scene, creature, HUD and weather hidden): Chrome no longer sorts its
+  // shapes into layers every frame under the house (the house's own frame rate nearly doubled on the bench) or keeps
+  // its tiles. Uncovered at once (in the same frame) when the page closes or the trip back starts (patched in).
+  function cover() {
+    const x = M._x; if (!x || !x.frame) return;
+    const pg = x.ov && x.ov.querySelector('.mm-page2'), I = x.ctrl && x.ctrl._I;
+    const away = !!(x.inside || pg || HH);   // (HH: Heading home, the creature has gone in at the door)
+    if (I) I.sqHold = away;
+    if (window.SquishPerf && window.SquishPerf.scope) window.SquishPerf.scope(x.inside ? 'house' : 'menu');
+    x.frame.classList.toggle('sq-away', away);
+    let full = false;
+    if (x.inside && !x.busy) full = (parseFloat(x.veil.style.opacity) || 0) >= 1;
+    else if (pg && !x.busy) { try { full = !pg.getAnimations().some(a => a.playState === 'running'); } catch (e) { full = true; } }
+    x.frame.classList.toggle('sq-covered', full);
+    // PERF 2026-11-20: the weather's moving layers (Web Animations: CSS rules can't pause them) stop while the menu is
+    // fully covered. Running unseen, they made the WebView draw every frame anyway, and on the phone a WebView frame
+    // composites the whole page: the house's Catalog sat at 13-20 fps with nothing on it moving.
+    weatherOn(!full);
+    if (picPage && !pg) picPage = false;
+    if (!liveOn) picSync();
+  }
+  M.cover = cover;
+  // the menu's creature stops at once (a page is opening over it); cover() does the rest on its next round (it reads
+  // the page's animations, which would make the browser restyle the page in the tap's own frame)
+  // (and the scene is its picture under the page: the page's first frames don't sort the scene's shapes again)
+  M.hold = function () { const x = M._x, I = x && x.ctrl && x.ctrl._I; if (I) I.sqHold = true; picPage = true; picSync(); };
+  M.uncover = function () { const x = M._x; if (!x || !x.frame) return; x.frame.classList.remove('sq-covered'); const I = x.ctrl && x.ctrl._I; if (I && !x.inside && !HH) I.sqHold = false; if (picPage) { picPage = false; picSync(); } };
+  setInterval(cover, 400);
+  // PERF 2026-11-20: in the house, the creatures stand still while the Catalog book, the map or the level-up card covers
+  // the room (SquishPerf.freeze; the house's state is window.__sh). Watched often while inside, so a panel opening is
+  // smooth from its first frames.
+  setInterval(() => {
+    const x = M._x, sh = window.__sh, P = window.SquishPerf; if (!P) return;
+    const S = x && x.inside && sh && !sh.dead && sh.state;
+    const fr = !!(S && (S.shop || S.map || S.lvUp));
+    // the house's map stands still: its picture is one big SVG with ~130 SMIL animations (trees, waves, smoke, rain),
+    // and every step of any of them made the phone draw the whole map again at 2.8x: 4-5 fps on the Galaxy A16. Paused,
+    // it draws only when something changes (a tap, the walk to a room).
+    if (S && S.map) document.querySelectorAll('[data-screen-label="House map"] svg').forEach(v => { if (!v.ownerSVGElement && v.pauseAnimations && !v.animationsPaused()) v.pauseAnimations(); });
+    if (S && S.map && window.SquishMapShown) window.SquishMapShown();   // (its picture: also patched into openMap)
+    // (the frame-rate guard isn't judged for a moment after: the room's creatures start up again)
+    if (P.freeze && !fr && P.quiet) P.quiet(1500);
+    P.freeze = fr;
+  }, 120);
+  // PERF 2026-11-20: going to a room from the house map fades through cream (the map's own veil fades in), and the new
+  // room is drawn under this cream veil, which fades out once frames reach the screen in time again (the room's tiles
+  // are rastered: SquishPerf.steady), at most ~1.6 s. The map closed straight onto the bare cream page and the WebView
+  // took 0.5-1.2 s to raster the room's big SVG on the Galaxy A16: a blank page, then the room popping in. 0.99, not 1:
+  // an opaque layer hides what's under it from the rasterizer, and the room would only start drawing once uncovered.
+  // (Called by the house's enterRoom, webgame/patches.mjs.)
+  // PERF 2026-11-20 (the user: the map is worse): the house map as a picture. The map is one SVG of ~1,200 shapes with
+  // 26 blurs, and the WebView rastered all of it at 2.8x on its GPU thread (which every frame waits for) each time it
+  // opened, and again for every change on it (a tap): 0.5-1 s of blank sea, then a frozen map after each tap, on the
+  // Galaxy A16. Now the first time the map is up in a given state, once its frames flow, it is drawn ONCE into a JPEG on
+  // the CPU (bitmapOf, the page's main thread), kept (memory, and IndexedDB for the next launches, by a hash of the
+  // map's markup), and laid over the SVG as an opaque layer: the compositor then never rasters the SVG under it (its
+  // tiles are hidden), opening the map shows one picture, and a tap changes nothing that has to be drawn again. Taps go
+  // through the picture (pointer-events none) to the rooms' shapes; the room names and badges are HTML on top as before.
+  // The map's animations (rain, waves, trees) were already paused while it is open.
+  const MAPC = new Map(), MAPI = { key: null, im: null };
+  const idb = (() => { let p = null; return () => p || (p = new Promise((res) => { try { const r = indexedDB.open('sq-bake', 2); r.onupgradeneeded = () => { const db = r.result; if (!db.objectStoreNames.contains('pics')) db.createObjectStore('pics'); if (!db.objectStoreNames.contains('tex')) db.createObjectStore('tex'); }; r.onsuccess = () => res(r.result); r.onerror = () => res(null); } catch (e) { res(null); } })); })();
+  const idbGet = (k, store) => idb().then(db => db && new Promise(res => { try { const q = db.transaction(store || 'pics').objectStore(store || 'pics').get(k); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); } catch (e) { res(null); } }));
+  const idbPut = (k, v, store, keep) => idb().then(db => { if (!db) return; try { const S0 = store || 'pics', st = db.transaction(S0, 'readwrite').objectStore(S0); st.put(v, k); const all = st.getAllKeys(); all.onsuccess = () => { const ks = all.result.filter(x => x !== k), n = keep || 6; if (ks.length > n) ks.slice(0, ks.length - n).forEach(x => st.delete(x)); }; } catch (e) { /* full */ } });
+  // PERF 2026-11-20: the house rooms' wall, floor, ceiling and fence textures as pictures. The house makes each texture as
+  // an SVG (64-232 shapes) and tiles it with an SVG pattern, slanted for the side walls; the WebView drew that SVG again,
+  // at full size, for every 256-px tile of the room: 120-400 ms a tile, ~1-1.3 s of the GPU thread before a room could
+  // show on the Galaxy A16 (the cream pause between rooms, the stalls under Heading home). Each texture is now drawn ONCE
+  // into a WebP on the CPU (bitmapOf), kept in memory and in IndexedDB (loaded at start: the next launches have them
+  // before the house draws), and the house uses the picture (webgame/patches.mjs wraps its rnTex): a tile of the room
+  // then costs a bitmap fill. The first time a texture is seen, the room shows it as before and swaps to the picture as
+  // soon as it is made (one at a time, between frames).
+  const TEXC = new Map(), TEXQ = [], TEXPEND = new Set(), TEXSZ = { wall: [214, 150], wallS: [214, 600], floor: [1004, 294], ceil: [1260, 70], fence: [160, 56], fenceR: [160, 56], ground: [1004, 294] };
+  let texBusy = false, texRedraw = null;
+  const texLoaded = idb().then(db => db && new Promise(res => { try { const st = db.transaction('tex').objectStore('tex'), ks = st.getAllKeys(), vs = st.getAll(); vs.onsuccess = () => { (ks.result || []).forEach((k, i) => { const b = vs.result[i]; if (b && !TEXC.has(k)) TEXC.set(k, URL.createObjectURL(b)); }); res(); }; vs.onerror = () => res(); } catch (e) { res(); } })).catch(() => {});
+  const texNext = () => {
+    if (texBusy || !TEXQ.length) return;
+    texBusy = true;
+    const { key, url, slot } = TEXQ.shift();
+    let svg = ''; try { svg = decodeURIComponent(url.slice(url.indexOf(',') + 1)); } catch (e) { /* bad */ }
+    let [w, h] = TEXSZ[slot] || [400, 300], k = Math.min(4, 4096 / Math.max(w, h));
+    // (a piece of furniture: its own proportions, 1,400 px on its long side, about what the room draws it at on a phone)
+    if (slot === 'item') { const m = svg.match(VBOX), vw = m ? +m[1] : 0, vh = m ? +m[2] : 0; if (!(vw > 0 && vh > 0)) { done(); return; } const s = 1400 / Math.max(vw, vh); w = vw * s; h = vh * s; k = 1; }
+    const done = () => { texBusy = false; TEXPEND.delete(key); setTimeout(texNext, 30); };
+    if (!svg) { done(); return; }
+    bitmapOf(svg, w, h, k, 'image/webp').then(u => {
+      TEXC.set(key, u); fetch(u).then(r => r.blob()).then(b => idbPut(key, b, 'tex', 80)).catch(() => {});
+      clearTimeout(texRedraw); texRedraw = setTimeout(() => { const sh = window.__sh; if (sh && !sh.dead && sh.forceUpdate) sh.forceUpdate(); }, 60);
+      done();
+    }).catch(done);
+  };
+  const VBOX = /viewBox=["']\s*[-\d.e]+[\s,]+[-\d.e]+[\s,]+([\d.e]+)[\s,]+([\d.e]+)\s*["']/;
+  const TEXKEY = new Map();   // slot -> (url -> its key, or '' for one that stays as it is): called at every house render
+  window.SquishTex = function (url, slot) {
+    if (typeof url !== 'string' || !url.startsWith('data:image/svg+xml')) return url;
+    let ks = TEXKEY.get(slot); if (!ks) TEXKEY.set(slot, ks = new Map());
+    let key = ks.get(url);
+    if (key === undefined) {
+      key = slot + ':' + fnv(url);
+      // (furniture without a viewBox can't be drawn to a size: left as it is)
+      if (slot === 'item') { let head = ''; try { head = decodeURIComponent(url.slice(0, 4000).replace(/%[0-9A-F]?$/i, '')); } catch (e) { /* cut mid-character */ } if (!VBOX.test(head)) key = ''; }
+      if (ks.size > 300) ks.clear();
+      ks.set(url, key);
+    }
+    if (!key) return url;
+    const hit = TEXC.get(key);
+    if (hit) return hit;
+    if (!TEXPEND.has(key)) { TEXPEND.add(key); texLoaded.then(() => { if (TEXC.has(key)) { TEXPEND.delete(key); const sh = window.__sh; clearTimeout(texRedraw); texRedraw = setTimeout(() => { if (sh && !sh.dead && sh.forceUpdate) sh.forceUpdate(); }, 30); return; } TEXQ.push({ key, url, slot }); texNext(); }); }
+    return url;
+  };
+  const fnv = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36) + '.' + s.length; };
+  // the map's last picture, read and decoded at start (sq.mapKey: the key it was made for), so the first opening after a
+  // launch shows it in its first frame instead of waiting for IndexedDB while the SVG starts drawing
+  try {
+    const last = localStorage.getItem('sq.mapKey');
+    if (last) idbGet(last).then(blob => { if (!blob || MAPC.has(last)) return; const u = URL.createObjectURL(blob); MAPC.set(last, u); const im = document.createElement('img'); im.className = 'sq-bake'; im.alt = ''; im.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;'; im.src = u; if (im.decode) im.decode().catch(() => {}); MAPI.key = last; MAPI.im = im; });
+  } catch (e) { /* no storage */ }
+  window.SquishMapShown = function () {
+    const m = document.querySelector('[data-screen-label="House map"]'), svg = m && m.querySelector(':scope > div > svg');
+    if (!svg || svg._sqBake) return;
+    const box = svg.parentElement, w = box.clientWidth, h = box.clientHeight, k = Math.min(3, window.devicePixelRatio || 1);
+    if (!w || !h) return;
+    let markup; try { markup = new XMLSerializer().serializeToString(svg).replace(/<(animate|animateTransform|animateMotion|animateColor|set)\b[^>]*\/>/g, '').replace(/<(animate|animateTransform|animateMotion|animateColor)\b[^>]*>[\s\S]*?<\/\1>/g, ''); } catch (e) { return; }
+    const key = 'map:' + w + 'x' + h + '@' + k + ':' + fnv(markup);
+    svg._sqBake = key;
+    // (one picture element, kept across openings: decoded once, it shows in the map's first frame; the SVG stops being
+    //  drawn only once the picture can be: before, it was hidden at once and the sea showed bare until the JPEG decoded)
+    const put = url => {
+      if (!svg.isConnected || svg._sqBake !== key) return;
+      let im = MAPI.key === key ? MAPI.im : null;
+      if (!im) { im = document.createElement('img'); im.className = 'sq-bake'; im.alt = ''; im.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;'; im.src = url; MAPI.im = im; MAPI.key = key; }
+      if (im.parentNode !== box) svg.after(im);
+      const hide = () => { if (svg.isConnected && svg._sqBake === key) svg.classList.add('sq-baked'); };
+      if (im.complete && im.naturalWidth) hide(); else (im.decode ? im.decode() : Promise.resolve()).then(hide, () => {});
+    };
+    const hit = MAPC.get(key); if (hit) { try { localStorage.setItem('sq.mapKey', key); } catch (x) { /* full */ } put(hit); return; }
+    idbGet(key).then(blob => {
+      if (blob) { const u = URL.createObjectURL(blob); MAPC.set(key, u); try { localStorage.setItem('sq.mapKey', key); } catch (e) { /* full */ } put(u); return; }
+      // not made yet: once the map is up and frames flow (it stays still while open), draw it
+      const P = window.SquishPerf;
+      const make = () => { if (!svg.isConnected) return; bitmapOf(markup, w, h, k).then(u => { MAPC.set(key, u); fetch(u).then(r => r.blob()).then(b => idbPut(key, b)).catch(() => {}); try { localStorage.setItem('sq.mapKey', key); } catch (e) { /* full */ } put(u); }).catch(() => {}); };
+      if (P && P.steady) P.steady(make, 3000, 6); else setTimeout(make, 800);
+    });
+  };
+  window.SquishVeil = function () {
+    const host = document.querySelector('.mm-house'); if (!host) return;
+    let v = host.querySelector(':scope > .sq-veil');
+    if (!v) { v = document.createElement('div'); v.className = 'sq-veil'; v.style.cssText = 'position:absolute;inset:0;z-index:1001;background:#fff6e2;pointer-events:none;opacity:.99;transition:opacity .28s ease-out;'; host.appendChild(v); }
+    v.style.transition = 'none'; v.style.opacity = '.99'; clearTimeout(v._t);
+    const P = window.SquishPerf, off = () => { v.style.transition = 'opacity .28s ease-out'; v.style.opacity = '0'; v._t = setTimeout(() => v.remove(), 400); };
+    requestAnimationFrame(() => requestAnimationFrame(() => { if (P && P.steady) P.steady(off, 1600, 4); else setTimeout(off, 600); }));
+  };
+  document.addEventListener('animationend', e => { if (e.target && e.target.classList && e.target.classList.contains('mm-page2')) cover(); });
   // the crest's flourish (wings flap, star flips, a shine): a short burst every few seconds, not a non-stop repaint
   // (between flourishes nothing in the HUD moves: a non-stop animation keeps its own GPU layer, and a weak GPU pays for
   //  every layer every frame; the menu doubled its frame rate without them)
   setInterval(() => {
     if (document.hidden) return;
-    ['.sq-crest', '.mm-card.sq-solo'].forEach((q, i) => { const c = document.querySelector(q); if (!c || c.closest('.sq-away')) return; setTimeout(() => { c.classList.remove('fl'); void c.offsetWidth; c.classList.add('fl'); }, i * 1300); });
+    // (PERF 2026-11-20: restarted over two frames, not by reading offsetWidth, which made the browser restyle and lay
+    // out the whole page there and then: a hitch every 5 s)
+    ['.sq-crest', '.mm-card.sq-solo'].forEach((q, i) => { const c = document.querySelector(q); if (!c || c.closest('.sq-away')) return; setTimeout(() => { c.classList.remove('fl'); requestAnimationFrame(() => requestAnimationFrame(() => c.classList.add('fl'))); }, i * 1300); });
   }, 5200);
   // still too slow with the creatures at 20 fps (app/perf.js step 3): no weather layer (the picture keeps its rainy look)
   setInterval(() => { const f = M._x && M._x.frame; if (f && window.SquishPerf) f.classList.toggle('sq-lite', window.SquishPerf.step >= 3); }, 1000);
@@ -703,7 +1006,8 @@ ${bulbRun()}
   }
 
   // the house picture darkens its own edges; while the park is beside it that edge would show as a seam
-  function vignette(x, on) { const v = x.scene.querySelector('rect[fill$="Vig)"]'); if (v) { v.style.transition = 'opacity .45s ease'; v.style.opacity = on ? '' : '0'; } }
+  function vignette(x, on) { const v = x.scene.querySelector('rect[fill$="Vig)"]'); if (v) { v.style.transition = 'opacity .45s ease'; v.style.opacity = on ? '' : '0'; }
+    const n = x.scene.querySelector(':scope > img.sq-pic.nov'); if (n) n.classList.toggle('on', !on); }   // (the picture's: PERF 2026-11-20)
 
   async function enterPark(x, instant) {
     if (park || x.busy || x.inside || !x.geo) return false;
@@ -713,17 +1017,22 @@ ${bulbRun()}
     x.closePage(); x.ov.querySelectorAll('.mm-pick').forEach(e => e.remove());
     x.fade(false);
     if (x.sh) x.sh.stop();
-    parkLayer(x); vignette(x, false);
     const ctrl = x.ctrl, I = ctrl && ctrl._I, X0 = g.X(500), X1 = g.X(PAD);
     park.dx = X1 - W - X0;
     if (instant) {
+      parkLayer(x); vignette(x, false);
       x.world.style.transform = 'translateX(' + W + 'px)'; x.stage.style.transform = 'translateX(' + park.dx + 'px)';
       if (ctrl) ctrl.play('happy');
       showGames(x, true); return true;
     }
     if (ctrl) ctrl.play('idle');
     sfx('whoosh');
+    // PERF 2026-11-20: the park's picture (a big SVG) is drawn right after the tap's frame, while the creature turns,
+    // not in the tap itself (the turn and the HUD's fade started a third of a second late); the camera only reaches the
+    // park after the turn
+    const built = new Promise(r => window.SquishPerf.painted(() => { if (park) { parkLayer(x); vignette(x, false); } r(); }));
     await tween(380, e => { if (I) I.spinOff = -90 * e; }, EIO);
+    await built;
     // the creature heads left across the screen while the camera pans after him (the park slides in from the left)
     await walk(x, 2300, t => {
       const scr = X0 + (X1 - X0) * EOUT(t), cam = W * EIOC(clamp((t - 0.06) / 0.94, 0, 1));
@@ -1018,33 +1327,34 @@ ${bulbRun()}
   const HDOOR = [Object.assign(hwA(488, 247, 24, 53), { R: 34 }), hwC(476, 250.5, 5), hwC(524, 250.5, 5)];
   const HOME_TIPS =['The Backyard unlocks the mini games', 'Your whole squad lives here. Drop by any time to see what they are up to', 'Level up to open more rooms in your house', 'Renovate a room to make your squad\'s home cozier'];
   let HH = null;
+  // PERF 2026-11-20 (the user: "when I see it the night has already partly fallen and the lights are coming on"): the
+  // house starts loading only once this screen is on screen (HH.shown(), awaited by main-menu.js goHome, patched), and
+  // everything that moves on it is played by the GPU from its first frame on screen, so it keeps going while the house
+  // loads under it: the night, the stars, the moon and the title fade in as Web Animations (the night's own layer
+  // multiplied over the house); each lit window is three small layers of its own (the window as it is by day, the warm
+  // pane in soft-light, the halo in screen), faded in by a Web Animation that follows the same curves as before (the
+  // flash as it comes on). By day = a picture of the house as it is now (the door open), cut to the window: the same as
+  // the hole the window used to cut in the night. The windows still come on as the loading goes (each started from the
+  // page's clock, then left to the GPU). Before, all of it ran on the page's timers and SVG attributes, frozen or
+  // jumping while the house's scripts loaded.
   M.headingHome = function (frame, world, st) {
     addCss(); if (HH) HH.kill();
-    const Sc = window.MainMenuScene, x = M._x, k = (x && x.k) || 1, t0 = performance.now(), MIN = 2000;
+    fillStart();   // (room first, creatures after: houseDrawn)
+    const Sc = window.MainMenuScene, x = M._x, k = (x && x.k) || 1, MIN = 2000, geo = x && x.geo;
+    if (window.SquishPerf && window.SquishPerf.quiet) window.SquishPerf.quiet(30000);
     // the open rooms, in the order they opened (the living room first), each lit in turn
     const rooms = Sc && st && st.open ? Object.keys(Sc.ROOMS).filter(r => st.open[r] && HWIN[r]).sort((a, b) => Sc.ROOMS[a].lv - Sc.ROOMS[b].lv) : [];
     let stars = '';
     for (let i = 0; i < 46; i++) stars += '<i style="left:' + (2 + ((i * 37.7) % 96)).toFixed(1) + '%;top:' + (2 + ((i * 53.3) % 38)).toFixed(1) + '%;animation-delay:' + ((i * 0.37) % 2.4).toFixed(2) + 's;' + (i % 5 ? '' : 'width:3px;height:3px;') + '"></i>';
     // the lights, in the order they come on: each open room's windows, then the door (last)
     const groups = rooms.map(r => HWIN[r]).concat([HDOOR]), r1 = v => (Math.round(v * 10) / 10).toString();
-    let holes = '', halos = '', panes = '';
-    groups.forEach((g, i) => g.forEach(w => { const [x, y, ww, hh] = w.b, R = w.R || Math.max(ww, hh), k = w.k || 1;
-      holes += '<path data-h="' + i + '" data-k="' + k + '" d="' + w.d + '" fill="#000" opacity="0"/>';
-      halos += '<ellipse data-g="' + i + '" cx="' + r1(x + ww / 2) + '" cy="' + r1(y + hh / 2) + '" rx="' + r1(R * 1.3) + '" ry="' + r1(R * 1.1) + '" fill="url(#sqhhg)" opacity="0"/>';
-      panes += '<path data-p="' + i + '" data-k="' + k + '" d="' + w.d + '" fill="url(#sqhhp)" opacity="0"/>'; }));
     const lay = '<svg class="lay" viewBox="0 0 1000 460" preserveAspectRatio="xMidYMax slice">';
     const night = document.createElement('div'); night.className = 'sq-hh-night';
-    // the night (multiplied over the house) with holes where the lit windows are; the stars and the moon; then the
-    // windows' halos (screen) and warm panes (soft-light), as in the intro. No layer of their own (will-change): the
-    // blend modes need the house under them.
-    night.innerHTML = lay + '<defs><linearGradient id="sqhhn" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="460"><stop offset="0" stop-color="#1c2260"/><stop offset=".45" stop-color="#2a3070"/><stop offset="1" stop-color="#262a5a"/></linearGradient>'
-      + '<mask id="sqhhv" maskUnits="userSpaceOnUse" x="-300" y="-300" width="1600" height="1100"><rect x="-300" y="-300" width="1600" height="1100" fill="#fff"/>' + holes + '</mask></defs>'
-      + '<rect class="sky" x="-300" y="-300" width="1600" height="1100" fill="url(#sqhhn)" mask="url(#sqhhv)"/></svg>'
+    night.innerHTML = lay.replace('class="lay"', 'class="lay skyl"') + '<defs><linearGradient id="sqhhn" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="460"><stop offset="0" stop-color="#1c2260"/><stop offset=".45" stop-color="#2a3070"/><stop offset="1" stop-color="#262a5a"/></linearGradient></defs>'
+      + '<rect x="-300" y="-300" width="1600" height="1100" fill="url(#sqhhn)"/></svg>'
+      + '<div class="pics"></div>'
       + '<div class="stars">' + stars + '</div>'
-      + '<svg class="moon" viewBox="0 0 40 40"><defs><mask id="sqhhm"><rect width="40" height="40" fill="#fff"/><circle cx="27" cy="15" r="14" fill="#000"/></mask></defs><circle cx="20" cy="20" r="15" fill="#fff6d8" mask="url(#sqhhm)"/></svg>'
-      + lay + '<defs><radialGradient id="sqhhg"><stop offset="0" stop-color="#ffe7a6" stop-opacity="0.8"/><stop offset="0.45" stop-color="#ffc45a" stop-opacity="0.3"/><stop offset="1" stop-color="#ff9a2a" stop-opacity="0"/></radialGradient>'
-      + '<linearGradient id="sqhhp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2c0"/><stop offset="1" stop-color="#ffb347"/></linearGradient></defs>'
-      + '<g style="mix-blend-mode:screen">' + halos + '</g><g style="mix-blend-mode:soft-light">' + panes + '</g></svg>';
+      + '<svg class="moon" viewBox="0 0 40 40"><defs><mask id="sqhhm"><rect width="40" height="40" fill="#fff"/><circle cx="27" cy="15" r="14" fill="#000"/></mask></defs><circle cx="20" cy="20" r="15" fill="#fff6d8" mask="url(#sqhhm)"/></svg>';
     world.appendChild(night);
     const ui = document.createElement('div'); ui.className = 'sq-hh-ui';
     ui.innerHTML = '<div class="in" style="transform:scale(' + k + ');width:' + (frame.clientWidth / k) + 'px;height:' + (frame.clientHeight / k) + 'px">'
@@ -1052,40 +1362,112 @@ ${bulbRun()}
       + '<div class="bot"><div class="tip"><em>Tip:</em> <span></span></div></div></div>';
     frame.appendChild(ui); if (x && x.fitFT) x.fitFT(ui);
     const tip = ui.querySelector('.tip span');
-    // one light: its windows' holes in the night, halos and panes, set as the intro's setLit does (v = on, f = the flash as
-    // it comes on)
-    const lights = groups.map((g, i) => ({ h: [...night.querySelectorAll('[data-h="' + i + '"]')], g: [...night.querySelectorAll('[data-g="' + i + '"]')], p: [...night.querySelectorAll('[data-p="' + i + '"]')], at: 0, done: false }));
-    const cl = (v, a, b) => Math.max(a, Math.min(b, v));
-    const setLit = (L, v, f) => {
-      L.h.forEach(e => e.setAttribute('opacity', (cl(v * 0.9 + f * 0.1, 0, 1) * +e.dataset.k).toFixed(3)));
-      L.g.forEach(e => e.setAttribute('opacity', cl(v * 0.85 + f * 0.6, 0, 1).toFixed(3)));
-      L.p.forEach(e => e.setAttribute('opacity', (cl(v * 0.75 + f * 0.25, 0, 1) * +e.dataset.k).toFixed(3)));
+    // the fades in, from the first frame on screen (the CSS transitions they replace: .9s, 1.2s after .5s, 1s / 1.2s after .4s, .6s)
+    // (started in the next frame: this screen is built inside the walk's last frame, and an animation started there
+    // would count from that frame's start, a good part of its fade gone by the time it's first drawn)
+    const fade = (el, ms, delay, kf) => el.animate(kf || [{ opacity: 0 }, { opacity: 1 }], { duration: ms, delay: delay || 0, easing: 'ease', fill: 'both' });
+    const moon = night.querySelector('.moon');
+    let uiIn = null;
+    requestAnimationFrame(() => {
+      if (over) return;
+      fade(night.querySelector('.skyl'), 900);   // (dusk at once; the drawn night fades over it when made: dayPicture)
+      fade(night.querySelector('.stars'), 1200, 500);
+      fade(moon, 1000, 400); moon.animate([{ transform: 'translateY(10px)' }, { transform: 'none' }], { duration: 1200, delay: 400, easing: 'ease', fill: 'both' });
+      uiIn = fade(ui, 600);
+    });
+    // The night and the lights (PERF 2026-11-20, the user chose it: "rebuild it"): drawn ONCE into canvases (nightPics:
+    // the house by day multiplied by the night's colours, then each light's windows, halos and warm panes composited on
+    // top, in the order they come on), and a window lights up by fading its canvas in: plain opacity. It was a multiply
+    // layer, and for each light a masked copy of the whole house picture plus a screen and a soft-light layer, all drawn
+    // again by the WebView while the house loaded under this screen: 0.2-0.3 s stalls on the Galaxy A16. Same look (the
+    // same colours and blend arithmetic, done once on the CPU); a light coming on fades in instead of its brief flash.
+    let dayUrl = null;
+    const picsEl = night.querySelector('.pics');
+    const bounds = list => { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; list.forEach(([a, b, w, h]) => { x0 = Math.min(x0, a); y0 = Math.min(y0, b); x1 = Math.max(x1, a + w); y1 = Math.max(y1, b + h); }); return [x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2]; };
+    const halo = w => { const [hx, hy, ww, hh] = w.b, R = w.R || Math.max(ww, hh); return [hx + ww / 2 - R * 1.3, hy + hh / 2 - R * 1.1, R * 2.6, R * 2.2]; };
+    const lights = groups.map((g, i) => ({ i, g, box: bounds([bounds(g.map(w => w.b)), bounds(g.map(halo))]), at: 0, done: false, cv: null }));
+    let pics = 0;   // 0: being made; 1: up; -1: none (the plain night, the windows don't light)
+    const nightPics = day => new Promise((done, fail) => { try {
+      const W = frame.clientWidth, H = frame.clientHeight, d = Math.min(2.6, window.devicePixelRatio || 1);
+      const s = geo ? geo.s : Math.max(W / 1000, H / 460), ox = geo ? geo.ox : (W - 1000 * s) / 2, oy = geo ? geo.oy : H - 460 * s;
+      const cv = document.createElement('canvas'); cv.width = Math.round(W * d); cv.height = Math.round(H * d);
+      const c = cv.getContext('2d', { willReadFrequently: true });
+      const units = () => c.setTransform(d * s, 0, 0, d * s, d * ox, d * oy);
+      units(); c.drawImage(day, 0, 0, 1000, 460);
+      const ng = c.createLinearGradient(0, 0, 0, 460); ng.addColorStop(0, '#1c2260'); ng.addColorStop(0.45, '#2a3070'); ng.addColorStop(1, '#262a5a');
+      c.globalCompositeOperation = 'multiply'; c.fillStyle = ng; c.fillRect(-300, -300, 1600, 1100); c.globalCompositeOperation = 'source-over';
+      const layer = (el, l, t, w, h) => { el.style.cssText = 'position:absolute;left:' + l.toFixed(2) + 'px;top:' + t.toFixed(2) + 'px;width:' + w.toFixed(2) + 'px;height:' + h.toFixed(2) + 'px;opacity:0;will-change:opacity;'; picsEl.appendChild(el); return el; };
+      const nb = document.createElement('canvas'); nb.width = cv.width; nb.height = cv.height; nb.getContext('2d').drawImage(cv, 0, 0);
+      layer(nb, 0, 0, W, H);
+      let li = 0;
+      const next = () => { try {
+        if (over) { cv.width = cv.height = 0; fail(new Error('over')); return; }
+        if (li >= lights.length) { cv.width = cv.height = 0; done(nb); return; }
+        const L = lights[li++];
+        units();
+        L.g.forEach(w => { c.save(); c.clip(new Path2D(w.d)); c.globalAlpha = 0.9 * (w.k || 1); c.drawImage(day, 0, 0, 1000, 460); c.restore(); });
+        c.globalCompositeOperation = 'screen'; c.globalAlpha = 0.85;
+        L.g.forEach(w => { const [hx, hy, ww, hh] = w.b, R = w.R || Math.max(ww, hh); c.save(); c.translate(hx + ww / 2, hy + hh / 2); c.scale(R * 1.3, R * 1.1); const rg = c.createRadialGradient(0, 0, 0, 0, 0, 1); rg.addColorStop(0, 'rgba(255,231,166,0.8)'); rg.addColorStop(0.45, 'rgba(255,196,90,0.3)'); rg.addColorStop(1, 'rgba(255,154,42,0)'); c.fillStyle = rg; c.beginPath(); c.arc(0, 0, 1, 0, Math.PI * 2); c.fill(); c.restore(); });
+        c.globalCompositeOperation = 'soft-light';
+        L.g.forEach(w => { const by = w.b[1], bh = w.b[3], lg = c.createLinearGradient(0, by, 0, by + bh); lg.addColorStop(0, '#fff2c0'); lg.addColorStop(1, '#ffb347'); c.globalAlpha = 0.75 * (w.k || 1); c.fillStyle = lg; c.fill(new Path2D(w.d)); });
+        c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
+        const [bx, by, bw, bh] = L.box;
+        const p0 = Math.max(0, Math.floor(d * (ox + s * bx))), q0 = Math.max(0, Math.floor(d * (oy + s * by))), p1 = Math.min(cv.width, Math.ceil(d * (ox + s * (bx + bw)))), q1 = Math.min(cv.height, Math.ceil(d * (oy + s * (by + bh))));
+        if (p1 > p0 && q1 > q0) { const o = document.createElement('canvas'); o.width = p1 - p0; o.height = q1 - q0; o.getContext('2d').drawImage(cv, p0, q0, o.width, o.height, 0, 0, o.width, o.height); L.cv = layer(o, p0 / d, q0 / d, o.width / d, o.height / d); }
+        setTimeout(next, 0);
+      } catch (e) { cv.width = cv.height = 0; fail(e); } };
+      next();
+    } catch (e) { fail(e); } });
+    // the plain night (a multiply layer, the windows unlit) if the pictures can't be made, or take too long
+    const noPics = () => { if (pics || over) return; pics = -1; };
+    // the house by day, as it is now (the door open): the night's base and what a lit window shows (made once this screen
+    // is on screen); its JPEG is also the scene under the night (picDoor) for the camera's flight in
+    const dayPicture = () => { try {
+      const live = x && x.scene && x.scene.querySelector('svg');
+      if (!live || !window.Blob) { noPics(); return; }
+      const svg = new XMLSerializer().serializeToString(live).replace(/visibility:\s*hidden;?/, '');
+      const kk = Math.min(2.6, Math.max(frame.clientWidth / 1000, frame.clientHeight / 460) * (window.devicePixelRatio || 1));
+      setTimeout(noPics, 2500);
+      svgCanvas(svg, 1000, 460, kk, 6).then(day => {
+        if (over) { day.width = day.height = 0; return; }
+        nightPics(day).then(nb => { if (over) return; pics = 1; const sk = night.querySelector('.skyl'); fade(nb, 600).onfinish = () => { if (sk) sk.style.display = 'none'; }; }, noPics).then(() => {
+          day.toBlob(b => { day.width = day.height = 0; if (!b || over) return; dayUrl = URL.createObjectURL(b); picDoor(dayUrl); }, 'image/jpeg', 0.9);
+        });
+      }).catch(noPics);
+    } catch (e) { noPics(); } };
+    // a light comes on: its canvas fades in
+    const lightOn = (L, ms) => {
+      if (!L.cv) { L.done = true; return; }
+      L.cv.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms, easing: 'ease-out', fill: 'forwards' }).onfinish = () => { L.done = true; };
     };
-    const easeIO = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    let ti =Math.floor(Math.random() * HOME_TIPS.length); tip.textContent = HOME_TIPS[ti];
+    let ti = Math.floor(Math.random() * HOME_TIPS.length); tip.textContent = HOME_TIPS[ti];
     const tipT = setInterval(() => { tip.parentNode.classList.add('sw'); setTimeout(() => { ti = (ti + 1) % HOME_TIPS.length; tip.textContent = HOME_TIPS[ti]; tip.parentNode.classList.remove('sw'); }, 260); }, 3000);
-    requestAnimationFrame(() => { night.classList.add('on'); ui.classList.add('on'); });
-    let p = 0, readyAt = 0, show = null, over = false, gone = false, res; const ready = new Promise(r => { res = r; });
+    let p = 0, readyAt = 0, show = null, over = false, gone = false, t0 = 0, last = 0, res, resShown;
+    const ready = new Promise(r => { res = r; }), shown = new Promise(r => { resShown = r; });
+    // on screen: the loading may start (and the clock of this screen with it)
+    requestAnimationFrame(() => window.SquishPerf.painted(() => { if (over) return; t0 = last = performance.now(); dayPicture(); resShown(); }));
     const me = {
+      shown: () => shown,
       ready: () => ready,
       markReady(fn) { show = fn; if (!readyAt) readyAt = performance.now(); },
-      zoom() { ui.classList.add('out'); }, // the camera flies in: the title and the tip go
+      zoom() { if (uiIn) uiIn.cancel(); ui.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 350, easing: 'ease', fill: 'forwards' }); }, // the camera flies in: the title and the tip go
       end() { const f = show; me.kill(); if (f) f(); },
-      cancel() { me.kill(); res('cancel'); },
-      kill() { over = true; clearInterval(tipT); night.remove(); ui.remove(); if (HH === me) HH = null; },
+      cancel() { me.kill(); resShown(); res('cancel'); },
+      kill() { over = true; clearInterval(tipT); night.remove(); ui.remove(); picDoor(null); if (dayUrl) URL.revokeObjectURL(dayUrl); dayUrl = null; if (HH === me) { HH = null; if (window.SquishPerf && window.SquishPerf.quiet) window.SquishPerf.quiet(1500); } },
     };
     const tick = () => {
-      if (over) return; const t = performance.now() - t0;
+      if (over) return;
+      if (!t0) { requestAnimationFrame(tick); return; }
+      const now = performance.now(), t = now - t0, dt = Math.min(250, now - last); last = now;
       // the loading's progress (no bar shows it: the user, 2026-11-16, "remove the progress bars"): it eases towards
-      // 90% while the house loads, then runs to the end; the windows light up as it goes
+      // 90% while the house loads, then runs to the end; the windows light up as it goes (the same pace as before, at
+      // 60 frames a second, whatever the frame rate now)
       const goal = readyAt ? 1 : 0.9 * (1 - Math.exp(-t / 2400));
-      p += (goal - p) * (readyAt ? 0.12 : 0.07); if (readyAt && 1 - p < 0.005) p = 1;
-      const now = performance.now(), nR = lights.length - 1;   // (the last light is the door)
+      p += (goal - p) * (1 - Math.pow(1 - (readyAt ? 0.12 : 0.07), dt / 16.67)); if (readyAt && 1 - p < 0.005) p = 1;
+      const nR = lights.length - 1;   // (the last light is the door)
       lights.forEach((L, i) => {
-        if (L.done) return;
-        if (!L.at) { if (i < nR ? p >= ((i + 1) / (nR + 1)) * 0.9 : p >= 0.96) L.at = now; else return; }
-        const u = Math.min(1, (now - L.at) / (i < nR ? 500 : 450));
-        setLit(L, easeIO(u), u < 1 ? Math.sin(u * Math.PI) : 0); if (u >= 1) L.done = true;
+        if (L.at || !pics) return;
+        if (i < nR ? p >= ((i + 1) / (nR + 1)) * 0.9 : p >= 0.96) { L.at = now; lightOn(L, i < nR ? 500 : 450); }
       });
       // ready: the camera starts flying in (its first moments barely move) while the door finishes lighting up
       if (p >= 1 && t >= MIN && !gone) { gone = true; res('ok'); }
@@ -1096,9 +1478,54 @@ ${bulbRun()}
     HH = me;
     return me;
   };
+  // the camera's flight in through the door (in: 900 ms, scale 1 -> 6.2 in t^3, the veil from 45% to 95%) and back out
+  // (850 ms, 1 - (1-t)^3, the veil gone by 55%), as main-menu.js goHome / back drew them each frame, now played by the GPU
+  // (PERF 2026-11-20: the house builds or tears down at the same moment, which froze the camera mid-flight)
+  M.zoom = function (world, veil, inward) {
+    if (!world.animate) return null;
+    const N = 24, wk = [], vk = [], ms = inward ? 900 : 850;
+    for (let i = 0; i <= N; i++) {
+      const t = i / N, e = inward ? t * t * t : 1 - Math.pow(1 - t, 3);
+      wk.push({ transform: 'scale(' + (inward ? 1 + 5.2 * e : 1 + 5.2 * (1 - e)).toFixed(4) + ')' });
+      vk.push({ opacity: inward ? (t > 0.45 ? Math.min(1, (t - 0.45) / 0.5) : 0) : Math.max(0, 1 - t / 0.55) });
+    }
+    // the end state is set first (the animations play over it; the veil's watcher keeps it drawn while it fades)
+    veil._sqZ = 1; veil.style.visibility = '';
+    world.style.transform = inward ? 'scale(6.200)' : ''; veil.style.opacity = inward ? '1' : '0';
+    const a = world.animate(wk, { duration: ms, easing: 'linear' }), b = veil.animate(vk, { duration: ms, easing: 'linear' });
+    return Promise.all([a.finished, b.finished]).catch(() => {}).then(() => { veil._sqZ = 0; if (veil._sqSync) veil._sqSync(); });
+  };
+  // PERF 2026-11-20 (the user: "in the crib at the lower part there's something white that makes it look like we're
+  // not in full screen"): the house's box on this screen. The house is laid out at the design's 852 x 393 and scaled to
+  // the menu's frame; scaled to the frame's width alone it left a cream strip under it on a screen taller than 852:393
+  // (the phone: 17 dp). Now its box is the screen at the scale that fits 852 x 393 in it: 852 wide and taller on a taller
+  // screen, 393 tall and wider on a wider one. The room, the catalog and the map stay 852 x 393 in its middle (their
+  // pictures already reach past it: more of the floor and ceiling shows), the HUD keeps to its edges (patches.mjs).
+  // → { k: scale, w, h: the box in design px }, or null when there's no menu frame (the house on its own: as before).
+  M.houseBox = function (w, h) {
+    if (w == null) { const f = M._x && M._x.frame; if (!f) return null; const r = f.getBoundingClientRect(); w = r.width; h = r.height; }
+    if (!(w > 0 && h > 0)) return null;
+    const k = Math.min(w / 852, h / 393);
+    return { k, w: w / k, h: h / k };
+  };
   // Main Menu.dc.html: the house has drawn (show() fades it in) / the player went back while it was loading
-  M.houseDrawn = function (show) { if (HH) HH.markReady(show); else show(); };
-  M.houseLeft = function () { if (HH) HH.cancel(); };
+  // PERF 2026-11-21 (the user chose it: "room first, creatures after"): on the trip in, the house is shown as its bare
+  // room first; its furniture fades in half a second later and its creatures arrive one at a time after that. Revealed
+  // all at once, the WebView drew the room, the furniture and every creature for the first time in the same moment:
+  // 0.2-0.6 s stalls, 3-4 a trip, on the Galaxy A16. While filling, the house keeps its creatures unmounted (its
+  // mountVis asks SquishFill, patched in) and the furniture layer (.sq-items) is see-through.
+  const FILL = { on: false, sh: null, t: null };
+  window.SquishFill = { hold(sh) { if (!FILL.on) return false; FILL.sh = sh; return true; } };
+  const fillReset = () => { clearTimeout(FILL.t); FILL.on = false; FILL.sh = null; document.documentElement.classList.remove('sq-filling'); };
+  const fillStart = () => { fillReset(); FILL.on = true; document.documentElement.classList.add('sq-filling'); FILL.t = setTimeout(fillEnd, 20000); };
+  function fillEnd() {
+    if (!FILL.on) return;
+    const sh0 = FILL.sh; fillReset();
+    const step = () => { const sh = sh0 || window.__sh; if (!sh || sh.dead || !sh.vis || !sh.mountVis) return; sh.mountVis(1); if (sh.vis.some(c => !c.ctrl && c.host && c.host.current)) setTimeout(step, 220); };
+    setTimeout(step, 420);   // (after the furniture's fade)
+  }
+  M.houseDrawn = function (show) { const go = () => { show(); setTimeout(fillEnd, 500); }; if (HH) HH.markReady(go); else go(); };
+  M.houseLeft = function () { if (HH) HH.cancel(); fillReset(); };
 
   // ---------- 4. the Level Pass ----------
   // REDESIGN_V9 (2026-11-16, the user): one row of levels across the page, each one tappable; the tapped level's
@@ -1134,7 +1561,7 @@ ${bulbRun()}
     if (it.r) {
       const r = it.r;
       if (r.k === 'chest') {
-        art = r.g ? '<img class="chest" alt="" src="app/gchests/' + r.g + '-' + r.t + '-grow.webp">' : chestArt(r.t);
+        art = r.g ? '<img class="chest" alt="" decoding="async" src="app/gchests/' + r.g + '-' + r.t + '-grow.webp">' : chestArt(r.t);
         title = r.cn || (CHEST_NAME[r.t] || '') + ' Chest';
         desc = (r.gn ? r.gn + ' · ' : '') + (CHEST_NAME[r.t] || '') + ' chest';
         tag = 'CHEST';
@@ -1146,7 +1573,7 @@ ${bulbRun()}
       }
     } else {
       const u = it.u, pic = u.kind === 'tier' ? 'tier' + u.tier : u.key;
-      art = '<img class="pic" alt="" src="app/art/rooms/' + pic + '.jpg">';
+      art = '<img class="pic" alt="" decoding="async" src="app/art/rooms/' + pic + '.jpg">';
       title = u.name; desc = UN_TEXT[u.kind];
       tag = u.kind === 'tier' ? 'HOUSE' : u.kind === 'yard' ? 'GAMES' : 'NEW ROOM';
     }
@@ -1189,8 +1616,13 @@ ${bulbRun()}
       return '<div class="lv">' + ft('LEVEL ' + row.L, row.reached ? 'gold' : 'white', 24) + '<div class="sub">' + sub + '</div>' + act + '</div>'
         + '<div class="items">' + (items.length ? items.map(rewardCard).join('') : '<div class="sq-it none"><div class="d">Nothing new at this level</div></div>') + '</div>';
     };
-    const p = x.pageOpen('<div class="mm-pgh">' + head() + '</div><div class="sq-lvtrack">' + track() + '</div><div class="sq-lvpan mm-p v-vel">' + panel() + '</div>');
+    // PERF 2026-11-20: the page opens with its header and empty track and panel (on screen in the next frame, its fade-in
+    // starting there); the track and the panel are filled in right after that first frame, as the fade begins
+    const p = x.pageOpen('<div class="mm-pgh">' + head() + '</div><div class="sq-lvtrack"></div><div class="sq-lvpan mm-p v-vel"></div>');
     const pg = p.querySelector('.mm-pg'), hd = p.querySelector('.mm-pgh'), pv = p.querySelector('.sq-lvpan'), tr = p.querySelector('.sq-lvtrack');
+    p.classList.add('sq-pass');   // (no fade-in: see .sq-pass in the CSS)
+    M.hold();   // (the menu's creature stops at once)
+    x.frame.classList.add('sq-covered'); weatherOn(false);   // (covered from its first frame: see M.characters)
     dragRow(tr); // (the user: every sideways list scrolls by dragging, finger or mouse)
     const redraw = keepScroll => { const sl = tr.scrollLeft; hd.innerHTML = head(); pv.innerHTML = panel(); tr.innerHTML = track(); x.fitFT(p); if (keepScroll) tr.scrollLeft = sl; bind(); fillIcons(p); };
     fillIcons(p);
@@ -1224,7 +1656,11 @@ ${bulbRun()}
       const cb = pv.querySelector('[data-claim]'); if (cb) cb.onclick = () => claim(+cb.dataset.claim);
     }
     bind();
-    requestAnimationFrame(() => center(sel));
+    // (filled unseen, then shown whole once its tiles are made: the first time, the phone drew the panel half done for
+    //  ~0.4 s, a row of its tiles missing; sq-filling keeps them see-through but made, SquishPerf.steady says when)
+    p.classList.add('sq-filling');
+    window.SquishPerf.painted(() => { if (!p.isConnected) return; tr.innerHTML = track(); pv.innerHTML = panel(); x.fitFT(tr); x.fitFT(pv); bind(); fillIcons(p); center(sel);
+      window.SquishPerf.steady(() => p.classList.remove('sq-filling'), 1500); });
     // the app's answers: a claim's result, then the player's new state (prize marked got, coins up)
     const offs = [];
     if (App) {
@@ -1282,60 +1718,112 @@ ${bulbRun()}
   // cards gather back into the deck, the deck flies off and the page shows.
   const SQUAD_TIPS = ['Rarities: Common, Rare, Epic, Legendary, Rainbow', 'Hold your creature to squeeze it, drag to spin it', 'Tap a card to see a creature, tap USE to put it in front of your house', 'Collect a whole group to earn its Rainbow chest'];
   const STAR_IC = '<svg viewBox="0 0 24 24"><path d="M12 3.2l2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6-4.4-4.2 6-.8Z" fill="#ffd24a" stroke="#6b4426" stroke-width="1.6" stroke-linejoin="round"/></svg>';
-  function gatherSquad(p, x, cardsHtml, owned, isReady) {
-    // As the design's recording: the deck deals its cards left to right, one at a time, and is gone once the last one
-    // has left it (the user, 2026-11-16); each card turns over as it lands. While the page is still loading, after a
-    // moment the cards turn back, gather into the deck and the next five are dealt; once it has loaded, the cards fade
-    // away and the page shows.
-    const t0 = performance.now(), MIN = 1900, HOLD = 1700, n = Math.min(5, cardsHtml.length);
-    const ov = document.createElement('div'); ov.className = 'sq-gs';
-    const backHtml = '<div class="back"><span>' + STAR_IC + '</span></div>';
-    ov.innerHTML = '<div class="rays"></div><div class="ttl">' + ft('Gathering your squad', 'gold', 32) + '</div><div class="cnt">' + owned + (owned === 1 ? ' creature' : ' creatures') + '</div>'
+  // PERF 2026-11-20 (the user: "I only hear the audio and when I see them they are half way done"): the loader is put up
+  // on its own, before anything of the page is built, and all its motion is Web Animations of transform and opacity,
+  // which the GPU plays (they keep going while the page is built under it); they start with the loader's first frame on
+  // screen, and its card sounds are set on the sound clock from there (sfxAt), so they land with the cards even if the
+  // page is busy. Before, its deal ran on timers from the tap while the whole page was built in the same frame (a
+  // second or more on the phone): the deal had played by the time the loader was first seen, its sounds in a burst.
+  // The timings and curves are the design's (the CSS transitions this used: .45s cubic-bezier(.2,.9,.3,1.05) deal, .2s
+  // fade in, .45s ease flip, .3s deck, .45s ease-in / .4s leave, .45s fade out).
+  // (its markup: put in with the page's own, so the tap lays the page out once)
+  // PERF 2026-11-20: the slowly turning rays (the Characters page's and its loading screen's) drawn ONCE into a canvas
+  // that the GPU turns. As a CSS repeating-conic-gradient under a radial mask-image, each was a ~1960 px square layer
+  // (rasterised whole because it turns) made through an offscreen mask: on the Galaxy A16 the WebView's GPU thread spent
+  // ~1-2 s making their tiles the first time the page opened, and drew no frame meanwhile (the loader froze as a
+  // see-through ghost over the menu). A canvas is one texture, made once; turning it costs no raster. Same wedges,
+  // colours and fade as the CSS; drawn at 1024 px (the soft rays don't show the difference).
+  // o: { color, on (deg lit), step (deg per wedge), r0, r1 (the fade's start and end, as fractions of the radius) }
+  function raysCanvas(cv, o) {
+    if (!cv || !cv.getContext) return;
+    const N = 1024, c = N / 2, g = cv.getContext('2d'); if (!g) return;
+    cv.width = N; cv.height = N;
+    g.clearRect(0, 0, N, N);
+    g.fillStyle = o.color;
+    const rad = d => (d - 90) * Math.PI / 180;   // (CSS conic 0deg is 12 o'clock, clockwise; canvas 0 is 3 o'clock)
+    for (let a = 0; a < 360; a += o.step) { g.beginPath(); g.moveTo(c, c); g.arc(c, c, c, rad(a), rad(a + o.on)); g.closePath(); g.fill(); }
+    g.globalCompositeOperation = 'destination-in';
+    const m = g.createRadialGradient(c, c, 0, c, c, c);
+    m.addColorStop(0, '#000'); m.addColorStop(o.r0, '#000'); m.addColorStop(o.r1, 'rgba(0,0,0,0)'); m.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = m; g.fillRect(0, 0, N, N);
+    g.globalCompositeOperation = 'source-over';
+  }
+  M.raysCanvas = raysCanvas;
+  const RAYS_LOADER = { color: 'rgba(255,246,214,.30)', on: 7, step: 18, r0: 38.18 / 357, r1: 356.38 / 357 };
+  const RAYS_CHARS = { color: 'rgba(255,255,255,.55)', on: 7, step: 18, r0: 46.38 / 337, r1: 336.29 / 337 };
+  function gatherHtml(cardsHtml, owned) {
+    const n = Math.min(5, cardsHtml.length), backHtml = '<div class="back"><span>' + STAR_IC + '</span></div>';
+    return '<div class="sq-gs"><canvas class="rays"></canvas><div class="ttl">' + ft('Gathering your squad', 'gold', 32) + '</div><div class="cnt">' + owned + (owned === 1 ? ' creature' : ' creatures') + '</div>'
       + '<div class="table"><div class="deck">' + backHtml + backHtml + backHtml + '</div>'
       + Array.from({ length: n }, (_, i) => '<div class="cw" data-i="' + i + '"><div class="fl"><div class="fc">' + cardsHtml[i] + '</div><div class="bk"><span>' + STAR_IC + '</span></div></div></div>').join('') + '</div>'
-      + '<div class="band"><div class="tip"><em>Tip:</em> <span></span></div></div>';
-    p.querySelector('.mm-pg').appendChild(ov); if (x.fitFT) x.fitFT(ov);
-    const cw = [...ov.querySelectorAll('.cw')], deck = ov.querySelector('.deck'), backs = [...deck.querySelectorAll('.back')];
+      + '<div class="band"><div class="tip"><em>Tip:</em> <span></span></div></div></div>';
+  }
+  function gatherSquad(p, x, cardsHtml, owned) {
+    const MIN = 1900, HOLD = 1700, n = Math.min(5, cardsHtml.length);
+    let ov = p.querySelector('.sq-gs');
+    if (!ov) { const d = document.createElement('div'); d.innerHTML = gatherHtml(cardsHtml, owned); ov = d.firstChild; p.querySelector('.mm-pg').appendChild(ov); if (x.fitFT) x.fitFT(ov); }
+    raysCanvas(ov.querySelector('canvas.rays'), RAYS_LOADER);
+    const cw = [...ov.querySelectorAll('.cw')], fl = cw.map(c => c.querySelector('.fl')), deck = ov.querySelector('.deck'), backs = [...deck.querySelectorAll('.back')];
     const tip = ov.querySelector('.tip span');
     let ti = Math.floor(Math.random() * SQUAD_TIPS.length); tip.textContent = SQUAD_TIPS[ti];
     const tipT = setInterval(() => { tip.parentNode.classList.add('sw'); setTimeout(() => { ti = (ti + 1) % SQUAD_TIPS.length; tip.textContent = SQUAD_TIPS[ti]; tip.parentNode.classList.remove('sw'); }, 260); }, 2800);
     // the row: each card's place, a little tilt one way or the other
-    cw.forEach((c, i) => { const k = i - (n - 1) / 2; c.style.setProperty('--fx', (k * 122).toFixed(0) + 'px'); c.style.setProperty('--fy', (i % 2 ? 6 : -2) + 'px'); c.style.setProperty('--fr', (i % 2 ? 4 : -4) + 'deg'); });
-    // the deck shows as thick as the cards still in it, and goes when it's empty
-    const deckHolds = left => { deck.classList.toggle('gone', left <= 0); backs.forEach((b, i) => { b.style.visibility = left > 2 - i ? '' : 'hidden'; }); };
-    const timers = [], later = (ms, f) => timers.push(setTimeout(f, ms));
-    let phase = 'deal', heldAt = 0, batch = 0, over = false;
-    function deal() {
-      phase = 'deal'; deckHolds(n);
+    const pose = cw.map((c, i) => { const k = i - (n - 1) / 2; return 'translate(' + (k * 122).toFixed(0) + 'px,' + (i % 2 ? 6 : -2) + 'px) rotate(' + (i % 2 ? 4 : -4) + 'deg)'; });
+    const DEAL = 'cubic-bezier(.2,.9,.3,1.05)', anims = [];
+    const go = (el, kf, o) => { const a = el.animate(kf, Object.assign({ fill: 'both' }, o)); anims.push(a); return a; };
+    const clear = () => { anims.splice(0).forEach(a => { try { a.cancel(); } catch (e) { /* gone */ } }); };
+    // one deal from `at` ms: card i leaves the deck at at + 160 + 200 i (and the deck shows as thick as the cards still in
+    // it: its backs go one by one, the deck itself with the last card), turns over 300 ms later
+    let dealAt = 0, holdAt = 0, phase = 'deal', batch = 0;
+    function deal(at, withSound) {
+      phase = 'deal'; dealAt = at;
       cw.forEach((c, i) => {
-        later(160 + i * 200, () => { c.classList.add('dealt'); deckHolds(n - i - 1); sfx('tap'); });
-        later(460 + i * 200, () => c.classList.add('up'));
+        const d = at + 160 + i * 200;
+        go(c, [{ transform: 'none' }, { transform: pose[i] }], { duration: 450, delay: d, easing: DEAL });
+        go(c, [{ opacity: 0 }, { opacity: 1 }], { duration: 200, delay: d, easing: 'ease' });
+        go(fl[i], [{ transform: 'rotateY(180deg)' }, { transform: 'rotateY(0deg)' }], { duration: 450, delay: d + 300, easing: 'ease' });
       });
-      later(460 + n * 200 + 250, () => { phase = 'hold'; heldAt = performance.now(); });
+      backs.forEach((b, j) => { if (n > 2 - j) go(b, [{ opacity: 1 }, { opacity: 0 }], { duration: 1, delay: at + 160 + Math.max(0, n - 3 + j) * 200 }); else go(b, [{ opacity: 0 }, { opacity: 0 }], { duration: 1 }); });
+      go(deck, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.85)' }], { duration: 300, delay: at + 160 + (n - 1) * 200, easing: 'ease' });
+      holdAt = at + 460 + n * 200 + 250;
+      if (withSound) cw.forEach((c, i) => sfxAt('tap', at + 160 + i * 200));
     }
-    // still loading: the cards back into the deck, then the next five creatures dealt
-    function again() {
-      phase = 'gather';
-      cw.forEach((c, i) => later(i * 50, () => c.classList.remove('up')));
-      later(300, () => { deckHolds(1); cw.forEach((c, i) => later(i * 70, () => { c.classList.remove('dealt'); deckHolds(Math.min(3, i + 1)); })); });
-      later(300 + n * 70 + 450, () => {
-        batch++;
-        cw.forEach((c, i) => { c.querySelector('.fc').innerHTML = cardsHtml[(batch * n + i) % cardsHtml.length]; });
-        deal();
+    // the animations' clock: ms since the loader's first frame on screen (the deal's start: its first animation's start
+    // time on the page's timeline; a card's own time stops when its move ends)
+    const clock = () => { const a = anims[0]; if (!a) return 0; if (a.startTime != null && document.timeline && document.timeline.currentTime != null) return document.timeline.currentTime - a.startTime; return a.currentTime || 0; };
+    // the card sounds, on the sound clock: `ms` on the loader's clock, from now
+    const sfxAt = (n0, ms) => { const dl = (ms - clock()) / 1000; if (dl < -0.05) return; sfxDelay(n0, Math.max(0, dl)); };
+    // still loading: the cards turn back, gather into the deck, and the next five are dealt (all from `at`)
+    function again(at) {
+      phase = 'gather'; batch++;
+      clear();
+      const now0 = 0;   // (from now)
+      cw.forEach((c, i) => {
+        go(fl[i], [{ transform: 'rotateY(0deg)' }, { transform: 'rotateY(180deg)' }], { duration: 450, delay: now0 + i * 50, easing: 'ease' });
+        go(c, [{ transform: pose[i] }, { transform: 'none' }], { duration: 450, delay: now0 + 300 + i * 70, easing: DEAL });
+        go(c, [{ opacity: 1 }, { opacity: 0 }], { duration: 200, delay: now0 + 300 + i * 70, easing: 'ease' });
       });
+      go(deck, [{ opacity: 0, transform: 'scale(.85)' }, { opacity: 1, transform: 'none' }], { duration: 300, delay: now0 + 300, easing: 'ease' });
+      backs.forEach((b, j) => go(b, [{ opacity: 0 }, { opacity: 1 }], { duration: 1, delay: now0 + 300 + (2 - j) * 70 }));   // (the top one first)
+      const swap = 300 + n * 70 + 450;
+      setTimeout(() => { if (!ov.isConnected) return; cw.forEach((c, i) => { c.querySelector('.fc').innerHTML = cardsHtml[(batch * n + i) % cardsHtml.length]; }); clear(); deal(0, true); }, swap);
     }
-    requestAnimationFrame(() => { ov.classList.add('on'); deal(); });
-    let p0 = 0, readyAt = 0;
+    // The deal (and its card sounds) starts once the loader is on screen and frames are flowing (SquishPerf.steady): on
+    // the phone the first open made the WebView's GPU thread build the page's tiles for 0.5-1 s with no frame drawn, and a
+    // deal started on the clock was over before it was seen (2026-11-20, on the Galaxy A16). Until then: the full deck.
+    let ready = 0, over = false, shownAt = 0, started = false, dealtNow = null;
+    // (the first deal has played out: the page under the loader is built from then: PERF 2026-11-20, below)
+    const dealt = new Promise(res => { dealtNow = res; setTimeout(res, 4000); });
+    window.SquishPerf.steady(() => { if (over || !ov.isConnected) return; started = true; shownAt = performance.now(); deal(0, true); }, 2500);
     const tick = () => {
-      if (over || !ov.isConnected) { clearInterval(tipT); timers.forEach(clearTimeout); return; }
-      const now = performance.now(), t = now - t0;
-      if (!readyAt && (isReady() || t > 6000)) readyAt = now;
-      // the loading's progress (not shown: no bar), which says when the cards may leave
-      const goal = readyAt ? 1 : 0.9 * (1 - Math.exp(-t / 1600));
-      p0 += (goal - p0) * (readyAt ? 0.14 : 0.08); if (readyAt && 1 - p0 < 0.005) p0 = 1;
+      if (over || !ov.isConnected) { over = true; clearInterval(tipT); return; }
+      if (!started) { requestAnimationFrame(tick); return; }
+      const t = clock();
+      if (phase === 'deal' && t >= holdAt) { phase = 'hold'; dealtNow(); }
       if (phase === 'hold') {
-        if (p0 >= 1 && t >= MIN) { over = true; leave(); return; }
-        if (!readyAt && now - heldAt > HOLD && cardsHtml.length > n) again();
+        const sinceShown = shownAt ? performance.now() - shownAt : 0;
+        if (ready && performance.now() - ready > 250 && sinceShown >= MIN) { over = true; leave(); return; }
+        if (!ready && t - holdAt > HOLD && cardsHtml.length > n) { again(); phase = 'gather'; }
       }
       requestAnimationFrame(tick);
     };
@@ -1343,10 +1831,24 @@ ${bulbRun()}
     // loaded: the cards fade away up the table, then the page shows
     function leave() {
       clearInterval(tipT);
-      ov.classList.add('away');
-      setTimeout(() => ov.classList.add('out'), 420);
-      setTimeout(() => ov.remove(), 900);
+      ov.classList.add('sq-leaving');   // (the page's creature shows under it now; not 'out', which is the loader's own faded state: it faded the loader out once, then the fade below brought it back and faded it again, a flicker)
+      cw.forEach((c, i) => {
+        const lift = pose[i].replace(/translate\(([-\d.]+)px,([-\d.]+)px\)/, (m, a, b) => 'translate(' + a + 'px,' + (+b - 46) + 'px)');
+        c.animate([{ transform: pose[i] }, { transform: lift }], { duration: 450, easing: 'ease-in', fill: 'forwards' });
+        c.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400, easing: 'ease', fill: 'forwards' });
+      });
+      const out = ov.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 450, delay: 420, easing: 'ease', fill: 'forwards' });
+      out.onfinish = () => ov.remove();
     }
+    return { ready() { if (!ready) ready = performance.now(); }, gone: () => !ov.isConnected || over, dealt };
+  }
+  // a sound `delay` seconds from now, on the sound clock (the yard games' synth: its notes start at currentTime + …)
+  function sfxDelay(n, delay) {
+    if (!delay || delay < 0.004) { sfx(n); return; }
+    const B = window.BaseAudioContext || window.AudioContext, P = B && B.prototype, d = P && Object.getOwnPropertyDescriptor(P, 'currentTime');
+    if (!d || !d.get || !d.configurable) { setTimeout(() => sfx(n), delay * 1000); return; }
+    Object.defineProperty(P, 'currentTime', { configurable: true, enumerable: d.enumerable, get() { return d.get.call(this) + delay; } });
+    try { sfx(n); } finally { Object.defineProperty(P, 'currentTime', d); }
   }
 
   M.characters = function (x) {
@@ -1364,40 +1866,46 @@ ${bulbRun()}
       out.forEach(g => g.list.sort((a, b) => (a.rar | 0) - (b.rar | 0) || a.id - b.id));
       return out.filter(g => g.list.length);
     };
+    // PERF 2026-11-20: these cards' pictures at about the size they're drawn (webgame/tools/small-cards.py: 3-10x smaller
+    // than the originals, which the first open after a launch decoded and uploaded by the dozen, the loader frozen
+    // meanwhile); the original if a small copy is missing
+    const sm = u => { const t = smallPic(u); return t === u ? 'src="' + u + '"' : 'src="' + t + '" onerror="this.onerror=null;this.src=\'' + u + '\'"'; };
     const cardHtml = c => {
       const id = c.id, s = still(c, Q), d = C4 ? C4.of(c) : null, o = own(id), cls = 'sq-cc' + (o ? '' : ' no') + (id === pick ? ' pv' : '') + (id === mine() ? ' me' : '');
-      if (!d) return '<button class="' + cls + '" data-id="' + id + '" aria-label="' + esc(c.name) + '"><img class="art" alt="" loading="lazy" style="inset:0;width:100%;height:100%;object-fit:contain" src="' + s + '">' + (o ? '' : '<span class="lk">' + LOCK(24) + '</span>') + '</button>';
+      if (!d) return '<button class="' + cls + '" data-id="' + id + '" aria-label="' + esc(c.name) + '"><img class="art" alt="" loading="lazy" style="inset:0;width:100%;height:100%;object-fit:contain" ' + sm(s) + '>' + (o ? '' : '<span class="lk">' + LOCK(24) + '</span>') + '</button>';
       const bx = p => 'left:' + d[p + 'L'] + ';top:' + d[p + 'T'] + ';width:' + d[p + 'W'] + ';height:' + d[p + 'H'];
-      return '<button class="' + cls + '" data-id="' + id + '" aria-label="' + esc(c.name) + '"><img class="bg" alt="" loading="lazy" src="' + d.cdBg + '" style="' + bx('cdBg') + ';object-fit:cover;object-position:center bottom"><img class="art" alt="" loading="lazy" src="' + s + '" style="' + bx('cdArt') + ';object-fit:contain;object-position:center bottom"><img class="frm" alt="" loading="lazy" src="' + d.cdFrame + '" style="inset:0;width:100%;height:100%">'
-        + (d.cdHasName ? '<img class="nmi" alt="" loading="lazy" src="' + d.cdName + '" style="' + bx('cdNm') + ';object-fit:contain">' : '<span class="nmT" style="' + bx('cdNm') + ';color:' + d.cdInk + '">' + esc(c.name) + '</span>')
+      return '<button class="' + cls + '" data-id="' + id + '" aria-label="' + esc(c.name) + '"><img class="bg" alt="" loading="lazy" ' + sm(d.cdBg) + ' style="' + bx('cdBg') + ';object-fit:cover;object-position:center bottom"><img class="art" alt="" loading="lazy" ' + sm(s) + ' style="' + bx('cdArt') + ';object-fit:contain;object-position:center bottom"><img class="frm" alt="" loading="lazy" ' + sm(d.cdFrame) + ' style="inset:0;width:100%;height:100%">'
+        + (d.cdHasName ? '<img class="nmi" alt="" loading="lazy" ' + sm(d.cdName) + ' style="' + bx('cdNm') + ';object-fit:contain">' : '<span class="nmT" style="' + bx('cdNm') + ';color:' + d.cdInk + '">' + esc(c.name) + '</span>')
         + (o ? '' : '<span class="lk">' + LOCK(24) + '</span>') + '</button>';
     };
+    // PERF 2026-11-20: the page opens as its loading screen alone (the page's frame, the loader over it: a few dozen
+    // elements, on screen in the next frame); the page itself is then built under the loader in slices of a few ms a
+    // frame (SquishPerf.slices): its stage, the row group by group, the creature, the scroll to yours. The loader's own
+    // motion runs on the GPU meanwhile (gatherSquad). It leaves once the row's pictures in view are in (or after 4 s).
+    // the loading screen over it (REDESIGN_V9): five of the player's creatures (the one in use first)
+    const ownList = all.filter(c => own(c.id)), five = [].concat(ownList.filter(c => c.id === mine()), ownList.filter(c => c.id !== mine())).slice(0, 15);
+    const deal = (five.length ? five : all.slice(0, 5)).map(c => cardHtml(c).replace(/ pv| me| no/g, '').replace(/loading="lazy"/g, '').replace(/ data-id="\d+"/, ''));
+    const p = x.pageOpen('<div class="mm-pgh"><button class="mm-orb" data-x aria-label="Back">' + ic(BACK, '#fff', 3) + '</button>' + ft('Characters', 'gold', 30) + '<div class="mm-sp"></div></div>'
+      + '<div class="sq-c2"></div>' + gatherHtml(deal, ownList.length));
+    p.classList.add('sq-chars');
+    M.hold();   // (the menu's creature stops at once)
+    // PERF 2026-11-20: the page covers the menu from its first frame (no fade-in): the menu isn't drawn from that frame on
+    // (cover() would only see it on its next 400 ms round, and the menu's scene was rastered meanwhile)
+    x.frame.classList.add('sq-covered'); weatherOn(false);
+    const G = gatherSquad(p, x, deal, ownList.length);
+    if (window.SquishPerf.quiet) window.SquishPerf.quiet(4000);
+    const box = p.querySelector('.sq-c2');
+    let who = null, actAt = null, row = null, prevB = null, nextB = null;
     // The platform: a round plate seen at a slant (a circle in a box squashed to 20%) turning slowly, with its lights
     // riding round its rim over it, round lights spaced evenly along the ellipse (bulbRun).
     const bulbs = Array.from({ length: BULBS }, (_, i) => '<span class="bp" style="animation-delay:' + +(-i * BULB_LAP / BULBS).toFixed(3) + 's"><i class="b' + (i % 2 ? ' w' : '') + '"></i></span>').join('');
-    const p = x.pageOpen('<div class="mm-pgh"><button class="mm-orb" data-x aria-label="Back">' + ic(BACK, '#fff', 3) + '</button>' + ft('Characters', 'gold', 30) + '<div class="mm-sp"></div></div>'
-      + '<div class="sq-c2"><div class="rays"></div><div class="ring"><div class="side"></div><div class="tilt"><div class="turn"><div class="plate"></div></div></div>' + bulbs + '</div><div class="rig"></div>'
-      + '<div class="who"></div><div class="act-at"></div><div class="row"></div>'
-      + '<button class="mm-orb gnav prev" aria-label="Previous group">' + ic(LEFT, '#fff', 3) + '</button><button class="mm-orb gnav next" aria-label="Next group">' + ic(RIGHT, '#fff', 3) + '</button></div>');
-    p.classList.add('sq-chars');
-    const box = p.querySelector('.sq-c2'), who = box.querySelector('.who'), actAt = box.querySelector('.act-at'), row = box.querySelector('.row');
-    const fill = () => {
-      row.innerHTML = groups().map(g => '<div class="grp"><div class="gl">' + esc(g.name) + '</div><div class="gc">' + g.list.map(cardHtml).join('') + '</div></div>').join('');
-      row.querySelectorAll('[data-id]').forEach(b => b.onclick = () => choose(+b.dataset.id));
-    };
-    // The row scrolls sideways (the user): dragged with a finger or the mouse, gliding on after a flick, or with a mouse
-    // wheel; a drag doesn't count as a tap on a card. The arrows at its ends jump to the previous / next group.
-    dragRow(row);
-    const prevB = box.querySelector('.gnav.prev'), nextB = box.querySelector('.gnav.next');
+    const groupHtml = g => '<div class="grp"><div class="gl">' + esc(g.name) + '</div><div class="gc">' + g.list.map(cardHtml).join('') + '</div></div>';
     const starts = () => [...row.querySelectorAll('.grp')].map(g => g.offsetLeft - 44);
     const groupAt = () => { const S0 = starts(), x0 = row.scrollLeft + 8; let i = 0; S0.forEach((v, j) => { if (v <= x0) i = j; }); return i; };
     const navMark = () => { const n = row.querySelectorAll('.grp').length, i = groupAt(), end = row.scrollLeft >= row.scrollWidth - row.clientWidth - 4;
       prevB.classList.toggle('off', i === 0 && row.scrollLeft < 8); nextB.classList.toggle('off', i >= n - 1 || end); };
     const jump = d => { const S0 = starts(), i = clamp(groupAt() + d, 0, S0.length - 1), from = row.scrollLeft, to = clamp(S0[i], 0, row.scrollWidth - row.clientWidth);
       sfx('whoosh'); row._glide && row._glide(); tween(380, t => { row.scrollLeft = from + (to - from) * t; }, EIO).then(navMark); };
-    prevB.onclick = () => jump(row.scrollLeft > starts()[groupAt()] + 8 ? 0 : -1);
-    nextB.onclick = () => jump(1);
-    row.addEventListener('scroll', navMark, { passive: true });
     const showRig = (c, pop) => {
       let host = box.querySelector('.rig');
       if (rig && rigKey === c.key && !pop) return;
@@ -1433,22 +1941,55 @@ ${bulbRun()}
       const changed = id !== pick; pick = id; sfx('tap');
       showRig(c, changed); info(c); mark();
     }
-    fill();
-    const c0 = Q.ROSTER[pick] || all[0]; if (c0) { pick = c0.id; showRig(c0, true); info(c0); mark(); }
-    const sc = row.querySelector('.sq-cc.pv'); if (sc) { const r0 = row.getBoundingClientRect(), r1 = sc.getBoundingClientRect(); row.scrollLeft = Math.max(0, row.scrollLeft + (r1.left - r0.left) / (r0.width / row.clientWidth || 1) - (row.clientWidth - sc.offsetWidth) / 2); }
-    navMark();
     // the rig is destroyed with the page, however it closes
     const watch = setInterval(() => { if (!p.isConnected) { clearInterval(watch); if (rig) { try { rig.destroy(); } catch (e) { /* gone */ } rig = null; } } }, 500);
     function close() { clearInterval(watch); if (rig) { try { rig.destroy(); } catch (e) { /* gone */ } rig = null; } x.closePage(); if (x.ctrl) x.ctrl.play('happy'); }
     p.querySelector('[data-x]').onclick = close;
-    // the loading screen over it (REDESIGN_V9): five of the player's creatures (the one in use first), until the row's
-    // first cards have their pictures
-    const ownList = all.filter(c => own(c.id)), five = [].concat(ownList.filter(c => c.id === mine()), ownList.filter(c => c.id !== mine())).slice(0, 15);
-    const deal = (five.length ? five : all.slice(0, 5)).map(c => cardHtml(c).replace(/ pv| me| no/g, '').replace(/loading="lazy"/g, '').replace(/ data-id="\d+"/, ''));
-    const firstImgs = [...row.querySelectorAll('img')].slice(0, 24);
-    // (only the ones in view: a lazy picture off to the side doesn't load until it's scrolled to)
-    const inView = im => { const r = im.getBoundingClientRect(); return r.width > 0 && r.right > 0 && r.left < innerWidth; };
-    gatherSquad(p, x, deal, ownList.length, () => firstImgs.every(im => im.complete || !inView(im)));
+    // the page, built under the loader
+    const alive = () => p.isConnected;
+    const steps = [() => {
+      if (!alive()) return false;
+      box.innerHTML = '<canvas class="rays"></canvas><div class="ring"><div class="side"></div><div class="tilt"><div class="turn"><div class="plate"></div></div></div>' + bulbs + '</div><div class="rig"></div>'
+        + '<div class="who"></div><div class="act-at"></div><div class="row"></div>'
+        + '<button class="mm-orb gnav prev" aria-label="Previous group">' + ic(LEFT, '#fff', 3) + '</button><button class="mm-orb gnav next" aria-label="Next group">' + ic(RIGHT, '#fff', 3) + '</button>';
+      raysCanvas(box.querySelector('canvas.rays'), RAYS_CHARS);
+      who = box.querySelector('.who'); actAt = box.querySelector('.act-at'); row = box.querySelector('.row');
+      prevB = box.querySelector('.gnav.prev'); nextB = box.querySelector('.gnav.next');
+      // The row scrolls sideways (the user): dragged with a finger or the mouse, gliding on after a flick, or with a mouse
+      // wheel; a drag doesn't count as a tap on a card. The arrows at its ends jump to the previous / next group.
+      dragRow(row);
+      row.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-id]'); if (b && row.contains(b)) choose(+b.dataset.id); });
+      prevB.onclick = () => jump(row.scrollLeft > starts()[groupAt()] + 8 ? 0 : -1);
+      nextB.onclick = () => jump(1);
+      row.addEventListener('scroll', navMark, { passive: true });
+    }];
+    // the row, a group at a time (each group Common first, Rainbow last)
+    // PERF 2026-11-20: a group's cards are drawn only while they're on screen (content-visibility, at the size measured as
+    // it goes in, so the row's length and the groups' places never change): the WebView rastered the whole 10,800 px row
+    // the first time, all 86 cards and their ~90 pictures, on the GPU thread every frame waits for (~1 s on the A16)
+    groups().forEach(g => steps.push(() => {
+      if (!alive()) return false;
+      row.insertAdjacentHTML('beforeend', groupHtml(g));
+      const gc = row.lastElementChild && row.lastElementChild.querySelector('.gc');
+      if (gc && 'contentVisibility' in gc.style) { gc.style.containIntrinsicSize = gc.offsetWidth + 'px ' + gc.offsetHeight + 'px'; gc.style.contentVisibility = 'auto'; }
+    }));
+    steps.push(() => { if (!alive()) return false; const c0 = Q.ROSTER[pick] || all[0]; if (c0) { pick = c0.id; showRig(c0, true); info(c0); mark(); } });
+    steps.push(() => {
+      if (!alive()) return false;
+      const sc = row.querySelector('.sq-cc.pv'); if (sc) { const r0 = row.getBoundingClientRect(), r1 = sc.getBoundingClientRect(); row.scrollLeft = Math.max(0, row.scrollLeft + (r1.left - r0.left) / (r0.width / row.clientWidth || 1) - (row.clientWidth - sc.offsetWidth) / 2); }
+      navMark();
+    });
+    // PERF 2026-11-20: the page is built under the loader once its first deal has played (G.dealt), not at once: on the
+    // first open after a launch, the WebView drawing the page for the first time (its layers, the row, the stage) held the
+    // loader on a still deck for ~0.9 s on the Galaxy A16 before the deal could start; now the loader alone is drawn
+    // first and deals at once, and the page's first drawing happens while the dealt cards rest (nothing moving to stop)
+    G.dealt.then(() => window.SquishPerf.slices(steps)).then(() => {
+      if (!alive()) return;
+      // ready once the row's pictures in view are in (a lazy picture off to the side doesn't load until it's scrolled to)
+      const inView = im => { const r = im.getBoundingClientRect(); return r.width > 0 && r.right > 0 && r.left < innerWidth; };
+      const imgs = [...row.querySelectorAll('img')].slice(0, 60).filter(inView);
+      Promise.race([Promise.all(imgs.map(im => (im.decode ? im.decode() : Promise.resolve()).catch(() => {}))), wait(4000)]).then(() => G.ready());
+    });
     return true;
   };
 

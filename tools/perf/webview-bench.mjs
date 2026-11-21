@@ -19,7 +19,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const GAME = path.join(REPO, 'webgame/test/out/webgame/App.dc.html');
+const GAME = process.env.GAME ? path.resolve(process.env.GAME, 'App.dc.html') : path.join(REPO, 'webgame/test/out/webgame/App.dc.html');   // GAME=<a build dir> (PERF 2026-11-20)
 const CHEST = path.join(REPO, 'android/app/src/main/assets/chest/host.html');
 const THROTTLE = +(process.env.THROTTLE || 4), SECS = +(process.env.SECS || 4);
 const scenes = process.argv.slice(2).length ? process.argv.slice(2) : ['menu-rainy', 'menu-sunny', 'menu-snowy', 'park', 'chest-idle', 'chest-tap'];
@@ -28,6 +28,8 @@ const INIT = { screen: 'menu', state: { level: 6, coins: 31342, gems: 975, owned
   xp: { level: 6, into: 28, need: 700, per: 100 }, road: [] }, config: {} };
 const REWARD = { name: 'Bubbly', rar: 3, rarLabel: 'LEGENDARY', rarBg: '#ffdcb0', rarInk: '#d9772f', concept: '', img: '', isNew: true, copies: 0, need: 0, coins: 90, dupeCoins: 0, setBonus: 0, luck: false };
 
+// VIEW=<w>x<h>: the CSS viewport (default 796x384, the Galaxy A16's landscape WebView; the A15 was 832x384) (PERF 2026-11-20)
+const VIEW = (([w, h]) => ({ width: +w, height: +h }))((process.env.VIEW || '796x384').split('x'));
 const browser = await chromium.launch({ args: ['--allow-file-access-from-files', '--use-gl=swiftshader', '--enable-gpu-rasterization', '--ignore-gpu-blocklist'] });
 
 async function measure(page, label, during) {
@@ -56,7 +58,7 @@ async function throttleEarly(page) {
 }
 
 for (const sc of scenes) {
-  const ctx = await browser.newContext({ viewport: { width: 832, height: 384 }, deviceScaleFactor: 2.8125, hasTouch: true });
+  const ctx = await browser.newContext({ viewport: VIEW, deviceScaleFactor: 2.8125, hasTouch: true });
   const page = await ctx.newPage();
   page.on('pageerror', e => console.log('  pageerror', e.message.slice(0, 120)));
   if (sc.startsWith('chest')) {
@@ -85,6 +87,8 @@ for (const sc of scenes) {
       if (t.includes('rig')) document.querySelectorAll('.mm-stage').forEach(s => { s.style.display = 'none'; });
       if (t.includes('scene')) document.querySelectorAll('.mm-scene, .sq-parkL').forEach(s => { s.style.display = 'none'; });
       if (t.includes('hud')) document.querySelectorAll('.mm-hud').forEach(s => { s.style.display = 'none'; });
+      // (PERF 2026-11-20) the scene drawn as one picture instead of live SVG
+      if (t.includes('img')) document.querySelectorAll('.mm-scene').forEach(s => { const sv = s.querySelector('svg'); if (!sv) return; const u = URL.createObjectURL(new Blob([sv.outerHTML], { type: 'image/svg+xml' })); s.innerHTML = '<img src="' + u + '" style="position:absolute;inset:0;width:100%;height:100%;display:block">'; });
     }, process.env.TWEAK);
     if (process.env.ANIMS) console.log(await page.evaluate(() => {
       const c = {};

@@ -3,14 +3,13 @@ import { Animated, Easing, StyleSheet, Text, View, useWindowDimensions } from 'r
 import Pressable from '../components/Pressable';
 import Svg, { Circle, Defs, Ellipse, Line, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 import ShadowText from '../components/candy/ShadowText';
-import RigCreature from '../components/RigCreature';
 import ChestSmash from '../components/ChestSmash';
 import VaultLoader, { buddyUriOf } from '../components/VaultLoader';
 import { PrizeArt } from '../components/LevelBits';
-import IntroBackground from '../squad/IntroBackground';
 import { HIDDEN, lineup } from '../squad/data';
 import { BtnLabel, SdButton } from '../squishdoku/ui';
-import { InkText, Lettering, PageBg, INK, RIM } from '../royal';
+import { InkText, Lettering, PageBg, RIM } from '../royal';
+import { usePingPong } from '../components/idleLoop';
 import { F } from '../squad/ui';
 import { MAX_AD_SPINS, WHEEL, SLICE, prizeCard, todayKey } from '../dailySpin';
 import useRewardedAd from '../components/useRewardedAd';
@@ -43,7 +42,7 @@ import sfx from '../audio/sfx';
 // peg knocks it aside as it passes and it springs back, wobbling (useFlapper).
 // The wheel rests with a slice's middle under it.
 
-const S = 366; // the wheel's box, scaled down to fit narrow screens
+const S = 366; // the wheel's box, scaled down to fit short screens
 const DISC = 318; // the turning disc
 const R = DISC / 2;
 const SEAT = R + 4; // the ink ring the disc sits in
@@ -85,20 +84,9 @@ const wedge = (i) => {
 // ---- rim lights -----------------------------------------------------------
 
 function Bulb({ angle, delay }) {
-  const t = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(t, { toValue: 1, duration: 450, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(t, { toValue: 0, duration: 450, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    );
-    const start = setTimeout(() => loop.start(), delay);
-    return () => {
-      clearTimeout(start);
-      loop.stop();
-    };
-  }, [t, delay]);
+  // one native loop (src/components/idleLoop.js): a loop around a sequence went back to JS at every step, every
+  // bulb twice a second, and stuttered while the spin's answer was being handled (PERF 2026-11-20)
+  const t = usePingPong(900, { delay });
   // bulbBlink: the glow fades out and back
   const opacity = t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.15] });
   return (
@@ -392,40 +380,10 @@ const Wheel = memo(function Wheel({ rot, hubLabel, hubLive, onHub, group }) {
   );
 });
 
-// The sky's extras on this screen (portrait): a warm glow behind the wheel
-// and two white cloud puffs (the design's radial gradients over the intro sky).
-const Glows = memo(function Glows({ w, h }) {
-  const glowR = 0.46 * Math.hypot(w / 2, h * 0.53);
-  const puff = (cx, cy, solid, fade, a, id) => (
-    <React.Fragment key={id}>
-      <Defs>
-        <RadialGradient id={id} cx="50%" cy="50%" r="50%">
-          <Stop offset={solid / fade} stopColor="#ffffff" stopOpacity={a} />
-          <Stop offset="1" stopColor="#ffffff" stopOpacity={0} />
-        </RadialGradient>
-      </Defs>
-      <Circle cx={cx} cy={cy} r={fade} fill={`url(#${id})`} />
-    </React.Fragment>
-  );
-  return (
-    <Svg width={w} height={h} style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Defs>
-        <RadialGradient id="spinGlow" cx="50%" cy="50%" r="50%">
-          <Stop offset="0" stopColor="#fff0aa" stopOpacity={0.75} />
-          <Stop offset="1" stopColor="#fff0aa" stopOpacity={0} />
-        </RadialGradient>
-      </Defs>
-      <Circle cx={w / 2} cy={h * 0.47} r={glowR} fill="url(#spinGlow)" />
-      {puff(w * 0.14, h * 0.12, 24, 44, 0.75, 'puffA')}
-      {puff(w * 0.86, h * 0.2, 20, 38, 0.6, 'puffB')}
-    </Svg>
-  );
-});
-
 // ---- screen ----------------------------------------------------------------
 
 export default function DailySpinScreen({ onSpin, onDone, bonusLeft = 0, adsFree = false, name, creatures, profile, hidden = HIDDEN }) {
-  const { width: W, height: H } = useWindowDimensions();
+  const { height: H } = useWindowDimensions();
   // 'idle' | 'spinning' | 'prize' (the popup) | 'done' | 'adReady' | 'error'
   const [phase, setPhase] = useState('idle');
   const [result, setResult] = useState(null);
@@ -452,13 +410,9 @@ export default function DailySpinScreen({ onSpin, onDone, bonusLeft = 0, adsFree
   const catalog = useMemo(() => Object.fromEntries((creatures || []).map((c) => [c.id, c])), [creatures]);
   const buddy = useMemo(() => buddyUriOf(creatures, profile), [creatures, profile]);
 
-  // landscape (REDESIGN_V7 step 4): the wheel on the left, sized by the height; the rest beside it
-  const wide = W > H;
-  // (CAP: the room the pointer's cap needs above the wheel)
-  const k = wide ? Math.min(1, (H - 40) / (S + 14 + CAP)) : Math.min(1, (W - 24) / (S + 6));
-  // Mittens under the wheel: 150px when there's room, smaller (or none) on
-  // short screens
-  const mascot = wide ? 0 : H >= 860 ? 150 : H >= 760 ? 110 : 0;
+  // REDESIGN_V7 step 4: the wheel on the left, sized by the height (CAP: the room the pointer's cap needs above it); the
+  // rest beside it
+  const k = Math.min(1, (H - 40) / (S + 14 + CAP));
 
   const land = useCallback(
     (index) =>
@@ -558,26 +512,18 @@ export default function DailySpinScreen({ onSpin, onDone, bonusLeft = 0, adsFree
       </View>
     </View>
   );
-  const Bg = wide ? SpinWideBg : IntroBackground;
+  // the new look's page behind it
   return (
-    <Bg>
-      {wide ? null : <Glows w={W} h={H} />}
-      <View style={wide ? styles.wRow : styles.column}>
-        {wide ? wheel : null}
-        <View style={wide ? styles.wSide : styles.wNone}>
+    <View style={styles.wRoot}>
+      <PageBg />
+      <View style={styles.wRow}>
+        {wheel}
+        <View style={styles.wSide}>
           <Text style={styles.hi}>{`HI ${(name || 'friend').toUpperCase()}!`}</Text>
-          <Lettering text="Daily Spin" variant="gold" size={wide ? 38 : 34} />
+          <Lettering text="Daily Spin" variant="gold" size={38} />
           <Text style={styles.sub}>One free spin every day</Text>
-          {wide ? (phase === 'idle' ? <Text style={[styles.sub, { marginTop: 14 }]}>Tap SPIN in the middle of the wheel!</Text> : null) : wheel}
-
-          {mascot ? (
-            <View style={{ marginTop: 8 }}>
-              {/* the design's live Mittens (REDESIGN_V6 step 9) */}
-              <RigCreature creatureKey="mittens" style={{ width: mascot, height: mascot }} />
-            </View>
-          ) : (
-            <View style={{ height: 16 }} />
-          )}
+          {phase === 'idle' ? <Text style={[styles.sub, { marginTop: 14 }]}>Tap SPIN in the middle of the wheel!</Text> : null}
+          <View style={{ height: 16 }} />
 
           {phase === 'done' ? (
             <View style={styles.after}>
@@ -673,16 +619,6 @@ export default function DailySpinScreen({ onSpin, onDone, bonusLeft = 0, adsFree
         </View>
       ) : null}
       {smash && !vaultGone ? <VaultLoader ready={!!smash.up} uri={buddy} onDone={vaultDone} /> : null}
-    </Bg>
-  );
-}
-
-// the new look's page behind the wheel in landscape
-function SpinWideBg({ children }) {
-  return (
-    <View style={styles.wRoot}>
-      <PageBg />
-      {children}
     </View>
   );
 }
@@ -691,8 +627,6 @@ const styles = StyleSheet.create({
   wRoot: { flex: 1, backgroundColor: '#24123f' },
   wRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 40, paddingHorizontal: 24 },
   wSide: { width: 360, alignItems: 'center', gap: 6 },
-  wNone: { alignItems: 'center', gap: 4 },
-  column: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingTop: 30, paddingBottom: 20, gap: 4 },
   hi: { fontFamily: F.black, fontSize: 12, letterSpacing: 2, color: BROWN },
   sub: { fontFamily: F.heavy, fontSize: 13, color: BROWN },
   wheel: { width: S, height: S },

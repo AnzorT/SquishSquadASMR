@@ -1,30 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, KeyboardAvoidingView, ScrollView, Platform, StyleSheet, Animated, Easing, LayoutAnimation, UIManager, useWindowDimensions } from 'react-native';
-import Pressable from '../components/Pressable';
-import Svg, { Circle, Path } from 'react-native-svg';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Animated, Keyboard, LayoutAnimation, Platform, StyleSheet, Text, UIManager, View } from 'react-native';
 import { loginWithEmail, registerWithEmail, sendVerification, setKeepSignedIn } from '../firebase/auth';
+import { SKIP_EMAIL_VERIFY } from '../webDebug';
 import { startSocial } from '../firebase/social';
-import RigCreature from '../components/RigCreature';
 import { createUserProfile } from '../firebase/firestore';
 import { authErrorMessage } from '../firebase/authErrors';
-import TutTarget from '../tutorial/Target';
-import ShadowText from '../components/candy/ShadowText';
-import IntroBackground from '../squad/IntroBackground';
-import HopDots from '../components/candy/HopDots';
-import { BtnText, CandyBtn, F, GOLD, GOLD_RING } from '../squad/ui';
+import { Btn, Lettering, FONT } from '../royal';
+import { AuthBg, AuthHeader, Card, CheckRow, CREAM, Dots, Eye, Field, ModeSwitch, OrRow, ROOT_BG, tap, useAuthSizes, useFadeUp, useKeyboardLift } from './auth/kit';
+import Socials from './auth/Socials';
 
-// Log in / Register, from the app shell of "Squish Squad App.html": the
-// white outlined "Squish Squad" title and a line under it, then one white
-// card with the Log in / Register switch (a pink pill that springs across),
-// labelled fields, the pink submit button and "Keep me signed in"; since
-// REDESIGN_V6 step 8 also the design's live Mittens on top and its OR +
-// Google / Facebook / TikTok row (the web flow in src/firebase/social.js; a
-// provider not set up yet says so). A new email account gets a verification
-// link (App holds it at VerifyEmailScreen until it's tapped).
-// Register grows one row above Email: the squad name, plus the age, which
-// the design doesn't have but our COPPA gate needs. Firebase Auth's
-// onAuthStateChanged listener in App.js is what moves past this screen.
+// Log in / Register (2026-11-20: remodelled in the game's wood and gold, src/screens/auth/kit.js). The front door of
+// the same game: the Main Menu's house softened behind, Mittens (live) beside the plush SQUISH SQUAD logo along the
+// top, and under them one wood panel laid out sideways so it fits a landscape phone without scrolling (the user's
+// layout of 2026-11-16): the Log in | Register switch (a gold pill springing across), email and password side by side
+// (to register, the squad name and the age join that row, so the panel keeps its height), the gold button the
+// panel's whole width with "Keep me signed in" under it, then OR and the Google / Facebook / TikTok row (the web flow
+// in src/firebase/social.js; a provider not set up yet says so). An error takes the OR line's place, right under the
+// button, so nothing moves. A new email account gets a verification link (App holds it at VerifyEmailScreen until it's
+// tapped). Firebase Auth's onAuthStateChanged listener in App.js is what moves past this screen.
+//
+// The keyboard: each field's action key goes to the next one, the last one's logs in / registers; a keyboard drawn
+// over the app lifts the panel so the fields and the button stay above it (useKeyboardLift); a tap outside the fields
+// puts it away.
 
 // Minimum age to create an account at all. Below this, registration is
 // blocked outright — no email/nickname/age is ever sent to Firebase for that
@@ -34,142 +31,25 @@ import { BtnText, CandyBtn, F, GOLD, GOLD_RING } from '../squad/ui';
 // collecting personal information.
 const MIN_SIGNUP_AGE = 13;
 
-// REDESIGN_V8: the wood look (the house's Renovate / Catalog buttons) instead of the pink and purple
-const PURPLE = '#6b4426'; // (the title's outline and the line under it: the wood's brown)
-const LABEL = '#8a5a34';
-const INK = '#5b3418';
-const LINE = '#ecd3ae';
-const FOCUS = '#e08a2c';
+const TABS = [
+  ['login', 'Log in'],
+  ['register', 'Register'],
+];
 
-const GAP = 11; // the card's row gap
-const INPUT_H = 48;
-const FIELD_H = 16 + 4 + INPUT_H; // label, gap, input
-
-// Switching Log in ↔ Register opens or closes the register-only row (squad
-// name + age) with a native layout animation: it runs on the UI thread, so
-// it stays smooth however busy JS is (the old height animation was driven
-// from JS and stuttered). Under the card, a spacer shrinks by exactly what
-// the row adds (same animation), so the centred column keeps its height and
-// the title and the line under it never move; only the card's lower part
-// does.
+// Switching Log in ↔ Register opens or closes the register-only fields in the row with a native layout animation
+// (the UI thread's, smooth however busy JS is).
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 const SWAP = {
-  duration: 300,
+  duration: 280,
   create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
   update: { type: LayoutAnimation.Types.easeInEaseOut },
-  delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity, duration: 150 },
+  delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity, duration: 140 },
 };
-const EXTRA_H = FIELD_H + GAP; // the register row and the card gap it brings
-
-// A line that fades up whenever its text changes.
-function useFadeUp(text) {
-  const t = useRef(new Animated.Value(1)).current;
-  const first = useRef(true);
-  useEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return;
-    }
-    t.setValue(0);
-    Animated.timing(t, {
-      toValue: 1,
-      duration: 300,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-  }, [text, t]);
-  return {
-    opacity: t,
-    transform: [
-      {
-        translateY: t.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }),
-      },
-    ],
-  };
-}
-
-// "EMAIL" over a white rounded input whose border turns pink while focused;
-// `right` sits inside the input's right end (the password's Show / Hide).
-function Field({ label, style, right, short, ...input }) {
-  const [focus, setFocus] = useState(false);
-  return (
-    <View style={style}>
-      <Text style={styles.label}>{label}</Text>
-      <View>
-        <TextInput
-          placeholderTextColor="#b9976e"
-          {...input}
-          onFocus={() => setFocus(true)}
-          onBlur={() => setFocus(false)}
-          style={[styles.input, short && styles.inputShort, focus && { borderColor: FOCUS }, right && { paddingRight: short ? 52 : 64 }]}
-        />
-        {right}
-      </View>
-    </View>
-  );
-}
-
-// Log in | Register: a lilac track with the pink pill under the chosen side
-function ModeSwitch({ mode, onChange, short }) {
-  const [w, setW] = useState(0);
-  const x = useRef(new Animated.Value(mode === 'register' ? 1 : 0)).current;
-  useEffect(() => {
-    Animated.timing(x, {
-      toValue: mode === 'register' ? 1 : 0,
-      duration: 350,
-      easing: Easing.bezier(0.3, 1.3, 0.5, 1),
-      useNativeDriver: true,
-    }).start();
-  }, [mode, x]);
-  const half = (w - 8) / 2;
-  return (
-    <View style={styles.track} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
-      {w ? (
-        <Animated.View
-          style={[
-            styles.pill,
-            {
-              width: half,
-              transform: [
-                {
-                  translateX: x.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, half],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <View style={styles.pillRing} />
-          <LinearGradient colors={GOLD} locations={[0, 0.55, 1]} style={styles.pillFace} />
-        </Animated.View>
-      ) : null}
-      {[
-        ['login', 'Log in'],
-        ['register', 'Register'],
-      ].map(([value, label]) => (
-        <Pressable key={value} onPress={() => onChange(value)} style={[styles.tab, short && styles.tabShort]}>
-          <Text style={[styles.tabText, { color: mode === value ? INK : LABEL }]}>{label}</Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
-
-function Tick() {
-  return (
-    <Svg width={12} height={12} viewBox="0 0 12 12">
-      <Path d="M2.5 6.2 L5 8.6 L9.6 3.4" stroke="#ffffff" strokeWidth={2.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
 
 export default function AuthScreen() {
-  const winA = useWindowDimensions();
-  const wide = winA.width > winA.height;
+  const z = useAuthSizes();
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [ageInput, setAgeInput] = useState('');
   const [blocked, setBlocked] = useState(false);
@@ -180,17 +60,28 @@ export default function AuthScreen() {
   const [keep, setKeep] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  // the register row's real height plus the card's gap (measured the first
-  // time it opens; until then the computed one)
-  const [extraH, setExtraH] = useState(EXTRA_H);
+  const [btnW, setBtnW] = useState(0);
 
   const isRegister = mode === 'register';
-  const buttonLabel = isRegister ? 'Create my squad' : 'Log in';
+  const buttonLabel = isRegister ? 'CREATE MY SQUAD' : 'LOG IN';
   const labelStyle = useFadeUp(buttonLabel);
-  const subStyle = useFadeUp(error); // landscape: the error shows under the title
+
+  // the fields' row and the button: what the keyboard must leave in sight
+  const rowRef = useRef(null);
+  const btnRef = useRef(null);
+  const { lift, up, relift } = useKeyboardLift(() => [rowRef.current, btnRef.current]);
+  // (a switch while typing changes the fields, not where the row is; measured again anyway once it's laid out)
+  useEffect(() => {
+    if (up) requestAnimationFrame(relift);
+  }, [mode, blocked, up, relift]);
+  const nameIn = useRef(null);
+  const ageIn = useRef(null);
+  const emailIn = useRef(null);
+  const passIn = useRef(null);
 
   const submit = async () => {
     if (submitting) return;
+    Keyboard.dismiss();
     const trimmedEmail = email.trim();
 
     if (isRegister) {
@@ -229,7 +120,7 @@ export default function AuthScreen() {
         });
         // the link that proves the address is real (VerifyEmailScreen waits
         // for it); a failed send can be retried there
-        await sendVerification().catch(() => {});
+        if (!SKIP_EMAIL_VERIFY) await sendVerification().catch(() => {});   // (developer mode: no email, src/webDebug.js)
       } catch (e) {
         setError(authErrorMessage(e));
         setSubmitting(false);
@@ -262,326 +153,117 @@ export default function AuthScreen() {
     setBlocked(false);
   };
 
-  // landscape (REDESIGN_V7; REDESIGN_V8, the user: "on a horizontal"; re-laid out 2026-11-16 from the user's marked-up
-  // screenshot): Mittens, the title and the line in one row along the top, the card centred under them and laid out
-  // sideways so it fits the screen: email and password side by side (to register, squad name + age join that row, so
-  // the card keeps its height), the button the card's whole width with "Keep me signed in" under it, the social buttons
-  // in one short row
-  const submitBtn = (
-    <TutTarget name="enter">
-      <CandyBtn kind="gold" onPress={submit} disabled={submitting} padV={wide ? 6 : 10} lip={5} stretch>
-        {/* while it waits on the server: the loading screen's hopping dots */}
-        {submitting ? (
-          <HopDots size={14} style={styles.dots} />
-        ) : (
-          <Animated.View style={labelStyle}>
-            <BtnText ring={GOLD_RING} size={wide ? 18 : 20}>
-              {buttonLabel}
-            </BtnText>
-          </Animated.View>
-        )}
-      </CandyBtn>
-    </TutTarget>
-  );
-  const keepBox = (
-    <Pressable onPress={() => setKeep((v) => !v)} style={[styles.keep, wide && styles.keepWide]} hitSlop={6}>
-      {keep ? (
-        <LinearGradient colors={['#ffd23a', '#ff9c0a']} style={styles.box}>
-          <Tick />
-        </LinearGradient>
-      ) : (
-        <View style={styles.box} />
-      )}
-      <Text style={styles.keepText}>Keep me signed in</Text>
-    </Pressable>
-  );
-  const nameField = <Field label="SQUAD NAME" value={nickname} onChangeText={setNickname} placeholder="Captain Squish" maxLength={10} short={wide} style={wide ? styles.nameWide : styles.flex} />;
-  const ageField = <Field label="AGE" value={ageInput} onChangeText={setAgeInput} keyboardType="number-pad" placeholder="13+" maxLength={3} short={wide} style={wide ? styles.ageWide : styles.age} />;
-  const emailField = <Field label="EMAIL" value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="you@example.com" short={wide} style={wide ? (isRegister ? styles.emailWideReg : styles.flex) : null} />;
-  const passField = (
-    <Field
-      label="PASSWORD"
-      value={password}
-      onChangeText={setPassword}
-      secureTextEntry={!showPass}
-      autoCapitalize="none"
-      // (to register sideways it shares the row with three more fields in the narrower card: a shorter hint)
-      placeholder={wide && isRegister ? '6+ characters' : 'At least 6 characters'}
-      short={wide}
-      style={wide ? (isRegister ? styles.passWideReg : styles.flex) : null}
-      right={
-        <Pressable onPress={() => setShowPass((v) => !v)} hitSlop={8} style={styles.eye}>
-          <Text style={styles.eyeText}>{showPass ? 'Hide' : 'Show'}</Text>
-        </Pressable>
-      }
-    />
-  );
+  // each field's action key: on to the next, the last one submits
+  const next = (ref) => ({ returnKeyType: 'next', blurOnSubmit: false, onSubmitEditing: () => ref.current && ref.current.focus() });
+  const trackW = z.cardW - 2 * z.padH;
+
   return (
-    <IntroBackground>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={[styles.scrollContent, wide && styles.scrollWide]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          {wide ? (
-            <View style={styles.wideHero}>
-              <RigCreature creatureKey="mittens" style={styles.mittensWide} />
-              <View>
-                <ShadowText style={[styles.title, styles.titleWide]} shadows={[[0, 3, PURPLE], [2, 0, PURPLE], [-2, 0, PURPLE], [0, -2, PURPLE]]}>
-                  Squish Squad
-                </ShadowText>
-                {/* an error shows here rather than in the card, so the card never grows past the screen's bottom (no line
-                    under the title otherwise: the user, 2026-11-16, "remove the text of 'log in.... your squad'") */}
-                {error ? (
-                  <Animated.View style={subStyle}>
-                    <Text style={[styles.error, styles.errorWide]} numberOfLines={1}>
-                      {error}
-                    </Text>
-                  </Animated.View>
-                ) : null}
+    <View style={styles.root} onStartShouldSetResponder={() => up} onResponderRelease={() => Keyboard.dismiss()}>
+      <AuthBg />
+      <Animated.View style={[styles.col, { height: z.H, paddingVertical: z.top, transform: [{ translateY: lift }] }]} pointerEvents="box-none">
+        <AuthHeader z={z} paused={up} />
+        <View style={styles.area} pointerEvents="box-none">
+          <Card z={z}>
+            <ModeSwitch z={z} width={trackW} mode={mode} onChange={switchMode} tabs={TABS} />
+
+            {blocked ? (
+              <View style={styles.blocked}>
+                <Lettering text="Ask a grown-up!" variant="gold" size={20} />
+                <Text style={styles.blockedT}>This game needs a parent or guardian to help set up an account. Ask them to continue!</Text>
               </View>
-            </View>
-          ) : (
-            <>
-              <RigCreature creatureKey="mittens" style={styles.mittens} />
-              <ShadowText
-                style={[styles.title, styles.titleTall]}
-                shadows={[
-                  [0, 4, PURPLE],
-                  [2.5, 0, PURPLE],
-                  [-2.5, 0, PURPLE],
-                  [0, -2.5, PURPLE],
-                ]}
-              >
-                Squish Squad
-              </ShadowText>
-            </>
-          )}
-
-          <View style={[styles.cardLip, wide && styles.cardLipWide]}>
-            <View style={[styles.card, wide && styles.cardWide]}>
-              <ModeSwitch mode={mode} onChange={switchMode} short={wide} />
-
-              {blocked ? (
-                <Text style={styles.blocked}>This game needs a parent or guardian to help set up an account. Ask them to continue!</Text>
-              ) : (
-                <>
-                  {wide ? (
-                    <View style={[styles.row, styles.rowWide]}>
-                      {isRegister && nameField}
-                      {isRegister && ageField}
-                      {emailField}
-                      {passField}
-                    </View>
-                  ) : (
-                    <>
-                      {isRegister && (
-                        <View style={styles.row} onLayout={(e) => setExtraH(Math.round(e.nativeEvent.layout.height) + GAP)}>
-                          {nameField}
-                          {ageField}
-                        </View>
-                      )}
-                      {emailField}
-                      {passField}
-                    </>
+            ) : (
+              <>
+                <View ref={rowRef} collapsable={false} style={[styles.row, isRegister && styles.rowReg]}>
+                  {isRegister && (
+                    <Field
+                      z={z}
+                      label="SQUAD NAME"
+                      inputRef={nameIn}
+                      value={nickname}
+                      onChangeText={setNickname}
+                      placeholder="Squishy"
+                      maxLength={10}
+                      autoCorrect={false}
+                      style={styles.name}
+                      {...next(ageIn)}
+                    />
                   )}
-                  {!!error && !wide && <Text style={styles.error}>{error}</Text>}
-                  {submitBtn}
-                  {keepBox}
-                  <View style={styles.orRow}>
-                    <View style={styles.orLine} />
-                    <Text style={styles.orText}>OR</Text>
-                    <View style={styles.orLine} />
-                  </View>
-                  <View style={styles.socials}>
-                    {SOCIALS.map(([id, label, Icon]) => (
-                      <Pressable key={id} onPress={() => startSocial(id)} style={({ pressed }) => [styles.social, wide && styles.socialWide, pressed && { transform: [{ translateY: 2 }] }]}>
-                        <Icon />
-                        <Text style={styles.socialText}>{label}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </>
-              )}
-            </View>
-          </View>
-          {/* room the register row takes when it's open (see SWAP); landscape centres the card instead */}
-          {wide ? null : <View style={{ height: isRegister ? 0 : extraH }} />}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </IntroBackground>
+                  {isRegister && (
+                    <Field z={z} label="AGE" inputRef={ageIn} value={ageInput} onChangeText={setAgeInput} keyboardType="number-pad" placeholder="13+" maxLength={3} style={styles.age} {...next(emailIn)} />
+                  )}
+                  <Field
+                    z={z}
+                    label="EMAIL"
+                    inputRef={emailIn}
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="email"
+                    keyboardType="email-address"
+                    placeholder="you@mail.com"
+                    style={isRegister ? styles.emailReg : styles.flex}
+                    {...next(passIn)}
+                  />
+                  <Field
+                    z={z}
+                    label="PASSWORD"
+                    inputRef={passIn}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPass}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete={isRegister ? 'password-new' : 'password'}
+                    // (to register it shares the row with three more fields: a shorter hint)
+                    placeholder={isRegister ? '6+ chars' : '6+ characters'}
+                    returnKeyType="go"
+                    onSubmitEditing={submit}
+                    style={isRegister ? styles.passReg : styles.flex}
+                    right={<Eye shown={showPass} onPress={() => setShowPass((v) => !v)} />}
+                  />
+                </View>
+
+                <View ref={btnRef} collapsable={false} onLayout={(e) => setBtnW(Math.round(e.nativeEvent.layout.width))}>
+                  <Btn height={z.btn} radius={15} width={btnW || undefined} glint={!!btnW && !submitting} onPress={tap(submit)} style={styles.btn}>
+                    {/* while it waits on the server: three dots hopping in the label's place */}
+                    {submitting ? (
+                      <Dots size={10} />
+                    ) : (
+                      <Animated.View style={labelStyle}>
+                        <Lettering text={buttonLabel} variant="whiteB" size={z.btnFont} />
+                      </Animated.View>
+                    )}
+                  </Btn>
+                </View>
+                <CheckRow on={keep} onToggle={() => setKeep((v) => !v)} label="Keep me signed in" />
+                <OrRow error={error} />
+                <Socials height={z.social} onPick={startSocial} />
+              </>
+            )}
+          </Card>
+        </View>
+      </Animated.View>
+    </View>
   );
 }
 
-// the three social buttons' logos
-const GoogleLogo = () => (
-  <Svg width={26} height={26} viewBox="0 0 24 24">
-    <Path d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z" fill="#4285F4" />
-    <Path d="M12 22c2.7 0 5-.9 6.6-2.5l-3.2-2.5c-.9.6-2 1-3.4 1a5.9 5.9 0 0 1-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z" fill="#34A853" />
-    <Path d="M6.4 13.9a6 6 0 0 1 0-3.8V7.5H3.1a10 10 0 0 0 0 9z" fill="#FBBC05" />
-    <Path d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.5l3.3 2.6A5.9 5.9 0 0 1 12 6z" fill="#EA4335" />
-  </Svg>
-);
-const FacebookLogo = () => (
-  <Svg width={26} height={26} viewBox="0 0 24 24">
-    <Circle cx={12} cy={12} r={11} fill="#1877F2" />
-    <Path d="M13.2 19v-6.1h2.1l.3-2.4h-2.4V9c0-.7.2-1.2 1.2-1.2h1.3V5.7c-.2 0-1-.1-1.9-.1-1.9 0-3.1 1.1-3.1 3.2v1.7H8.6v2.4h2.1V19z" fill="#ffffff" />
-  </Svg>
-);
-const TT = 'M14.6 6.5c.4 1.3 1.4 2.2 2.7 2.3v2a4.6 4.6 0 0 1-2.7-.9v4.2a3.6 3.6 0 1 1-3.6-3.6h.4v2.1a1.5 1.5 0 1 0 1.1 1.5V6.5z';
-const TikTokLogo = () => (
-  <Svg width={26} height={26} viewBox="0 0 24 24">
-    <Circle cx={12} cy={12} r={11} fill="#111111" />
-    <Path d={TT} fill="#25F4EE" transform="translate(-0.5,-0.4)" />
-    <Path d={TT} fill="#FE2C55" transform="translate(0.5,0.4)" />
-    <Path d={TT} fill="#ffffff" />
-  </Svg>
-);
-const SOCIALS = [
-  ['google', 'Google', GoogleLogo],
-  ['facebook', 'Facebook', FacebookLogo],
-  ['tiktok', 'TikTok', TikTokLogo],
-];
-
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: ROOT_BG, overflow: 'hidden' },
+  // the header along the top (where the email check's is too), the panel centred under it; the screen's own height, so
+  // a keyboard never squeezes it
+  col: { position: 'absolute', left: 0, right: 0, top: 0, alignItems: 'center' },
+  area: { flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
   flex: { flex: 1 },
-  // landscape: the header row (Mittens beside the title and the line), then the card centred under it
-  scrollWide: { paddingVertical: 6, paddingHorizontal: 16, alignItems: 'center' },
-  wideHero: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  mittensWide: { width: 62, height: 62 },
-  titleWide: { alignSelf: 'flex-start', fontSize: 32, lineHeight: 38 },
-  errorWide: { alignSelf: 'flex-start', fontSize: 12, lineHeight: 15, borderRadius: 9, paddingHorizontal: 9, paddingVertical: 3 },
-  // (the user, 2026-11-16: narrower, the Log in button looked wrong stretched across 700)
-  cardLipWide: { width: '100%', maxWidth: 580 },
-  cardWide: { paddingTop: 8, paddingBottom: 10, gap: 7 },
-  rowWide: { gap: 8 },
-  // (register sideways: four fields in one row, each wide enough for its hint)
-  nameWide: { flex: 0.9 },
-  emailWideReg: { flex: 1.1 },
-  ageWide: { width: 56 },
-  passWideReg: { flex: 1.1 },
-  keepWide: { alignSelf: 'center' },
-  socialWide: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingTop: 5, paddingBottom: 4, borderBottomWidth: 4 },
-  mittens: { width: 130, height: 130, alignSelf: 'center', marginBottom: -6 },
-  orRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
-  orLine: { flex: 1, height: 2, borderRadius: 1, backgroundColor: '#ecd3ae' },
-  orText: { fontFamily: F.black, fontSize: 10.5, letterSpacing: 1.2, color: '#b48a5e' },
-  socials: { flexDirection: 'row', gap: 7 },
-  social: { flex: 1, alignItems: 'center', gap: 4, paddingTop: 10, paddingBottom: 8, borderRadius: 16, backgroundColor: '#ffffff', borderWidth: 2.5, borderColor: '#ecd3ae', borderBottomWidth: 5 },
-  socialText: { fontFamily: F.black, fontSize: 11, color: INK },
-  // the dots (14 + 7 hop room) in the label's place: about the label's
-  // line height, so the button keeps its size
-  dots: { height: 26 },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 22,
-    paddingVertical: 40,
-  },
-  // upright: the card under the title (the line that sat between them is gone)
-  titleTall: { marginBottom: 14 },
-  title: {
-    alignSelf: 'center',
-    fontFamily: F.display,
-    fontSize: 38,
-    lineHeight: 44,
-    color: '#ffffff',
-  },
-  // the card: cream in a brown outline with a brown lip under it, like the house's wood buttons (REDESIGN_V8)
-  cardLip: { borderRadius: 26, backgroundColor: '#6b4426', paddingBottom: 5 },
-  card: {
-    borderRadius: 26,
-    borderWidth: 2.5,
-    borderColor: '#6b4426',
-    backgroundColor: '#fff6e2',
-    paddingTop: 14,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    gap: GAP,
-  },
-  track: {
-    flexDirection: 'row',
-    borderRadius: 999,
-    backgroundColor: '#f3dfbd',
-    padding: 4,
-  },
-  // the pill: the pink face in a 2px ring with a 3px lip
-  pill: { position: 'absolute', top: 4, bottom: 4, left: 4 },
-  pillRing: {
-    position: 'absolute',
-    left: -2,
-    right: -2,
-    top: -2,
-    bottom: -5,
-    borderRadius: 999,
-    backgroundColor: GOLD_RING,
-  },
-  pillFace: { ...StyleSheet.absoluteFillObject, borderRadius: 999 },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 9 },
-  tabShort: { paddingVertical: 6 },
-  tabText: { fontFamily: F.display, fontSize: 16 },
-  row: { flexDirection: 'row', gap: 10 },
-  age: { width: 84 },
-  label: {
-    fontFamily: F.black,
-    fontSize: 11,
-    lineHeight: 16,
-    letterSpacing: 1,
-    color: LABEL,
-    marginBottom: 4,
-  },
-  input: {
-    height: INPUT_H,
-    borderRadius: 16,
-    borderWidth: 2.5,
-    borderColor: LINE,
-    backgroundColor: '#ffffff',
-    color: INK,
-    fontFamily: F.heavy,
-    fontSize: 15,
-    paddingHorizontal: 14,
-    paddingVertical: 0,
-  },
-  inputShort: { height: 42, fontSize: 14 },
-  eye: {
-    position: 'absolute',
-    right: 12,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
-  },
-  eyeText: { fontFamily: F.black, fontSize: 12, color: FOCUS },
-  error: {
-    fontFamily: F.heavy,
-    fontSize: 12.5,
-    lineHeight: 17,
-    color: '#c4204f',
-    backgroundColor: '#ffe6ee',
-    borderRadius: 12,
-    overflow: 'hidden',
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-  },
-  blocked: {
-    fontFamily: F.heavy,
-    fontSize: 15,
-    lineHeight: 22,
-    color: INK,
-    textAlign: 'center',
-    paddingVertical: 8,
-  },
-  keep: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-start',
-  },
-  box: {
-    width: 20,
-    height: 20,
-    borderRadius: 7,
-    borderWidth: 2.5,
-    borderColor: FOCUS,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  keepText: { fontFamily: F.heavy, fontSize: 13, color: INK },
+  row: { flexDirection: 'row', gap: 8 },
+  // (to register, four fields in one row, each wide enough for its hint: short hints since the panel got narrower on
+  // 2026-11-21; the password's share is bigger for its Show / Hide)
+  rowReg: { gap: 6 },
+  name: { flex: 0.8 },
+  age: { width: 56 },
+  emailReg: { flex: 1.1 },
+  passReg: { flex: 1.05 },
+  btn: { alignSelf: 'stretch' },
+  blocked: { alignItems: 'center', gap: 6, paddingVertical: 14, paddingHorizontal: 24 },
+  blockedT: { fontFamily: FONT.bodyHeavy, fontSize: 15, lineHeight: 21, color: CREAM, textAlign: 'center', textShadowColor: 'rgba(80,40,12,0.75)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 0.01 },
 });

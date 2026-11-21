@@ -115,7 +115,7 @@ export function computeAchievements(creatures = [], profile = {}, customCount = 
     A('custom3', 'Toy Designer', 'Create 3 custom squishies', badge('×3'), customCount, 3),
     A('play5', 'Friendly Squisher', 'Play with 5 different creatures', badge('5♥'), played, 5),
     A('play10', 'Best Friends', 'Play with 10 different creatures', badge('10♥'), played, 10),
-    // levels: 2 and 3 come with the tutorial, then from XP (PLAYER_XP.md)
+    // levels: from XP (PLAYER_XP.md)
     A('lv3', 'Challenger', 'Reach level 3 and unlock Daily Challenges', badge('LV3'), lv, 3),
     A('lv5', 'Rising Star', 'Reach level 5', badge('LV5'), lv, 5),
     A('lv10', 'Squish Regular', 'Reach level 10', badge('10'), lv, 10),

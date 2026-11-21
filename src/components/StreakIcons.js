@@ -1,5 +1,5 @@
 import React from 'react';
-import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 // The daily streak's little pictures (src/progression.js): the flame, and
 // the glyphs for a streak day's free Mystery Box and creature tokens.
@@ -41,26 +41,6 @@ export function BigFlame({ width = 120, cold = false }) {
       />
       <Path d="M52 58 C61 74 72 79 68 95 C65 106 58 110 52 110 C42 110 36 102 36 92 C36 81 48 75 52 58Z" fill="url(#bfHeart)" />
       <Path d="M33 50 C27 60 26 70 29 78" stroke="#ffffff" strokeOpacity={0.65} strokeWidth={6} strokeLinecap="round" fill="none" />
-    </Svg>
-  );
-}
-
-export function BoxGlyph({ size = 14 }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Rect x={3.5} y={10} width={17} height={11} rx={2} fill="#ff7fd0" stroke="#8e1580" strokeWidth={1.6} />
-      <Rect x={2.5} y={7} width={19} height={4.5} rx={1.5} fill="#ffd0f0" stroke="#8e1580" strokeWidth={1.6} />
-      <Rect x={10.5} y={7} width={3} height={14} fill="#ffd23a" />
-      <Path d="M12 7C10 3 6.5 4 8 6.5 9 8 12 7 12 7zM12 7c2-4 5.5-3 4-.5C15 8 12 7 12 7z" fill="#ffd23a" stroke="#a04a00" strokeWidth={0.8} />
-    </Svg>
-  );
-}
-
-export function TokenGlyph({ size = 14 }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Path d="M12 2 L20.5 7 V17 L12 22 L3.5 17 V7 Z" fill="#c9a8ff" stroke="#45189a" strokeWidth={1.8} strokeLinejoin="round" />
-      <Path d="M12 7 L13.6 10.6 L17.5 11 L14.6 13.5 L15.4 17.3 L12 15.4 L8.6 17.3 L9.4 13.5 L6.5 11 L10.4 10.6 Z" fill="#ffffff" />
     </Svg>
   );
 }

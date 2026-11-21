@@ -5,16 +5,13 @@ import { PH } from '../crib/data';
 import { ROOMS } from './levels';
 
 // The room a Squish Hop level is played in (SQUISH_HOP.md): the Crib's room
-// layers (src/crib/roomArt.js) scaled so the floor line sits about a third
-// of the way down the screen, the room's things for the time of day down to
-// that line (what stands on the floor is cut off there), and the floor
-// repeated below it to the bottom of the screen, each copy under the one
-// above; then the Crib's tint for the time of day.
+// layers (src/crib/roomArt.js) spanning the screen's width, raised so the
+// floor line sits 30% of the way down (the ceiling cut off), the room's things
+// for the time of day down to that line (what stands on the floor is cut off
+// there), and the floor repeated below it to the bottom of the screen, each
+// copy under the one above; then the Crib's tint for the time of day.
 
 const RATIO = 1704 / 786; // the room pictures' width / height
-
-// where the floor line goes on a screen `height` tall
-export const floorLineOf = (height) => Math.round(Math.min(330, Math.max(190, height * 0.32)));
 
 // `full`: the whole room on screen (a level map's background, src/royal/WorldBg.js): spanning the width, its bottom on
 // the screen's when it's taller than the screen (the ceiling cut off), else from the top with the floor repeated below
@@ -25,19 +22,11 @@ export function roomGeometry(room, width, height, full = false) {
     const top = Math.min(0, height - H);
     return { W: width, H, left: 0, top, floorY: H * R.floor + top };
   }
-  if (width > height) {
-    // landscape (REDESIGN_V8, the games laid out sideways): the picture spans the width and is raised so its floor line
-    // sits 30% down (its ceiling cut off), the floor repeated below: the board gets most of the screen's height
-    const H = width / RATIO;
-    const top = Math.min(0, Math.round(height * 0.3) - H * R.floor);
-    return { W: width, H, left: 0, top, floorY: H * R.floor + top };
-  }
-  const floorY = floorLineOf(height);
-  let H = floorY / R.floor;
-  if (H * RATIO < width) H = width / RATIO;
-  const W = H * RATIO;
-  const left = Math.min(0, Math.max(width - W, width / 2 - R.cx * W));
-  return { W, H, left, top: 0, floorY: H * R.floor };
+  // (REDESIGN_V8, the games laid out sideways) the picture spans the width and is raised so its floor line sits 30% down
+  // (its ceiling cut off), the floor repeated below: the board gets most of the screen's height
+  const H = width / RATIO;
+  const top = Math.min(0, Math.round(height * 0.3) - H * R.floor);
+  return { W: width, H, left: 0, top, floorY: H * R.floor + top };
 }
 
 function Room({ room, phase, width, height, full = false }) {

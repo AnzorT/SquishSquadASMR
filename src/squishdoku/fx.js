@@ -1,9 +1,9 @@
 import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
-import { PHASE, SWING, useKeyLoop, usePingPong } from '../components/idleLoop';
+import { PHASE, SWING, useKeyLoop } from '../components/idleLoop';
 
 // Squishdoku's little effects: particle bursts (dust, sparks, poofs,
-// confetti) and happy waves on one shared layer, pop-ins, shakes, pulses and
+// confetti) and happy waves on one shared layer, pop-ins, shakes, rocks and
 // counters.
 // Everything runs on the native driver — one Animated value per burst,
 // each particle its own interpolation of it.
@@ -220,31 +220,11 @@ export function SlideIn({ children, delay = 0, dy = 40, trigger, style }) {
   return <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>{children}</Animated.View>;
 }
 
-// A gentle forever-pulse (scale), without Animated.delay (a looping delay
-// stalls InteractionManager — see PERFORMANCE.md), as one native loop
-// (src/components/idleLoop.js).
-export function Pulse({ children, to = 1.06, ms = 1400, active = true, style }) {
-  const scale = usePingPong(ms, { from: 1, to, on: active });
-  return <Animated.View style={[style, { transform: [{ scale }] }]}>{children}</Animated.View>;
-}
-
 // A forever side-to-side rock (rotate), one native loop.
 export function Rock({ children, deg = 4, ms = 2400, style }) {
   const t = useKeyLoop(ms, { at: PHASE, values: SWING });
   const rotate = t.interpolate({ inputRange: [-1, 1], outputRange: [`${-deg}deg`, `${deg}deg`] });
   return <Animated.View style={[style, { transform: [{ rotate }] }]}>{children}</Animated.View>;
-}
-
-// [value, shake()]: a quick decaying side-to-side shake for translateX.
-export function useShake(px = 10) {
-  const v = useRef(new Animated.Value(0)).current;
-  const shake = useCallback(() => {
-    v.setValue(0);
-    Animated.sequence(
-      [1, -0.9, 0.7, -0.5, 0.3, -0.15, 0].map((k) => Animated.timing(v, { toValue: k * px, duration: 45, useNativeDriver: true })),
-    ).start();
-  }, [v, px]);
-  return [v, shake];
 }
 
 // A number counting up to `value` over `ms`, calling `onTick` now and then

@@ -1,21 +1,37 @@
 import React, { memo, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import Svg, { Defs, LinearGradient, RadialGradient, Stop, Rect, Pattern, Circle, Ellipse } from 'react-native-svg';
+import { View, Image, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // The squish screen's sky from "ASMR Creature Squash v5": blue at the top
 // fading through sand to peach, a warm glow rising from the bottom (REDESIGN_V8: no pink), a
 // soft white glow behind the toy, three cloud puffs and a white dot grid
-// every 26px. One static SVG, memoized and kept as a hardware layer (as
-// CandyBackground does), so the 3D stage's frames never repaint it.
+// every 26px.
+//
+// PERF 2026-11-20: native pieces, not one full-screen react-native-svg. The
+// SVG was painted in software on the UI thread (65 ms on the Galaxy A16, more
+// on older phones) every time the stage came up, which froze the loading beat
+// over it. Now: a native linear gradient, the glows and puffs as small white
+// radial bitmaps scaled and tinted (assets/squad/sky/make-sky.mjs), and the
+// dots as blocks of the grid laid edge to edge. The whole sky is one hardware layer, so the 3D
+// stage's frames only blit it.
 //
 // The CSS radial gradients size themselves from the box ("farthest-corner"),
 // so the radii are worked out here from the measured size.
 
+const GLOW = require('../../assets/squad/sky/glow.png');
+const PUFF = require('../../assets/squad/sky/puff.png');
+// a 10 × 5 block of the 26 dp dot grid, laid out edge to edge (resizeMode repeat drew a single tile on Android)
+const DOTS = require('../../assets/squad/sky/dotgrid.png');
+const DOTS_W = 260;
+const DOTS_H = 130;
+
 const PUFFS = [
-  { x: 0.16, y: 0.14, solid: 24, fade: 44, a: 0.75 },
-  { x: 0.26, y: 0.12, solid: 18, fade: 36, a: 0.7 },
-  { x: 0.84, y: 0.26, solid: 20, fade: 38, a: 0.6 },
+  { x: 0.16, y: 0.14, fade: 44, a: 0.75 },
+  { x: 0.26, y: 0.12, fade: 36, a: 0.7 },
+  { x: 0.84, y: 0.26, fade: 38, a: 0.6 },
 ];
+
+const blob = (cx, cy, rx, ry) => ({ position: 'absolute', left: cx - rx, top: cy - ry, width: rx * 2, height: ry * 2 });
 
 const Sky = memo(function Sky({ width: w, height: h }) {
   // circle at 50% 46%, transparent at 48% of the farthest-corner radius
@@ -24,43 +40,32 @@ const Sky = memo(function Sky({ width: w, height: h }) {
   const pinkRx = 0.62 * Math.SQRT2 * (w / 2);
   const pinkRy = 0.62 * Math.SQRT2 * (h * 1.12);
   return (
-    <Svg style={StyleSheet.absoluteFill} width={w} height={h} renderToHardwareTextureAndroid>
-      <Defs>
-        <LinearGradient id="skyBg" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#8fd0ff" />
-          <Stop offset="0.38" stopColor="#b9e2ff" />
-          <Stop offset="0.68" stopColor="#f3e6d6" />
-          <Stop offset="1" stopColor="#ffdcb4" />
-        </LinearGradient>
-        <RadialGradient id="skyPink" cx="50%" cy="50%" r="50%">
-          <Stop offset="0" stopColor="#ffab5c" stopOpacity={0.6} />
-          <Stop offset="1" stopColor="#ffab5c" stopOpacity={0} />
-        </RadialGradient>
-        <RadialGradient id="skyGlow" cx="50%" cy="50%" r="50%">
-          <Stop offset="0" stopColor="#ffffff" stopOpacity={0.55} />
-          <Stop offset="1" stopColor="#ffffff" stopOpacity={0} />
-        </RadialGradient>
-        {PUFFS.map((p, i) => (
-          <RadialGradient key={i} id={`skyPuff${i}`} cx="50%" cy="50%" r="50%">
-            <Stop offset="0" stopColor="#ffffff" stopOpacity={p.a} />
-            <Stop offset={p.solid / p.fade} stopColor="#ffffff" stopOpacity={p.a} />
-            <Stop offset="1" stopColor="#ffffff" stopOpacity={0} />
-          </RadialGradient>
-        ))}
-        <Pattern id="skyDots" x="0" y="0" width="26" height="26" patternUnits="userSpaceOnUse">
-          <Circle cx="13" cy="13" r="1.4" fill="#ffffff" fillOpacity={0.8} />
-        </Pattern>
-      </Defs>
-      <Rect x="0" y="0" width={w} height={h} fill="url(#skyBg)" />
-      <Circle cx={w / 2} cy={h * 0.46} r={glowR} fill="url(#skyGlow)" />
-      <Ellipse cx={w / 2} cy={h * 1.12} rx={pinkRx} ry={pinkRy} fill="url(#skyPink)" />
+    <View style={StyleSheet.absoluteFill} pointerEvents="none" renderToHardwareTextureAndroid>
+      <LinearGradient colors={SKY} locations={SKY_AT} style={StyleSheet.absoluteFill} />
+      <Image source={GLOW} fadeDuration={0} style={[blob(w / 2, h * 0.46, glowR, glowR), { opacity: 0.55 }]} />
+      <Image source={GLOW} fadeDuration={0} tintColor="#ffab5c" style={[blob(w / 2, h * 1.12, pinkRx, pinkRy), { opacity: 0.6 }]} />
       {PUFFS.map((p, i) => (
-        <Circle key={i} cx={w * p.x} cy={h * p.y} r={p.fade} fill={`url(#skyPuff${i})`} />
+        <Image key={i} source={PUFF} fadeDuration={0} style={[blob(w * p.x, h * p.y, p.fade, p.fade), { opacity: p.a }]} />
       ))}
-      <Rect x="0" y="0" width={w} height={h} fill="url(#skyDots)" />
-    </Svg>
+      {dotBlocks(w, h).map((b) => (
+        <Image key={b.key} source={DOTS} fadeDuration={0} style={b.style} />
+      ))}
+    </View>
   );
 });
+
+function dotBlocks(w, h) {
+  const out = [];
+  for (let y = 0; y < h; y += DOTS_H) {
+    for (let x = 0; x < w; x += DOTS_W) {
+      out.push({ key: `${x},${y}`, style: { position: 'absolute', left: x, top: y, width: DOTS_W, height: DOTS_H } });
+    }
+  }
+  return out;
+}
+
+const SKY = ['#8fd0ff', '#b9e2ff', '#f3e6d6', '#ffdcb4'];
+const SKY_AT = [0, 0.38, 0.68, 1];
 
 export default function SkyBackground({ children, style }) {
   const [size, setSize] = useState(null);

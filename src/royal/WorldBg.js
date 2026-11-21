@@ -31,14 +31,33 @@ export function useRoomStrip() {
 // level draws it (src/hop/Room.js), all of it (`full`), in daylight, its picture repeated side by side for as long as
 // its levels run (the pictures run on into each other), a wooden post where one room gives way to the next.
 // spans: [{ room, x0, x1 }] along the map's page (its content's x). When they change (Squishdoku's next chapter) the
-// new rooms fade in over the old. Fades in as the map slides in (sw: useViewSwitch).
-export function RoomBackdrop({ sw, on, spans, scrollX, phase = 'day' }) {
+// new rooms fade in over the old. Fades in as the map slides in (sw: useViewSwitch); `under`: held at full opacity
+// under a level that's starting (useRoomUnder).
+export function RoomBackdrop({ sw, on, spans, scrollX, phase = 'day', under = false }) {
   if (!on || !spans || !spans.length) return null;
   return (
-    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: sw.style.opacity }]}>
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, under ? null : { opacity: sw.style.opacity }]}>
       <StripFade spans={spans} scrollX={scrollX} phase={phase} />
     </Animated.View>
   );
+}
+
+// 2026-11-20 (the user: flickering): from the map into a level, the room behind the map went at the tap, while the
+// level (which draws its own room) was still being built and fading in, so the bare page background flashed between
+// two pictures of the same room. The map's room now stays up, at full opacity, under a level that has just started
+// (`playing`, from the map) until shortly after the level is built (sw.ready), then goes (the level covers it).
+export function useRoomUnder(sw, playing) {
+  const [gone, setGone] = useState(false);
+  useEffect(() => {
+    if (!playing) {
+      setGone(false);
+      return undefined;
+    }
+    if (!sw.ready) return undefined;
+    const t = setTimeout(() => setGone(true), 900);
+    return () => clearTimeout(t);
+  }, [playing, sw.ready]);
+  return playing && !gone;
 }
 
 const keyOf = (spans) => spans.map((s) => `${s.room}:${Math.round(s.x0)}:${Math.round(s.x1)}`).join('|');

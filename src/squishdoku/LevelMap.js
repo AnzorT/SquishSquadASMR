@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useGameDims } from '../royal/GameFrame';
-import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import sfx from '../audio/sfx';
 import { Bob } from '../squad/ui';
@@ -11,13 +11,12 @@ import { Head } from './ui';
 import { CHAPTER, CHAPTERS, LEVEL_LIST, LEVELS, chapterOf, roomOfChapter } from './levels';
 import { RoomCard } from '../hop/Room';
 import { ROOMS } from '../hop/levels';
-import RoundButton from '../components/candy/RoundButton';
 import { Orb } from '../royal';
 import { F, INK, TIER_COLORS } from './theme';
 
 // The levels on a winding path, a chapter (20 levels, one Crib room) a page:
-// the room's picture and name on top, ◀ ▶ to the chapters either side, and
-// NEXT CHAPTER at the bottom (600 levels in one page was 60,000 points tall).
+// the room's name and ◀ ▶ to the chapters either side at the start, and
+// NEXT CHAPTER at the end (600 levels in one page was far too long).
 // Done levels are gold
 // with the creatures they earned, the next one pink and pulsing with a
 // creature bobbing on it, the rest locked. Nodes pop in around the current
@@ -25,10 +24,7 @@ import { F, INK, TIER_COLORS } from './theme';
 // nearest the current one first, a few a frame (useProgressive), so the map
 // is up at once and fills outwards.
 
-const GAP = 96;
 const NODE = 62;
-const TOP = 140;
-const HEAD = 96; // the chapter's picture and banner, over the first node
 
 const Node = memo(function Node({ lv, x, y, state, stars, perfect, heads, delay, onPress, unlocking, mascot, mascotLeft }) {
   const t = useRef(new Animated.Value(0)).current;
@@ -125,20 +121,19 @@ const Node = memo(function Node({ lv, x, y, state, stars, perfect, heads, delay,
   );
 });
 
-// landscape (REDESIGN_V8, the user: the level maps sideways): the chapter's room, name and arrows at the start, then
-// its levels winding left to right, the page scrolling sideways
+// (REDESIGN_V8, the user: the level maps sideways): the chapter's room, name and arrows at the start, then its levels
+// winding left to right, the page scrolling sideways
 const HEAD_W = 214;
 const FIRST_X = HEAD_W + 78; // the first level, clear of the chapter's column
 const GAP_X = 96;
 
-// rowAt (landscape): where the row's middle line runs, as a fraction of the map's height (lower over a room's floor);
-// landscape, the chapter's room behind the map (src/royal/WorldBg.js RoomBackdrop, useRoomStrip): onSpans([{ room, x0,
+// rowAt: where the row's middle line runs, as a fraction of the map's height (lower over a room's floor);
+// the chapter's room behind the map (src/royal/WorldBg.js RoomBackdrop, useRoomStrip): onSpans([{ room, x0,
 // x1 }]) gets the room and how far it runs along the page (all of it); scrollX (an Animated.Value) follows the page's
 // scroll on the UI thread, so the room scrolls with the levels (2026-11-17, the user: the background stood still while
 // the list scrolled)
 function LevelMap({ rec, roster, onPlay, justUnlocked, onSpans, scrollX, rowAt = 0.5 }) {
-  const { width, height: winH } = useGameDims(); // (the game panel in landscape: REDESIGN_V7)
-  const wide = width > winH;
+  const { width, height: winH } = useGameDims();
   const [boxH, setBoxH] = useState(0);
   const H = boxH || winH - 60; // the map's own height (under the screen's top bar)
   const scroll = useRef(null);
@@ -146,25 +141,20 @@ function LevelMap({ rec, roster, onPlay, justUnlocked, onSpans, scrollX, rowAt =
   const [chapter, setChapter] = useState(() => chapterOf(justUnlocked || cur));
   const from = (chapter - 1) * CHAPTER; // its first level's index
   const count = Math.min(CHAPTER, LEVELS - from);
+  // a gentle wave about the middle line, level with the chapter's card (2026-11-16, the user: the list in the middle;
+  // it swung from near the top bar to near the bottom)
   const points = useMemo(() => {
-    if (wide) {
-      // a gentle wave about the middle line, level with the chapter's card (2026-11-16, the user: the list in the
-      // middle; it swung from near the top bar to near the bottom)
-      const amp = Math.min(rowAt > 0.6 ? 14 : 24, H * 0.075);
-      return Array.from({ length: count }, (_, i) => ({ x: FIRST_X + i * GAP_X, y: H * rowAt - 10 + Math.sin((from + i) * 1.05) * amp }));
-    }
-    const amp = Math.min(110, width * 0.27);
-    return Array.from({ length: count }, (_, i) => ({ x: width / 2 + Math.sin((from + i) * 1.05) * amp, y: TOP + HEAD + i * GAP }));
-  }, [width, from, count, wide, H, rowAt]);
-  const height = points[count - 1].y + 170;
+    const amp = Math.min(rowAt > 0.6 ? 14 : 24, H * 0.075);
+    return Array.from({ length: count }, (_, i) => ({ x: FIRST_X + i * GAP_X, y: H * rowAt - 10 + Math.sin((from + i) * 1.05) * amp }));
+  }, [from, count, H, rowAt]);
   const contentW = points[count - 1].x + 190;
   const room = roomOfChapter(chapter);
   // the chapter's room, the length of the page
-  const spans = useMemo(() => (wide && onSpans ? [{ room, x0: 0, x1: Math.max(contentW, width) }] : null), [wide, onSpans, room, contentW, width]);
+  const spans = useMemo(() => (onSpans ? [{ room, x0: 0, x1: Math.max(contentW, width) }] : null), [onSpans, room, contentW, width]);
   // (before the first frame: the room drawn where the page opens, as the effect below scrolls it)
   useLayoutEffect(() => {
     const i = cur - 1 - from;
-    if (wide && scrollX) scrollX.setValue(i >= 0 && i < count ? Math.max(0, Math.min(points[i].x - width / 2, contentW - width)) : 0);
+    if (scrollX) scrollX.setValue(i >= 0 && i < count ? Math.max(0, Math.min(points[i].x - width / 2, contentW - width)) : 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapter]);
   useLayoutEffect(() => {
@@ -179,13 +169,12 @@ function LevelMap({ rec, roster, onPlay, justUnlocked, onSpans, scrollX, rowAt =
   const n = useProgressive(count, 12, 10);
   const built = useMemo(() => new Set(order.slice(0, n)), [order, n]);
 
-  // the current level in view (the top of the page on another chapter)
+  // the current level in view (the start of the page on another chapter)
   useEffect(() => {
     const i = cur - 1 - from;
     const at = i >= 0 && i < count;
     const t = setTimeout(() => {
-      if (wide) scroll.current?.scrollTo({ x: at ? Math.max(0, points[i].x - width / 2) : 0, animated: false });
-      else scroll.current?.scrollTo({ y: at ? Math.max(0, points[i].y - 260) : 0, animated: false });
+      scroll.current?.scrollTo({ x: at ? Math.max(0, points[i].x - width / 2) : 0, animated: false });
     }, 0);
     // the nodes round the current one pop in with rising bubbles
     const pops = [];
@@ -217,46 +206,27 @@ function LevelMap({ rec, roster, onPlay, justUnlocked, onSpans, scrollX, rowAt =
   return (
     <Animated.ScrollView
       ref={scroll}
-      horizontal={wide}
+      horizontal
       style={styles.fill}
-      contentContainerStyle={wide ? { width: contentW, height: H } : { height }}
+      contentContainerStyle={{ width: contentW, height: H }}
       showsVerticalScrollIndicator={false}
       showsHorizontalScrollIndicator={false}
-      onLayout={(e) => wide && setBoxH(Math.round(e.nativeEvent.layout.height))}
+      onLayout={(e) => setBoxH(Math.round(e.nativeEvent.layout.height))}
       onScroll={onScroll}
       // (every frame: the room behind follows the scroll)
       scrollEventThrottle={16}
     >
-      {/* the chapter: its room, its name, the chapters either side */}
-      {wide ? (
-        // (the screen drawing the chapter's room behind the map, `onSpans`: no picture of it here, the name and the
-        // arrows level with the row)
-        <View style={[styles.chapterWide, { top: onSpans ? H * rowAt - 56 : H * rowAt - 112 }]}>
-          {onSpans ? null : <RoomCard room={room} width={190} height={104} />}
-          <Text style={[styles.bannerText, styles.bannerWide]} numberOfLines={1}>{`CHAPTER ${chapter} · ${ROOMS[room].name.toUpperCase()}`}</Text>
-          <Text style={[styles.chapterSub, onSpans && styles.chapterSubOn]}>{`LEVELS ${from + 1}-${from + count} · ${sizes.map((s) => `${s}×${s}`).join(' ')}`}</Text>
-          <View style={styles.chapterArrows}>
-            <Orb icon="left" size={36} onPress={() => turn(chapter - 1)} disabled={chapter <= 1} style={chapter <= 1 && styles.dimmed} />
-            <Orb icon="right" size={36} onPress={() => turn(chapter + 1)} disabled={chapter >= CHAPTERS} style={chapter >= CHAPTERS && styles.dimmed} />
-          </View>
-        </View>
-      ) : (
-      <View style={[styles.chapter, { top: TOP - 120 }]}>
-        <RoomCard room={room} />
-        <View style={styles.chapterRow}>
-          <RoundButton size={36} onPress={() => turn(chapter - 1)} disabled={chapter <= 1} dim={chapter <= 1}>
-            <Text style={styles.arrow}>◀</Text>
-          </RoundButton>
-          <View style={styles.chapterBox}>
-            <Text style={styles.bannerText}>{`CHAPTER ${chapter} · ${ROOMS[room].name.toUpperCase()}`}</Text>
-            <Text style={styles.chapterSub}>{`LEVELS ${from + 1}-${from + count} · ${sizes.map((s) => `${s}×${s}`).join(' ')}`}</Text>
-          </View>
-          <RoundButton size={36} onPress={() => turn(chapter + 1)} disabled={chapter >= CHAPTERS} dim={chapter >= CHAPTERS}>
-            <Text style={styles.arrow}>▶</Text>
-          </RoundButton>
+      {/* the chapter: its room, its name, the chapters either side (the screen drawing the chapter's room behind the
+          map, `onSpans`: no picture of it here, the name and the arrows level with the row) */}
+      <View style={[styles.chapter, { top: onSpans ? H * rowAt - 56 : H * rowAt - 112 }]}>
+        {onSpans ? null : <RoomCard room={room} width={190} height={104} />}
+        <Text style={styles.bannerText} numberOfLines={1}>{`CHAPTER ${chapter} · ${ROOMS[room].name.toUpperCase()}`}</Text>
+        <Text style={[styles.chapterSub, onSpans && styles.chapterSubOn]}>{`LEVELS ${from + 1}-${from + count} · ${sizes.map((s) => `${s}×${s}`).join(' ')}`}</Text>
+        <View style={styles.chapterArrows}>
+          <Orb icon="left" size={36} onPress={() => turn(chapter - 1)} disabled={chapter <= 1} style={chapter <= 1 && styles.dimmed} />
+          <Orb icon="right" size={36} onPress={() => turn(chapter + 1)} disabled={chapter >= CHAPTERS} style={chapter >= CHAPTERS && styles.dimmed} />
         </View>
       </View>
-      )}
       {dots}
       {points.map((p, i) => {
         if (!built.has(i)) return null;
@@ -282,7 +252,7 @@ function LevelMap({ rec, roster, onPlay, justUnlocked, onSpans, scrollX, rowAt =
         );
       })}
       {chapter < CHAPTERS ? (
-        <View style={wide ? [styles.nextWrapWide, { left: points[count - 1].x + 54, top: H * rowAt - 24 }] : [styles.nextWrap, { top: points[count - 1].y + 70 }]}>
+        <View style={[styles.nextWrap, { left: points[count - 1].x + 54, top: H * rowAt - 24 }]}>
           <Pressable onPress={() => turn(chapter + 1)} hitSlop={8} style={styles.nextBtn}>
             <Text style={styles.nextText}>{`CHAPTER ${chapter + 1} ▶`}</Text>
           </Pressable>
@@ -309,21 +279,15 @@ const styles = StyleSheet.create({
   heads: { flexDirection: 'row', marginTop: 4, gap: 1 },
   mascot: { position: 'absolute', top: 8, zIndex: 3 },
   dot: { position: 'absolute', width: 8, height: 8, borderRadius: 4 },
-  chapter: { position: 'absolute', left: 0, right: 0, alignItems: 'center', gap: 8 },
-  chapterWide: { position: 'absolute', left: 14, width: HEAD_W, alignItems: 'center', gap: 6 },
-  bannerWide: { fontSize: 11.5, letterSpacing: 1, paddingHorizontal: 10, maxWidth: HEAD_W },
+  chapter: { position: 'absolute', left: 14, width: HEAD_W, alignItems: 'center', gap: 6 },
   chapterArrows: { flexDirection: 'row', gap: 18, marginTop: 4 },
   dimmed: { opacity: 0.4 },
-  nextWrapWide: { position: 'absolute' },
-  chapterRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
-  chapterBox: { alignItems: 'center', gap: 3 },
+  nextWrap: { position: 'absolute' },
   chapterSub: { fontFamily: F.display, fontSize: 11, letterSpacing: 1, color: INK },
   chapterSubOn: { backgroundColor: 'rgba(255,247,234,0.92)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 1, overflow: 'hidden' },
-  arrow: { fontFamily: F.display, fontSize: 14, color: '#ffffff', includeFontPadding: false },
-  nextWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   nextBtn: { backgroundColor: '#b8641c', borderRadius: 999, borderWidth: 3, borderColor: '#ffffff', paddingHorizontal: 22, paddingVertical: 9 },
   nextText: { fontFamily: F.display, fontSize: 15, letterSpacing: 1.5, color: '#ffffff' },
-  bannerText: { fontFamily: F.display, fontSize: 15, letterSpacing: 2, color: '#ffffff', backgroundColor: '#b8641c', borderRadius: 999, borderWidth: 2.5, borderColor: '#ffffff', paddingHorizontal: 14, paddingVertical: 3, overflow: 'hidden' },
+  bannerText: { fontFamily: F.display, fontSize: 11.5, letterSpacing: 1, color: '#ffffff', backgroundColor: '#b8641c', borderRadius: 999, borderWidth: 2.5, borderColor: '#ffffff', paddingHorizontal: 10, paddingVertical: 3, overflow: 'hidden', maxWidth: HEAD_W },
 });
 
 export default memo(LevelMap);

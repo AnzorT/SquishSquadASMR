@@ -1,9 +1,8 @@
 import { RARITY, rarityOf } from '../squad/data';
 
 // Candy theme — the v3 redesign ("ASMR Creature Squash v3.dc.html" in the
-// design zip): a pink→violet gradient stage with polka dots and bokeh,
-// glossy "candy" buttons (white border, dark ring + bottom lip, top shine),
-// sticker-style outlined titles, and deep-plum text on white/pink cards.
+// design zip): glossy "candy" buttons (white border, dark ring + bottom lip,
+// top shine), sticker-style outlined titles, and the text and card colours.
 
 // (REDESIGN_V8, the user: the wood look everywhere, no pink or purple. The names stay; the colours are the warm
 // ones: brown ink and outlines, cream paper, amber stage.)
@@ -28,12 +27,6 @@ export const candyColors = {
   pinkHot: '#ff8a3d',
   pinkRing: '#8a3a0e',
   teal: '#22e0d0',
-};
-
-// Vertical stage gradient every full-screen view sits on.
-export const candyBg = {
-  colors: ['#ffd9a0', '#f5b264', '#dd8a44', '#b8642c'],
-  locations: [0, 0.4, 0.74, 1],
 };
 
 export const candyFonts = {
@@ -64,24 +57,8 @@ export const TITLE_FILLS = {
   pink: { colors: ['#fff0d6', '#ffb05a', '#e8681c'], locations: [0, 0.52, 1] },
 };
 
-// Rarity tiers. A premade creature's rarity is the squad roster's
-// (functions/squad.js, the 2026-10-06 design): Common, Rare, Epic,
-// Legendary, or a set's reward creature. Rainbow and Golden are no longer
-// creature rarities but finishes (src/squad/data.js FIN_LOOK); their entries
-// stay for the screens that still draw them until the old box economy is
-// removed. `w` is the old mystery-box weight (src/economy.js), unused by
-// chests.
-export const TIERS = {
-  Common: { label: 'COMMON', w: 45, bg: ['#d7f0ff', '#d7f0ff'], color: '#4a1a73', glow: '#9fd8ff' },
-  Rare: { label: 'RARE', w: 27, bg: ['#c9f7e1', '#c9f7e1'], color: '#4a1a73', glow: '#7ee8b4' },
-  Epic: { label: 'EPIC', w: 15, bg: ['#ead6ff', '#ead6ff'], color: '#4a1a73', glow: '#c89bff' },
-  Legendary: { label: 'LEGENDARY', w: 8, bg: ['#ffdcb0', '#ffdcb0'], color: '#4a1a73', glow: '#ffa94d' },
-  'Set reward': { label: 'RAINBOW', w: 0, bg: ['#ffe0f3', '#ffe0f3'], color: '#4a1a73', glow: '#ff8fd3' },
-  Rainbow: { label: 'RAINBOW', w: 3.5, bg: ['#ffb3c7', '#ffe38a', '#b3f5c8', '#b3e0ff', '#dcc2ff'], color: '#4a1a73', glow: '#ff9fd6' },
-  Golden: { label: 'GOLDEN', w: 1.5, bg: ['#fff3b0', '#ffc233', '#f0a000'], color: '#4a1a73', glow: '#ffd24d' },
-  Secret: { label: 'SECRET', w: 0, bg: ['#4a1a73', '#ff4fa3'], color: '#ffffff', glow: '#ff6fbd' },
-};
-
+// A premade creature's rarity is the squad roster's (functions/squad.js, the 2026-10-06 design): Common, Rare, Epic,
+// Legendary, or a set's reward creature.
 export function tierOf(creatureId) {
   const r = rarityOf(creatureId);
   return r == null ? null : RARITY[r]; // custom creatures have no tier
@@ -91,5 +68,3 @@ export function tierOf(creatureId) {
 export function creaturesOfTier(creatures = [], tier) {
   return creatures.filter((c) => tierOf(c.id) === tier);
 }
-
-export default { candyColors, candyBg, candyFonts, BUTTON_VARIANTS, TITLE_FILLS, TIERS, tierOf, creaturesOfTier };

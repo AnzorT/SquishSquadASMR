@@ -1,7 +1,6 @@
-import { GameBack, useGameDims, useWide } from '../royal/GameFrame';
+import { GameBack, useGameDims } from '../royal/GameFrame';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, AppState, BackHandler, Easing, PanResponder, StyleSheet, Text, View } from 'react-native';
-import RoundButton, { BackGlyph } from '../components/candy/RoundButton';
 import useRewardedAd from '../components/useRewardedAd';
 import sfx from '../audio/sfx';
 import { FxLayer, PopIn } from '../squishdoku/fx';
@@ -317,7 +316,6 @@ function useRefState(init) {
 // --- the game --------------------------------------------------------------------------
 
 export default function StackGame({ startLv = 1, cast, blitz = false, profile, uid, adsFree, haptics: hapticsOn = true, onExit }) {
-  const wide = useWide(); // landscape (REDESIGN_V8)
   const dims = useGameDims();
   const haptics = useRef(makeHaptics(hapticsOn)).current;
   const ad = useRewardedAd();
@@ -1191,17 +1189,6 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   );
   const backEl = <GameBack onPress={() => (phaseRef.current === 'play' ? acts.current.pause() : acts.current.leave())} />;
   const goalEl = <GoalCard who={who} goal={puzzle.goal} k={spec.k} star={puzzle.star} />;
-  // upright: the back button and the counter along the top, the goal under them
-  const topEl = (
-    <>
-      <View style={styles.hud}>
-        {backEl}
-        <View style={styles.titleBox} />
-        {counterEl}
-      </View>
-      <View style={styles.info}>{goalEl}</View>
-    </>
-  );
   const areaEl = (
     <>
       {/* the cushions: everything is placed by geometry() */}
@@ -1227,17 +1214,17 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
       </View>
     </>
   );
-  // restart and hint (no UNDO: the user, 2026-11-16); sideways, side by side at the bottom right
+  // restart and hint (no UNDO: the user, 2026-11-16), side by side at the bottom right
   const ctrlEl = (
-    <View style={[styles.controls, wide && styles.wControls]}>
-      <SdButton kind="purple" onPress={() => acts.current.restart()} disabled={!playing || moves === 0} sound="sd_select" faceStyle={[styles.ctrlFace, wide && styles.wCtrlFace]} style={wide ? null : styles.ctrl}>
-        <BtnLabel kind="purple" size={wide ? 14 : 15}>
+    <View style={styles.controls}>
+      <SdButton kind="purple" onPress={() => acts.current.restart()} disabled={!playing || moves === 0} sound="sd_select" faceStyle={styles.ctrlFace}>
+        <BtnLabel kind="purple" size={14}>
           RESTART
         </BtnLabel>
       </SdButton>
       {!blitz ? (
-        <SdButton kind="gold" onPress={() => acts.current.askHint()} disabled={!playing || (hinted && !adsFree && !ad.ready)} sound="sd_select" faceStyle={[styles.ctrlFace, wide && styles.wCtrlFace]} style={wide ? null : styles.ctrl}>
-          <BtnLabel kind="gold" size={wide ? 14 : 15}>
+        <SdButton kind="gold" onPress={() => acts.current.askHint()} disabled={!playing || (hinted && !adsFree && !ad.ready)} sound="sd_select" faceStyle={styles.ctrlFace}>
+          <BtnLabel kind="gold" size={14}>
             {adsFree ? 'HINT' : '▶ HINT'}
           </BtnLabel>
         </SdButton>
@@ -1246,29 +1233,21 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
   );
   return (
     <View style={styles.fill}>
-      {wide ? (
-        // sideways (the user, 2026-11-16): the back button top left and the goal bottom left; the counter at the top in
-        // the middle, the cushions under it; RESTART and HINT side by side at the bottom right. The two side columns are
-        // as wide as each other, so the cushions sit in the middle of the screen.
-        <View style={styles.wRow}>
-          <View style={styles.wSide}>
-            {backEl}
-            <View style={styles.fill} />
-            {goalEl}
-          </View>
-          <View style={styles.fill}>
-            <View style={styles.wCounterRow}>{counterEl}</View>
-            {areaEl}
-          </View>
-          <View style={[styles.wSide, styles.wSideR]}>{ctrlEl}</View>
+      {/* (the user, 2026-11-16) the back button top left and the goal bottom left; the counter at the top in the
+          middle, the cushions under it; RESTART and HINT side by side at the bottom right. The two side columns are as
+          wide as each other, so the cushions sit in the middle of the screen. */}
+      <View style={styles.row}>
+        <View style={styles.side}>
+          {backEl}
+          <View style={styles.fill} />
+          {goalEl}
         </View>
-      ) : (
-        <>
-          {topEl}
+        <View style={styles.fill}>
+          <View style={styles.counterRow}>{counterEl}</View>
           {areaEl}
-          {ctrlEl}
-        </>
-      )}
+        </View>
+        <View style={[styles.side, styles.sideR]}>{ctrlEl}</View>
+      </View>
 
       {blitz ? (
         <>
@@ -1311,19 +1290,14 @@ export default function StackGame({ startLv = 1, cast, blitz = false, profile, u
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  hud: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 6 },
-  titleBox: { flex: 1, minWidth: 0 },
   challenge: { paddingHorizontal: 7, paddingVertical: 1, borderRadius: 999, borderWidth: 2, borderColor: '#ffffff' },
   challengeText: { fontFamily: F.display, fontSize: 10, letterSpacing: 0.6, color: '#ffffff' },
-  info: { flexDirection: 'row', alignItems: 'stretch', gap: 10, paddingHorizontal: 14, marginTop: 8, minHeight: 72 },
   gold: { color: '#ffd23a' },
   // the cards sit at elevation 50 (squishdoku/Overlays.js)
   fxTop: { zIndex: 60, elevation: 60 },
   area: { flex: 1 },
-  // landscape (REDESIGN_V8)
-  wRow: { flex: 1, flexDirection: 'row' },
-  wSide: { width: 150 },
-  // the counter (both ways up): MOVES n / par, the tier; Blitz: cleared, best, the rule
+  row: { flex: 1, flexDirection: 'row' },
+  // the counter: MOVES n / par, the tier; Blitz: cleared, best, the rule
   counter: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 3, borderRadius: 16, backgroundColor: 'rgba(91,58,41,0.75)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)' },
   stat: { alignItems: 'center', minWidth: 44 },
   statLabel: { fontFamily: F.display, fontSize: 9.5, letterSpacing: 1, color: '#ffe6c2', includeFontPadding: false },
@@ -1332,12 +1306,10 @@ const styles = StyleSheet.create({
   countNum: { fontFamily: F.display, fontSize: 22, color: '#ffe045', fontVariant: ['tabular-nums'] },
   countOver: { color: '#ff8fa3' },
   countPar: { fontFamily: F.display, fontSize: 16, color: '#ffe6c2', fontVariant: ['tabular-nums'] },
-  // sideways: two side columns of the same width, the counter and the cushions between them
-  wSide: { width: 200, paddingHorizontal: 12, paddingTop: 6, paddingBottom: 10, alignItems: 'flex-start' },
-  wSideR: { alignItems: 'flex-end', justifyContent: 'flex-end' },
-  wCounterRow: { alignItems: 'center', paddingTop: 6 },
-  wCtrlFace: { paddingHorizontal: 10, paddingVertical: 10 },
-  wControls: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 0, paddingTop: 0, paddingBottom: 0, gap: 8 },
+  // two side columns of the same width, the counter and the cushions between them
+  side: { width: 200, paddingHorizontal: 12, paddingTop: 6, paddingBottom: 10, alignItems: 'flex-start' },
+  sideR: { alignItems: 'flex-end', justifyContent: 'flex-end' },
+  counterRow: { alignItems: 'center', paddingTop: 6 },
   // (no dashed outline: the user, 2026-11-16)
   rug: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.16)' },
   colGlow: { position: 'absolute', top: 0, bottom: 0, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.16)' },
@@ -1347,9 +1319,9 @@ const styles = StyleSheet.create({
   piece: { position: 'absolute', left: 0, top: 0 },
   dizzy: { position: 'absolute', zIndex: 120 },
   flash: { ...StyleSheet.absoluteFillObject, zIndex: 110, backgroundColor: '#ff2d55', borderRadius: 24 },
-  controls: { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 10 },
-  ctrl: { flex: 1, maxWidth: 130 },
-  ctrlFace: { paddingHorizontal: 6, paddingVertical: 10 },
+  // RESTART and HINT, side by side
+  controls: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', gap: 8 },
+  ctrlFace: { paddingHorizontal: 10, paddingVertical: 10 },
   loading: { position: 'absolute', alignSelf: 'center', top: '45%' },
   loadingText: { fontFamily: F.display, fontSize: 16, color: INK },
 });

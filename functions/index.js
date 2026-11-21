@@ -627,10 +627,12 @@ exports.oauth = onRequest(async (req, res) => {
           totalEarned: 250,
           adsFree: false,
           generationCredits: 1,
-          ownedIds: ['0'],
+          // Nimbo (0) and Mittens (1): Nimbo's group can be switched off (config/roster), Mittens is the intro's
+          // creature (2026-11-21; the app's src/data/creatures.js NEW_PLAYER_CREATURE_IDS). No `tut`: the old
+          // tutorial is gone
+          ownedIds: ['0', '1'],
           stats: { presses: 0, longestHoldMs: 0, playTime: {} },
           achievements: { speedTap: false, watchAd: false },
-          tut: 'start',
           level: 1,
           pxp: 0,
           createdAt: FieldValue.serverTimestamp(),

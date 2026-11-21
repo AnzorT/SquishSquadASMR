@@ -2,11 +2,10 @@ import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { FlatList, Image, ImageBackground, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Pressable from '../../components/Pressable';
-import { BY_ID, GDEAL, RAINBOW, SIZES, AD_CHESTS, owns, lineup } from '../../squad/data';
+import { BY_ID, GDEAL, RAINBOW, AD_CHESTS, owns, lineup } from '../../squad/data';
 import GCHEST, { CHEST_NAMES } from '../../squad/groupChestArt';
 import { COIN, GEM } from '../../squad/currencyArt';
 import { Bob, TickingText, hms, untilMidnight } from '../../squad/ui';
-import TutTarget from '../../tutorial/Target';
 import { fmtNum } from '../../format';
 import { Btn, InkText, Lettering, Orb, Plaque, FONT, INK } from '../../royal';
 import { allChests, chestInfo, groupCollected } from '../ShopChests';
@@ -41,9 +40,9 @@ function FreeButton({ freeAt, bonus, onFree }) {
   }, [n, freeAt]);
   if (n > 0)
     return (
-      <TutTarget name="freeChest">
+      <View>
         <Btn label={n > 1 ? `OPEN FREE · ${n}` : 'OPEN FREE'} size={15} width={136} height={38} glow onPress={onFree} />
-      </TutTarget>
+      </View>
     );
   return (
     <Plaque variant="vel" radius={14} style={styles.wait}>
@@ -122,7 +121,7 @@ const ChestCard = memo(function ChestCard({ gk, size, ti, info, first, onOpen, o
       </Pressable>
       <Lettering text={C.name} variant="white" size={13} />
       <Note size={10} color="#fff6e2" lines={1}>{C.odds}</Note>
-      <TutTarget name={first ? 'buy:hot' : `buy:${gk}:${size}`}>
+      <View>
         <Btn width={140} height={38} onPress={() => onBuy(gk, size)}>
           <View style={styles.priceRow}>
             <Lettering text="OPEN" variant="whiteB" size={15} />
@@ -130,7 +129,7 @@ const ChestCard = memo(function ChestCard({ gk, size, ti, info, first, onOpen, o
             <Lettering text={fmt(C.T.price.n)} variant="whiteB" size={15} />
           </View>
         </Btn>
-      </TutTarget>
+      </View>
     </Plaque>
   );
 });
@@ -217,11 +216,11 @@ function TodayPage({ width, profile, day, hot, welcome, adsLeft, onFree, onAd, o
           <FreeButton freeAt={profile?.freeAt || 0} bonus={profile?.freeBonus || 0} onFree={onFree} />
         </Tile>
         <Tile title="Rare chest" sub="Watch and open" art={GCHEST[hot[1]]['rare-tile']}>
-          <TutTarget name="adChest">
+          <View>
             <Btn variant={adsLeft ? 'gold' : 'vel'} width={136} height={38} disabled={!adsLeft} onPress={onAd}>
               <Lettering text={adsLeft ? `${profile?.adsFree ? 'FREE' : 'WATCH'} · ${adsLeft}` : 'TOMORROW'} variant={adsLeft ? 'whiteB' : 'white'} size={15} />
             </Btn>
-          </TutTarget>
+          </View>
         </Tile>
         <Deal gk={hot[0]} done={profile?.dealDay === day} onBuy={onDeal} />
       </View>
@@ -233,12 +232,19 @@ function TodayPage({ width, profile, day, hot, welcome, adsLeft, onFree, onAd, o
 // The Chests tab (REDESIGN_V8, the user's remodel): one page at a time, swiped or stepped with the arrows at the
 // screen's sides. First today's chests, then each group (today's HOT groups, the season, the rest): the group's name
 // above its four chests side by side, Common, Rare, Epic, Legendary.
+// the page last shown, kept while the app runs: the tab is built again after a chest smash or a trip out of the Shop, and
+// comes back on the group you were on (2026-11-20, the user: back from opening chests it went to the first one)
+let lastAt = 0;
 function ShopChestsRoyal({ profile, day, artIds, hidden, setRewards, rainbow = RAINBOW, onOpenSheet, onBuy }) {
   const list = useMemo(() => allChests(day, hidden), [day, hidden]);
   const adsLeft = Math.max(0, AD_CHESTS - (profile?.adChests?.day === day ? profile.adChests.n || 0 : 0));
   const pages = useMemo(() => list.map((x, i) => ({ t: 'group', x, i })), [list]);
   const [w, setW] = useState(0);
-  const [at, setAt] = useState(0);
+  const [at, setAtState] = useState(() => lastAt);
+  const setAt = useCallback((n) => {
+    lastAt = n;
+    setAtState(n);
+  }, []);
   const ref = useRef(null);
   const go = useCallback(
     (i) => {
@@ -249,8 +255,24 @@ function ShopChestsRoyal({ profile, day, artIds, hidden, setRewards, rainbow = R
     [pages.length]
   );
   const render = ({ item }) => <GroupPage x={item.x} first={item.i === 0} width={w} profile={profile} artIds={artIds} setRewards={setRewards} rainbow={rainbow} onOpenSheet={onOpenSheet} onBuy={onBuy} />;
+  // the page shown, from where the list really is (a scroll position the list reports while it's laid out again can be
+  // past the end: clamp it)
+  const track = (e) => {
+    const n = Math.round(e.nativeEvent.contentOffset.x / w);
+    if (w && Number.isFinite(n)) setAt(Math.max(0, Math.min(pages.length - 1, n)));
+  };
+  // A size of 0 is the Shop hidden under the chest smash, not a real size: keeping it unmounted the list, which came
+  // back on the first page while the arrows still thought it was on the page you left (2026-11-20, the user: back from
+  // opening chests, the first group showed but the arrows said the end). The list is kept, and a remount starts on `at`.
+  const at0 = Math.max(0, Math.min(pages.length - 1, at));
   return (
-    <View style={styles.fill} onLayout={(e) => setW(Math.round(e.nativeEvent.layout.width))}>
+    <View
+      style={styles.fill}
+      onLayout={(e) => {
+        const nw = Math.round(e.nativeEvent.layout.width);
+        if (nw > 0) setW(nw);
+      }}
+    >
       {w ? (
         <FlatList
           ref={ref}
@@ -261,9 +283,10 @@ function ShopChestsRoyal({ profile, day, artIds, hidden, setRewards, rainbow = R
           keyExtractor={(it) => (it.t === 'group' ? `g:${it.x.k}` : it.t)}
           renderItem={render}
           getItemLayout={(_, i) => ({ length: w, offset: w * i, index: i })}
-          onMomentumScrollEnd={(e) => setAt(Math.round(e.nativeEvent.contentOffset.x / w))}
+          initialScrollIndex={at0}
+          onMomentumScrollEnd={track}
           // (and while it moves: a browser's drag doesn't end with a momentum event)
-          onScroll={(e) => setAt(Math.round(e.nativeEvent.contentOffset.x / w))}
+          onScroll={track}
           scrollEventThrottle={64}
           showsHorizontalScrollIndicator={false}
           initialNumToRender={1}
@@ -271,13 +294,9 @@ function ShopChestsRoyal({ profile, day, artIds, hidden, setRewards, rainbow = R
           windowSize={3}
         />
       ) : null}
-      <Orb icon="left" size={40} onPress={() => go(at - 1)} disabled={at === 0} style={[styles.arrow, styles.arrowL, at === 0 && styles.arrowOff]} />
-      <Orb icon="right" size={40} onPress={() => go(at + 1)} disabled={at >= pages.length - 1} style={[styles.arrow, styles.arrowR, at >= pages.length - 1 && styles.arrowOff]} />
-      <View style={styles.dots} pointerEvents="none">
-        {pages.map((_, i) => (
-          <View key={i} style={[styles.dot, i === at && styles.dotOn]} />
-        ))}
-      </View>
+      {/* (no page dots: the user had them removed, 2026-11-20) */}
+      <Orb icon="left" size={40} onPress={() => go(at0 - 1)} disabled={at0 === 0} style={[styles.arrow, styles.arrowL, at0 === 0 && styles.arrowOff]} />
+      <Orb icon="right" size={40} onPress={() => go(at0 + 1)} disabled={at0 >= pages.length - 1} style={[styles.arrow, styles.arrowR, at0 >= pages.length - 1 && styles.arrowOff]} />
     </View>
   );
 }
@@ -287,7 +306,6 @@ export default memo(ShopChestsRoyal);
 const styles = StyleSheet.create({
   fill: { width: '100%', height: '100%' },
   note: { fontFamily: FONT.body, includeFontPadding: false },
-  center: { textAlign: 'center' },
   row4: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   i16: { width: 16, height: 16 },
@@ -327,7 +345,4 @@ const styles = StyleSheet.create({
   arrowL: { left: 16 },
   arrowR: { right: 16 },
   arrowOff: { opacity: 0.35 },
-  dots: { position: 'absolute', left: 0, right: 0, bottom: 3, flexDirection: 'row', justifyContent: 'center', gap: 5 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(107,68,38,0.45)' },
-  dotOn: { width: 16, backgroundColor: '#fff6e2' },
 });

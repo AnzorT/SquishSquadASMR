@@ -1,8 +1,6 @@
 // The lobby's state on the profile (the design's squad-lobby.js, kept in
-// localStorage there): which squishy is selected (shown in the lobby, ringed
-// in the Squad grid), and which owned ones the player hasn't looked at yet
-// (NEW, counted on the Squad tile). Written by src/firebase/firestore.js
-// (setLobbySelected, markSquadSeen).
+// localStorage there): which squishy is selected (the one Squish Time and the
+// games start with). Written by src/firebase/firestore.js (setLobbySelected).
 import { owns } from './data';
 
 export const ownedIdList = (profile) => [...new Set([...Object.keys(profile?.col || {}), ...(profile?.ownedIds || [])])];
@@ -14,17 +12,4 @@ export function selectedId(profile) {
   if (sel != null && owns(profile || {}, String(sel))) return String(sel);
   const own = ownedIdList(profile);
   return own.includes('1') ? '1' : own[0] ?? '0';
-}
-
-// Before the first visit there's no `lobby` yet: App seeds `seen` with
-// everything owned then, so only what comes after wears NEW.
-export const lobbySeeded = (profile) => !!profile?.lobby?.seen;
-const seenSet = (profile) => new Set(profile?.lobby?.seen || []);
-
-export const isNewId = (profile, id) => lobbySeeded(profile) && owns(profile, String(id)) && !seenSet(profile).has(String(id));
-
-export function newIds(profile) {
-  if (!lobbySeeded(profile)) return [];
-  const seen = seenSet(profile);
-  return ownedIdList(profile).filter((id) => !seen.has(id));
 }

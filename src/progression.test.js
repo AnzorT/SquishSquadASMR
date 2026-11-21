@@ -111,20 +111,18 @@ assert.deepEqual(streakTrack({}, morning).map((d) => d.done), Array(10).fill(fal
 // the coin bonus stops growing after ten days
 assert.equal(streakMultiplier({ streak: 14, lastFull: DAY }, morning), 1.5);
 
-// the gates: the Crib from level 2, Daily Challenges from level 3 once the
-// tutorial has shown them
+// the gates: the Crib from level 2, Daily Challenges from level 3 (the level alone: an old profile's `tut`, the
+// retired guided tutorial's step, doesn't hold them back)
 assert.equal(cribUnlocked({ level: 1 }), false);
 assert.equal(cribUnlocked({ level: 2 }), true);
-assert.equal(dailyUnlocked({ level: 3, tut: 'done' }), true);
 assert.equal(dailyUnlocked({ level: 3 }), true);
-assert.equal(dailyUnlocked({ level: 3, tut: 'box1' }), false, 'a replay hides them again');
-assert.equal(dailyUnlocked({ level: 3, tut: 'c_daily' }), true);
-assert.equal(dailyUnlocked({ level: 2, tut: 'done' }), false);
+assert.equal(dailyUnlocked({ level: 2 }), false);
+assert.equal(dailyUnlocked({ level: 3, tut: 'box1' }), true, 'an old tutorial step changes nothing');
 // …by the XP once a profile has it (200 reaches level 2, 500 level 3)
 assert.equal(cribUnlocked({ pxp: 199, level: 5 }), false, 'pxp wins over the old level');
 assert.equal(cribUnlocked({ pxp: 200 }), true);
-assert.equal(dailyUnlocked({ pxp: 499, tut: 'done' }), false);
-assert.equal(dailyUnlocked({ pxp: 500, tut: 'done' }), true);
+assert.equal(dailyUnlocked({ pxp: 499 }), false);
+assert.equal(dailyUnlocked({ pxp: 500 }), true);
 
 // a claim pays its XP with its coins
 {

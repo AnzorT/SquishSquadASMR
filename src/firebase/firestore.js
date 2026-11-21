@@ -1,7 +1,7 @@
 import firestore from '@react-native-firebase/firestore';
-import { STARTER_CREATURE_IDS } from '../data/creatures';
+import { NEW_PLAYER_CREATURE_IDS, STARTER_CREATURE_IDS } from '../data/creatures';
 import { bumpDaily as bumpDailyRules, claimDaily as claimDailyRules, claimChest as claimChestRules } from '../progression';
-import { addXp, migrateXp, pxpOf, xpToReach } from '../playerXp';
+import { addXp, migrateXp, pxpOf } from '../playerXp';
 
 // Coins and unlocks are client-authoritative (writes go straight from the
 // device to Firestore, guarded only by firestore.rules) — fine for a
@@ -31,15 +31,13 @@ export async function createUserProfile(uid, { email, age, nickname }) {
     // itself. More come from a real-money purchase, reconciled by hand for
     // now by setting this directly in the Firebase console.
     generationCredits: 1,
-    ownedIds: STARTER_CREATURE_IDS,
+    ownedIds: NEW_PLAYER_CREATURE_IDS,
     stats: { presses: 0, longestHoldMs: 0, playTime: {} },
     // The two achievements with no natural profile-derived signal (the rest
     // — creature unlocks, earn10k/100k, unlockAll — are computed straight
     // from ownedIds/totalEarned, see src/achievements.js).
     achievements: { speedTap: false, watchAd: false },
-    // Progression (src/progression.js): the guided tutorial starts at its
-    // first step, level 1.
-    tut: 'start',
+    // Progression (src/progression.js): level 1, no XP yet.
     level: 1,
     pxp: 0,
     createdAt: firestore.FieldValue.serverTimestamp(),
@@ -49,17 +47,6 @@ export async function createUserProfile(uid, { email, age, nickname }) {
 // --- progression (src/progression.js) ---------------------------------------
 //
 // Client-written like coins (see the note at the top).
-
-export function setTutorialStep(uid, step) {
-  userDocRef(uid).update({ tut: step }).catch(logFail('setTutorialStep'));
-}
-
-// The tutorial's levels (2 and 3): the XP that reaches `level`, if the
-// player doesn't have it yet.
-export function setLevel(uid, level, profile) {
-  const pxp = Math.max(pxpOf(profile), xpToReach(level));
-  userDocRef(uid).update({ pxp, level: Math.max(level, Math.floor(profile?.level ?? 1)) }).catch(logFail('setLevel'));
-}
 
 // --- the player's XP (src/playerXp.js, PLAYER_XP.md) -----------------------
 //
@@ -89,7 +76,7 @@ export function markLevelSeen(uid, level) {
 // --- the lobby (src/squad/lobby.js) ------------------------------------------
 //
 // `lobby.sel`: the squishy shown in the lobby; `lobby.seen`: the owned ones
-// already looked at (the rest wear NEW). Client-written, like `tut`.
+// already looked at (the rest wear NEW). Client-written.
 
 export function setLobbySelected(uid, id) {
   userDocRef(uid)
@@ -103,13 +90,6 @@ export function setOfferSeen(uid, id, at) {
   userDocRef(uid)
     .update({ [`offerSeen.${id}`]: at })
     .catch(logFail('setOfferSeen'));
-}
-
-export function markSquadSeen(uid, ids) {
-  if (!ids.length) return;
-  userDocRef(uid)
-    .update({ 'lobby.seen': firestore.FieldValue.arrayUnion(...ids.map(String)) })
-    .catch(logFail('markSquadSeen'));
 }
 
 // The day the streak screen last opened by itself (after the Daily Spin),
@@ -166,73 +146,6 @@ export function claimDailyChest(uid, profile) {
   update.totalEarned = inc(coins);
   userDocRef(uid).update(update).catch(logFail('claimDailyChest'));
   return { coins, xp: r.xp, reward };
-}
-
-// --- the Squad Crib (src/crib/): the squad's rooms, stats and furniture, one
-// document per player (users/{uid}/crib/state), written by the Crib screen
-// alone — it loads it once, simulates, and saves (see CribScreen.js).
-
-const cribDocRef = (uid) => userDocRef(uid).collection('crib').doc('state');
-
-// The Crib's state is kept in memory once read (and on every save), so
-// opening the Crib again doesn't wait on a Firestore round trip: it used to
-// read the doc on every visit, showing an empty portrait Crib meanwhile,
-// then rebuild once the doc (and its saved orientation) arrived. This
-// device is the only writer of the doc, so the copy stays current.
-// `preloadCrib` reads it in the background after sign-in.
-const cribCache = new Map(); // uid → the last state read or saved
-const cribLoads = new Map(); // uid → the read in flight
-
-export async function loadCrib(uid) {
-  if (cribCache.has(uid)) return cribCache.get(uid);
-  if (!cribLoads.has(uid)) {
-    cribLoads.set(
-      uid,
-      cribDocRef(uid)
-        .get()
-        .then((snap) => {
-          const doc = snap.exists ? snap.data() : null;
-          if (!cribCache.has(uid)) cribCache.set(uid, doc);
-          return cribCache.get(uid);
-        })
-        .catch((e) => {
-          console.warn('loadCrib failed:', e);
-          return null;
-        })
-        .finally(() => cribLoads.delete(uid)),
-    );
-  }
-  return cribLoads.get(uid);
-}
-
-// The Crib's state if it's already in memory (`undefined` if not read yet,
-// `null` for a player with no Crib saved yet).
-export const peekCrib = (uid) => cribCache.get(uid);
-export const preloadCrib = (uid) => {
-  if (uid) loadCrib(uid);
-};
-
-export function saveCrib(uid, state) {
-  cribCache.set(uid, state);
-  cribDocRef(uid).set(state).catch(logFail('saveCrib'));
-}
-
-// Something bought in the Crib's shop (its coins go through cribCoins), and
-// how many friends live in the Crib — both for the achievements.
-export function noteCribBuy(uid) {
-  userDocRef(uid).update({ cribBuys: inc(1) }).catch(logFail('noteCribBuy'));
-}
-export function setCribSize(uid, n) {
-  userDocRef(uid).update({ cribSize: n }).catch(logFail('setCribSize'));
-}
-
-// Coins the squad made (or cost) in the Crib; only earnings count towards
-// the lifetime total. The caller keeps `coins` from going under zero.
-export function cribCoins(uid, n) {
-  if (!n) return;
-  const update = { coins: inc(n) };
-  if (n > 0) update.totalEarned = inc(n);
-  userDocRef(uid).update(update).catch(logFail('cribCoins'));
 }
 
 // A mini-game's record and what a level or run paid: coins, and XP for the
@@ -353,7 +266,7 @@ export async function recordAdWatched(uid, multiplier, currentMaxMult = 0, watch
   if (Object.keys(update).length) await userDocRef(uid).update(update);
 }
 
-// --- player-made creatures (the "Create your own squishy" flow) ---------
+// --- player-made creatures (the retired "Create your own squishy" flow; read for the achievements and stats) ---
 //
 // Stored under users/{uid}/customCreatures. Two kinds:
 //  · photo path  — { sourceImageUrl, status: 'pending' }. The
@@ -379,45 +292,6 @@ export function subscribeToCustomCreatures(uid, onChange) {
         onChange([]);
       }
     );
-}
-
-// Create the doc. Pass a pre-generated `id` when the caller has already
-// uploaded customUploads/{uid}/{id}.jpg (so paths line up). Returns the id.
-export async function addCustomCreature(uid, { id, name, sourceImageUrl, sourceImagePath, build, audio }) {
-  const doc = {
-    name: name?.trim() || 'My Squishy',
-    audio: audio || null,
-    build: build || null,
-    sourceImageUrl: sourceImageUrl || null,
-    sourceImagePath: sourceImagePath || null,
-    // photo → Tripo has to run; assemble → nothing to generate.
-    status: sourceImageUrl ? 'pending' : 'ready',
-    progress: 0,
-    created: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-    createdAt: firestore.FieldValue.serverTimestamp(),
-  };
-  if (id) {
-    await customCreaturesRef(uid).doc(id).set(doc);
-    return id;
-  }
-  const ref = await customCreaturesRef(uid).add(doc);
-  return ref.id;
-}
-
-// Re-arm a failed generation (the Cloud Function re-triggers on the write).
-export async function retryCustomCreature(uid, creatureId) {
-  await customCreaturesRef(uid).doc(creatureId).set(
-    { status: 'pending', progress: 0, error: firestore.FieldValue.delete() },
-    { merge: true }
-  );
-}
-
-export async function deleteCustomCreature(uid, creatureId) {
-  await customCreaturesRef(uid).doc(creatureId).delete();
-}
-
-export function newCustomCreatureId(uid) {
-  return customCreaturesRef(uid).doc().id;
 }
 
 export function subscribeToCreatures(onChange) {

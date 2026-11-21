@@ -8,6 +8,7 @@ import { WebView } from 'react-native-webview';
 import { StatusBar } from 'expo-status-bar';
 import { gameCoins, loadHouse, saveHouse, subscribeToGameConfig } from './gameData';
 import { pageFps, useFpsActive } from '../components/fpsMeter';
+import { WEBVIEW_DEBUG } from '../webDebug';
 
 // node webgame/build.mjs puts the game in android/app/src/main/assets/webgame
 // (web: the same pages, served at /android_asset/ by metro.config.js; src/web/WebView.js)
@@ -27,7 +28,10 @@ const toJs = (v) => JSON.stringify(v).split(LS).join('\\u2028').split(PS).join('
 // intro: play the game intro when the menu first shows (webgame/app/intro.js; App.js asks once a launch);
 // onIntro('start' | 'awake' | 'done'): the page started it, Mittens was squished the third time (App.js starts the
 // music), or it's over (finished, skipped, or it couldn't play).
-export default function GameScreen({ uid, player, startScreen = 'menu', onStarted, wantHouse, onHouseShown, onShop, onSettings, onAchievements, onPlay, onSelect, onClaim, onAsk, page, intro = false, onIntro }) {
+// asleep (PERF 2026-11-20): another screen covers the menu, which App.js keeps alive under it (it used to be rebuilt
+// on every return): the page stops drawing and computing ('sleep', webgame/app/bridge.js) until it's woken, and
+// Android back is left to the screen on top.
+export default function GameScreen({ uid, player, startScreen = 'menu', onStarted, wantHouse, onHouseShown, onShop, onSettings, onAchievements, onPlay, onSelect, onClaim, onAsk, page, intro = false, onIntro, asleep = false }) {
   const web = useRef(null);
   const ready = useRef(false);
   const queue = useRef([]);
@@ -104,9 +108,23 @@ export default function GameScreen({ uid, player, startScreen = 'menu', onStarte
   useEffect(() => meter(fpsOn), [fpsOn, meter]);
   useEffect(() => () => pageFps('menu', null), []);
 
-  // Android back: the game closes what's on top (house, a game, the games page); nothing open -> leave the app
+  // asleep while another screen covers the menu; woken as that screen starts to leave (a message the page queues if
+  // it isn't ready yet; an older page without the message simply ignores it)
+  const asleepRef = useRef(asleep);
+  asleepRef.current = asleep;
+  const sentSleep = useRef(false);
+  useEffect(() => {
+    if (!start) return;
+    if (asleep === sentSleep.current) return;
+    sentSleep.current = asleep;
+    send({ type: 'sleep', on: asleep });
+  }, [asleep, start, send]);
+
+  // Android back: the game closes what's on top (house, a game, the games page); nothing open -> leave the app.
+  // While another screen covers the menu, back is that screen's (App.js).
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (asleepRef.current) return false;
       if (web.current && ready.current) web.current.injectJavaScript('window.SquishApp && window.SquishApp.back(); true;');
       return true;
     });
@@ -179,10 +197,11 @@ export default function GameScreen({ uid, player, startScreen = 'menu', onStarte
     [uid, send, meter, onShop, onSettings, onAchievements, onPlay, onSelect, onClaim, onAsk, onIntro]
   );
 
-  // the page's process died (low memory): start it again
+  // the page's process died (low memory): start it again (asleep again if it still is: the queue's first message)
   const restart = useCallback(() => {
     ready.current = false;
-    queue.current = [];
+    queue.current = asleepRef.current ? [{ type: 'sleep', on: true }] : [];
+    sentSleep.current = asleepRef.current;
     setCrashes((n) => n + 1);
   }, []);
 
@@ -226,7 +245,7 @@ export default function GameScreen({ uid, player, startScreen = 'menu', onStarte
           // (no androidLayerType: a hardware layer made the WebView draw into an off-screen buffer and copy it every frame;
           //  its content animates every frame, so that was a whole extra screen of work per frame. Performance, 2026-11-14)
           setSupportMultipleWindows={false}
-          webviewDebuggingEnabled={__DEV__}
+          webviewDebuggingEnabled={WEBVIEW_DEBUG}
           onRenderProcessGone={restart}
           onContentProcessDidTerminate={restart}
         />

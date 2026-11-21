@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGameDims } from '../royal/GameFrame';
 import { Animated, AppState, BackHandler, Easing, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useRewardedAd from '../components/useRewardedAd';
 import sfx from '../audio/sfx';
 import RoomBoard, { SDK_TILT } from './RoomBoard';
@@ -35,8 +34,7 @@ const GIVEN_MS = 350;
 const HURRY_MS = 5000;
 
 export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, buddyKey, buddyUri, haptics: hapticsOn = true, onExit }) {
-  const { width, height } = useGameDims(); // (the game panel in landscape: REDESIGN_V7)
-  const insets = useSafeAreaInsets();
+  const { width, height } = useGameDims();
   const castRef = useRef(cast);
   castRef.current = cast;
   const haptics = useRef(makeHaptics(hapticsOn)).current;
@@ -387,7 +385,7 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, bu
     settle();
     setRun((r) => r + 1);
   };
-  const barW = width > height ? 196 : Math.min(width - 48, 400);
+  const barW = 196;
   // the room fills the screen; the board lies on its floor
   const [root, setRoot] = useState(null);
   const [area, setArea] = useState(null);
@@ -403,13 +401,12 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, bu
   const floorY = root ? roomGeometry(ROOM, root.w, root.h).floorY : 0;
   const B = useMemo(() => (area && root ? layout(n, n, area.w, area.h, floorY - area.y, SDK_TILT, 80) : null), [area, root, n, floorY]);
 
-  // REDESIGN_V8: in landscape the top bar and the run's glass on the left, the board in the middle, the buddy right
-  const wide = width > height;
+  // REDESIGN_V8: the top bar and the run's glass on the left, the board in the middle, the buddy right
   const beat = cleared > top && top > 0;
   const headerEl = (
     <>
       {/* the Crib's top bar: pause (back once it's over), BLITZ MODE and the board */}
-      <View style={[styles.header, wide ? styles.wHeader : { paddingTop: insets.top + 6 }]}>
+      <View style={styles.header}>
         <CribButton face="orange" icon={phase === 'play' ? 'pause' : 'back'} size={44} onPress={phase === 'play' ? pause : exit} />
         <View style={styles.titleBox}>
           <RoomTitle title="Blitz Mode" />
@@ -421,7 +418,7 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, bu
   const glassEl = (
     <>
       {/* the boards cleared, the record, the rule and the board's clock, on the Crib's brown glass */}
-      <View style={[styles.glass, wide && styles.wGlass]}>
+      <View style={styles.glass}>
         <View style={styles.scoreRow}>
           <View style={styles.score}>
             <Text style={styles.scoreNum}>{cleared}</Text>
@@ -467,8 +464,8 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, bu
   );
   const bottomEl = (
     <>
-      {/* the player's Lobby creature cheering them on */}
-      <View style={[styles.bottom, wide ? styles.wBottom : { marginBottom: Math.max(insets.bottom, 6) + 4 }]}>
+      {/* the player's selected creature cheering them on */}
+      <View style={styles.bottom}>
         <Buddy ref={buddy} creatureKey={buddyKey} uri={buddyUri} paused={phase === 'paused' || phase === 'over' || phase === 'save'} size={80} />
         <Text style={styles.hint}>{'Tap to place · no ✕ in Blitz\none mistake ends the run!'}</Text>
       </View>
@@ -477,23 +474,14 @@ export default function BlitzGame({ profile, uid, roster, cast = [], adsFree, bu
   return (
     <View style={styles.fill} onLayout={onRoot}>
       {root ? <Room room={ROOM} phase="day" width={root.w} height={root.h} /> : null}
-      {wide ? (
-        <View style={styles.wRow}>
-          <View style={styles.wLeft}>
-            {headerEl}
-            {glassEl}
-          </View>
-          {boardEl}
-          <View style={styles.wRight}>{bottomEl}</View>
-        </View>
-      ) : (
-        <>
+      <View style={styles.wRow}>
+        <View style={styles.wLeft}>
           {headerEl}
           {glassEl}
-          {boardEl}
-          {bottomEl}
-        </>
-      )}
+        </View>
+        {boardEl}
+        <View style={styles.wRight}>{bottomEl}</View>
+      </View>
 
       <PauseCard visible={phase === 'paused'} onResume={resume} onQuit={exit} />
       <BlitzSaveCard
@@ -549,10 +537,10 @@ export function Countdown({ value }) {
 const GLASS = 'rgba(91,58,41,0.75)'; // the Crib's pills
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', gap: 8, paddingHorizontal: 12, zIndex: 3 },
+  header: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', gap: 8, paddingHorizontal: 0, zIndex: 3 },
   titleBox: { flex: 1, minWidth: 0 },
   boardNo: { fontFamily: F.heavy, fontSize: 11, color: '#ffffff', letterSpacing: 0.8, marginTop: -2, textShadowColor: '#5b3a29', textShadowRadius: 1.5, textShadowOffset: { width: 0, height: 1 } },
-  glass: { alignSelf: 'center', alignItems: 'center', marginTop: 6, paddingHorizontal: 12, paddingTop: 6, paddingBottom: 6, borderRadius: 20, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
+  glass: { alignSelf: 'stretch', alignItems: 'center', marginTop: 2, paddingHorizontal: 12, paddingTop: 6, paddingBottom: 6, borderRadius: 20, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
   rules: { flexDirection: 'row', gap: 6, marginTop: 6 },
   scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   score: { alignItems: 'center', minWidth: 64 },
@@ -562,14 +550,11 @@ const styles = StyleSheet.create({
   scoreSep: { width: 2, alignSelf: 'stretch', marginVertical: 6, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.35)' },
   barRow: { marginTop: 8 },
   boardArea: { flex: 1, alignSelf: 'stretch', zIndex: 2 },
-  // landscape (REDESIGN_V8)
+  // REDESIGN_V8: the left column, the board, the right column
   wRow: { flex: 1, flexDirection: 'row' },
   wLeft: { width: 236, paddingTop: 8, paddingLeft: 10, gap: 6, zIndex: 3 },
   wRight: { width: 206, justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 10, zIndex: 3 },
-  wHeader: { paddingHorizontal: 0 },
-  wGlass: { alignSelf: 'stretch', marginTop: 2 },
-  wBottom: { flexDirection: 'column', alignSelf: 'auto' },
-  bottom: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 4, borderRadius: 22, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
+  bottom: { flexDirection: 'column', alignItems: 'center', alignSelf: 'auto', justifyContent: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 4, borderRadius: 22, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
   hint: { fontFamily: F.heavy, fontSize: 11.5, color: '#ffffff', lineHeight: 16 },
   // the cards sit at elevation 50 (Overlays.js)
   fxTop: { zIndex: 60, elevation: 60 },

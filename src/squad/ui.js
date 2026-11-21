@@ -7,7 +7,6 @@ import { candyFonts } from '../theme/candyTheme';
 import ShadowText, { outline3 } from '../components/candy/ShadowText';
 import CHEST_ART, { CHEST_BOX } from './chestArt';
 import { COIN_SVG, GEM_SVG } from './icons';
-import { fmtNum } from '../format';
 import { usePingPong } from '../components/idleLoop';
 
 // Small pieces shared by the squad screens (Shop, chest opener, Squishies),
@@ -34,7 +33,6 @@ export const GREEN_RING = '#0d7a4a';
 
 export const CoinIcon = memo(({ size = 19 }) => <SvgXml xml={COIN_SVG} width={size} height={size} />);
 export const GemIcon = memo(({ size = 17 }) => <SvgXml xml={GEM_SVG} width={size} height={size} />);
-export const CurrencyIcon = ({ cur, size }) => (cur === 'gems' ? <GemIcon size={size} /> : <CoinIcon size={size} />);
 
 // The design's chest (tools/shop-art/render.mjs) at `size` px for its 240px
 // box; the image carries extra room round it for the rays and glow.
@@ -93,26 +91,6 @@ export const BtnText = ({ children, ring = GOLD_RING, size = 16 }) => (
   <ShadowText style={{ fontFamily: F.display, fontSize: size, color: '#ffffff' }} shadows={outline3(ring, 2)}>
     {children}
   </ShadowText>
-);
-
-// A gold price button: an icon (coins or gems) and the amount.
-export function PriceBtn({ cur, amount, was, onPress, disabled, size = 16, padH = 14 }) {
-  return (
-    <CandyBtn kind={disabled ? 'grey' : 'gold'} onPress={onPress} disabled={disabled} padH={padH} style={{ marginTop: 4 }}>
-      {was != null && <Text style={{ fontFamily: F.heavy, fontSize: 10, color: GOLD_RING, textDecorationLine: 'line-through' }}>{was}</Text>}
-      <CurrencyIcon cur={cur} size={size - 1} />
-      <BtnText ring={disabled ? '#7a6a8c' : GOLD_RING} size={size}>
-        {fmtNum(amount)}
-      </BtnText>
-    </CandyBtn>
-  );
-}
-
-// A small rounded label (DAILY DEAL, FREE, OPENS WITH TAP …).
-export const Chip = ({ children, bg, color = '#ffffff', border = true, size = 9.5, style }) => (
-  <View style={[{ alignSelf: 'flex-start', backgroundColor: bg, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1 }, border && { borderWidth: 2, borderColor: '#ffffff' }, style]}>
-    <Text style={{ fontFamily: F.black, fontSize: size, letterSpacing: 1, color }}>{children}</Text>
-  </View>
 );
 
 // "05:12:30"

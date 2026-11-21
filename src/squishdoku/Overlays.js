@@ -11,7 +11,6 @@ import { CountUp, FxLayer, PopIn, Rock, SlideIn } from './fx';
 import { BtnLabel, Head, SdButton } from './ui';
 import { clock } from './levels';
 import { F, INK } from './theme';
-import { useWide } from '../royal/GameFrame';
 import Trio, { RIGS_OK } from './Trio';
 
 // The cards over the board: the result (score creatures popping in one by
@@ -20,22 +19,21 @@ import Trio, { RIGS_OK } from './Trio';
 // back-to-level-1 / win cards. The XP pieces are Squish Sort's and Squish
 // Stack's too.
 
-// In landscape (REDESIGN_V8, every popup made for the sideways screen) a card is two columns side by side: what comes
-// before <Split /> on the left (the title and the picture), the rest on the right (the numbers and the buttons). A card
-// without one stays a single column. Upright, Split is nothing.
-// `column` keeps the card one column in landscape too, everything stacked: the title and picture on top, the text,
-// numbers and buttons under them (the user, 2026-11-16, for the STUCK card and every mini-game's result card). It is
-// set tighter to fit the sideways screen's height. (And every pause card: PAUSED above its buttons.)
+// A card is two columns side by side (REDESIGN_V8, every popup made for the sideways screen): what comes before
+// <Split /> on the left (the title and the picture), the rest on the right (the numbers and the buttons). A card
+// without one stays a single column.
+// `column` keeps the card one column, everything stacked: the title and picture on top, the text, numbers and buttons
+// under them (the user, 2026-11-16, for the STUCK card and every mini-game's result card). It is set tighter to fit
+// the sideways screen's height. (And every pause card: PAUSED above its buttons.)
 export const Split = () => null;
 
-// true inside a `column` card in landscape: its stars, score creatures and XP bar are drawn smaller to fit the height
+// true inside a `column` card: its stars, score creatures and XP bar are drawn smaller to fit the height
 const Compact = createContext(false);
 export const useCompact = () => useContext(Compact);
 
 // The dim scrim and a card springing up into the middle.
 // broad: as wide as a two-column card, in one column (Blitz's save card: its buttons in a row)
 export function Overlay({ visible, children, tint = 'rgba(50,24,6,0.55)', broad = false, column = false }) {
-  const wide = useWide();
   const t = useRef(new Animated.Value(0)).current;
   const [shown, setShown] = useState(visible);
   useEffect(() => {
@@ -50,7 +48,7 @@ export function Overlay({ visible, children, tint = 'rgba(50,24,6,0.55)', broad 
   }, [visible]);
   if (!shown) return null;
   let body = children;
-  const list = wide && !column ? React.Children.toArray(children) : null;
+  const list = column ? null : React.Children.toArray(children);
   const at = list ? list.findIndex((c) => c && c.type === Split) : -1;
   if (at >= 0) {
     body = (
@@ -62,13 +60,13 @@ export function Overlay({ visible, children, tint = 'rgba(50,24,6,0.55)', broad 
   }
   const two = at >= 0;
   return (
-    <View style={[styles.overlay, wide && styles.overlayWide]} pointerEvents={visible ? 'auto' : 'none'}>
+    <View style={styles.overlay} pointerEvents={visible ? 'auto' : 'none'}>
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: tint, opacity: t.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolate: 'clamp' }) }]} />
       <Animated.View
         style={[
           styles.card,
-          (two || (wide && broad)) && styles.cardWide,
-          wide && column && styles.cardColumn,
+          (two || broad) && styles.cardWide,
+          column && styles.cardColumn,
           {
             opacity: t.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 1, 1], extrapolate: 'clamp' }),
             transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [120, 0] }) }, { scale: t.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) }],
@@ -76,8 +74,8 @@ export function Overlay({ visible, children, tint = 'rgba(50,24,6,0.55)', broad 
         ]}
       >
         <View style={styles.cardRim}>
-          <LinearGradient colors={['#fffaf0', '#fff1dc', '#f6e2c4']} locations={[0, 0.55, 1]} style={[styles.cardFill, wide && styles.cardFillShort, two && styles.cardFillWide, wide && column && styles.cardFillColumn]}>
-            <Compact.Provider value={wide && column}>{body}</Compact.Provider>
+          <LinearGradient colors={['#fffaf0', '#fff1dc', '#f6e2c4']} locations={[0, 0.55, 1]} style={[styles.cardFill, two && styles.cardFillWide, column && styles.cardFillColumn]}>
+            <Compact.Provider value={column}>{body}</Compact.Provider>
           </LinearGradient>
         </View>
       </Animated.View>
@@ -240,7 +238,7 @@ const STAR_D = 'M12 2.2 L14.9 8.6 L21.8 9.3 L16.6 14 L18.1 20.9 L12 17.4 L5.9 20
 export function Star({ earned, delay, big }) {
   const t = useRef(new Animated.Value(0)).current;
   const fx = useRef(null);
-  const compact = useCompact(); // (a one-column card in landscape: smaller, to fit the height)
+  const compact = useCompact(); // (a one-column card: smaller, to fit the height)
   const size = Math.round((big ? 74 : 60) * (compact ? 0.72 : 1));
   useEffect(() => {
     const timer = setTimeout(() => earned && fx.current?.burst('gold', size / 2 + 10, size / 2 + 10, 1), delay + 60);
@@ -288,7 +286,6 @@ export function ResultCard({ visible, res, titles, perfectTitle, uris, keys, coi
   const [run, setRun] = useState(0);
   const [live, setLive] = useState(false);
   const [rigFail, setRigFail] = useState(false);
-  const wide = useWide();
   const faces = !!uris;
   const want = RIGS_OK && Array.isArray(keys) && keys.length === 3 && keys.every(Boolean);
   const rigs = want && !rigFail;
@@ -330,12 +327,12 @@ export function ResultCard({ visible, res, titles, perfectTitle, uris, keys, coi
         <OutlinedTitle text={title} size={title.length > 13 ? 27 : 30} fill={top ? 'gold' : 'pink'} />
       </PopIn>
       {rigs ? (
-        <View style={[styles.trio, wide && styles.trioCompact, stamp && styles.trioRoom]}>
-          <Trio key={`t${key}`} keys={keys} stars={res.stars} T0={T0} STEP={STEP} compact={wide} onGo={go} />
+        <View style={[styles.trio, stamp && styles.trioRoom]}>
+          <Trio key={`t${key}`} keys={keys} stars={res.stars} T0={T0} STEP={STEP} onGo={go} />
           {stamp && live ? <Stamp key={`s${run}`} delay={T0 + 3 * STEP - 120} style={styles.trioStamp} /> : null}
         </View>
       ) : faces ? (
-        <View key={key} style={[styles.slots, wide && styles.slotsCompact, wide && stamp && styles.slotsStamp]}>
+        <View key={key} style={[styles.slots, stamp && styles.slotsStamp]}>
           {[0, 1, 2].map((i) => (
             <Slot key={i} uri={uris[i]} earned={i < res.stars} delay={T0 + i * STEP} big={i === 1} />
           ))}
@@ -544,7 +541,6 @@ export function BlitzOverCard({ visible, res, unit = 'board', onAgain, onQuit })
 // (Squish Sort's and Squish Stack's too)
 export function BlitzWinCard({ visible, res, uris, unit = 'board', onAgain, onQuit }) {
   const fx = useRef(null);
-  const wide = useWide();
   useEffect(() => {
     if (!visible) return undefined;
     const timers = [0, 450, 900].map((ms, i) => setTimeout(() => fx.current?.burst('confetti', 60 + i * 80, 40, 1), ms));
@@ -557,7 +553,7 @@ export function BlitzWinCard({ visible, res, uris, unit = 'board', onAgain, onQu
         <OutlinedTitle text="BLITZ CHAMPION!" size={26} fill="gold" />
       </PopIn>
       <Text style={styles.sub}>{`10 ${unit.toUpperCase()}S · ${clock(res.ms)}${res.newBest ? ' · NEW BEST!' : ''}`}</Text>
-      <View style={[styles.slots, wide && styles.slotsCompact]}>
+      <View style={styles.slots}>
         {[0, 1, 2].map((i) => (
           <Slot key={i} uri={uris[i]} earned delay={300 + i * 300} big={i === 1} />
         ))}
@@ -584,21 +580,19 @@ export function BlitzWinCard({ visible, res, uris, unit = 'board', onAgain, onQu
 
 
 const styles = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', padding: 18, zIndex: 50, elevation: 50 },
-  overlayWide: { padding: 10 },
+  overlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', padding: 10, zIndex: 50, elevation: 50 },
   card: { width: '100%', maxWidth: 380, borderRadius: 30, backgroundColor: '#6b4426', padding: 3, paddingBottom: 8 },
-  // landscape: two columns
+  // two columns
   cardWide: { maxWidth: 660 },
-  cardFillShort: { paddingTop: 12, paddingBottom: 12, gap: 6 },
   cardFillWide: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 22 },
-  // landscape, one column (`column`)
+  // one column (`column`)
   cardColumn: { maxWidth: 440 },
   cardFillColumn: { paddingTop: 8, paddingBottom: 8, gap: 3 },
   wSide: { flex: 1, alignItems: 'center', gap: 6 },
   cardRim: { borderRadius: 27, backgroundColor: '#ffffff', padding: 3 },
-  cardFill: { borderRadius: 24, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 16, alignItems: 'center', gap: 8 },
+  cardFill: { borderRadius: 24, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, alignItems: 'center', gap: 6 },
   sub: { fontFamily: F.display, fontSize: 12.5, letterSpacing: 0.6, color: '#9a6a3a', textAlign: 'center' },
-  slots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 6, marginBottom: 22 },
+  slots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 0, marginBottom: 2 },
   // across the creatures' feet, so they stay in view
   stamp: { position: 'absolute', bottom: -18, alignItems: 'center', borderWidth: 3.5, borderColor: '#e01e4a', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 1, backgroundColor: 'rgba(255,255,255,0.92)' },
   stampText: { fontFamily: F.display, fontSize: 22, color: '#e01e4a', letterSpacing: 2, includeFontPadding: false },
@@ -620,10 +614,8 @@ const styles = StyleSheet.create({
   levelUpCompact: { alignItems: 'center', backgroundColor: '#b8641c', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 2, borderWidth: 2.5, borderColor: '#ffffff' },
   levelUpTextCompact: { fontFamily: F.display, fontSize: 13, color: '#ffffff', includeFontPadding: false },
   levelUpSubCompact: { fontFamily: F.heavy, fontSize: 9, color: '#ffe9cc', marginTop: -1 },
-  slotsCompact: { marginTop: 0, marginBottom: 2 },
   // the result's three characters (Trio.js: the page reaches up over the title for their jumps)
-  trio: { alignItems: 'center', justifyContent: 'center', marginTop: 6, marginBottom: 8 },
-  trioCompact: { marginTop: 2, marginBottom: 4 },
+  trio: { alignItems: 'center', justifyContent: 'center', marginTop: 2, marginBottom: 4 },
   // the PERFECT stamp lower than on the stills, across the characters' feet, and the room for it under them
   trioStamp: { bottom: -28 },
   trioRoom: { marginBottom: 30 },
@@ -637,7 +629,7 @@ const styles = StyleSheet.create({
   bigFace: { paddingHorizontal: 22, paddingVertical: 12 },
   // a fail card's two buttons (MENU / MAP / UNDO and RETRY): the same size, RETRY in the app's gold (the user, 2026-11-16)
   pairFace: { width: 150, paddingVertical: 11, paddingHorizontal: 8 },
-  // the result card's three buttons, all one size (fits the upright card's 380 dp too)
+  // the result card's three buttons, all one size
   trioFace: { width: 100, height: 48, paddingVertical: 0, paddingHorizontal: 4 },
   wideFace: { paddingVertical: 12 },
   body: { fontFamily: F.heavy, fontSize: 14, color: INK, textAlign: 'center', paddingHorizontal: 6 },

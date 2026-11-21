@@ -1,9 +1,8 @@
-import { useWide } from '../royal/GameFrame';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, AppState, BackHandler, Easing, Image, PanResponder, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import useRewardedAd from '../components/useRewardedAd';
+import { stepKeys, useKeyLoop } from '../components/idleLoop';
 import sfx from '../audio/sfx';
 import { FxLayer } from '../squishdoku/fx';
 import { makeHaptics, useClock } from '../squishdoku/game';
@@ -16,8 +15,7 @@ import * as squad from '../squad/api';
 import { BtnLabel, Chip, Head, SdButton } from '../squishdoku/ui';
 import { F } from '../squishdoku/theme';
 import { Banner } from '../sort/Game';
-import { CribButton, PhasePill, RoomFlash, RoomTitle } from '../crib/Hud';
-import { PH } from '../crib/data';
+import { CribButton, RoomFlash, RoomTitle } from '../crib/Hud';
 import { saveHop } from '../firebase/firestore';
 import { bodyH } from '../stack/Pieces';
 import { DIRS, leftOf, moves as movesOf, newState, search, tryMove } from './engine';
@@ -141,25 +139,14 @@ const DPad = memo(function DPad({ onDir, lit }) {
   );
 });
 
-// a gentle throb while `on` (RESTART, once the board can't be cleared from here)
+// a gentle throb while `on` (RESTART, once the board can't be cleared from here): up 420 ms, down 520 ms, as one
+// native loop (idleLoop.js), back at 1 when off
+const THROB = stepKeys(1, [
+  [1.08, 420, Easing.out(Easing.quad)],
+  [1, 520, Easing.inOut(Easing.quad)],
+]);
 function Pulse({ on, children, style }) {
-  const t = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (!on) {
-      t.stopAnimation();
-      t.setValue(0);
-      return undefined;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(t, { toValue: 1, duration: 420, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(t, { toValue: 0, duration: 520, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [on, t]);
-  const scale = t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] });
+  const scale = useKeyLoop(THROB.ms, { at: THROB.at, values: THROB.values, on: !!on });
   return <Animated.View style={[style, { transform: [{ scale }] }]}>{children}</Animated.View>;
 }
 
@@ -214,8 +201,6 @@ const Rug = memo(function Rug({ B }) {
 });
 
 export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid, adsFree, haptics: hapticsOn = true, onExit }) {
-  const wide = useWide(); // landscape (REDESIGN_V8)
-  const insets = useSafeAreaInsets();
   const haptics = useRef(makeHaptics(hapticsOn)).current;
   const ad = useRewardedAd();
   const profileRef = useRef(profile);
@@ -1295,7 +1280,7 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
   // Blitz: the best run so far, and whether this one has beaten it
   const bestRun = record(profile).blitz.top;
   const beat = blitz && cleared > bestRun && bestRun > 0;
-  const barW = root ? (wide ? 124 : Math.min(root.w - 48, 360)) : 200;
+  const barW = root ? 124 : 200;
   const nextBeat = (view.hops + 1) % 3;
   const slotSize = n > 4 ? 19 : n > 2 ? 21 : n > 1 ? 24 : 27;
   const playing = phase === 'play' && !paused;
@@ -1306,14 +1291,13 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
   const hintDir = glow >= 0 ? DIRS.findIndex(([dx, dy]) => view.cur + dx + dy * board.w === glow) : -1;
   // no full clear left from here: RESTART throbs
   const stranded = !blitz && !view.feasible && phase === 'play';
-  const ph0 = PH[spec.phase] || PH.day;
 
-  // landscape (REDESIGN_V8, the games sideways): the top bar and the goal strip in a column on the left with the arrow
-  // keys at its bottom, the board in the middle on the room's floor, RESTART / HINT at the bottom right (2026-11-17)
+  // (REDESIGN_V8, the games sideways) the top bar and the goal strip in a column on the left with the arrow keys at its
+  // bottom, the board in the middle on the room's floor, RESTART / HINT at the bottom right (2026-11-17)
   const hudEl = (
     <>
-      {/* the Crib's top bar: back, the room's title, the time of day */}
-      <View style={[styles.hud, wide ? styles.wHud : { paddingTop: insets.top + 6 }]}>
+      {/* the Crib's top bar: back and the room's title */}
+      <View style={styles.hud}>
         <CribButton
           face="orange"
           icon={blitz && phase === 'play' ? 'pause' : 'back'}
@@ -1331,7 +1315,6 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
             </View>
           )}
         </View>
-        {room.dance || wide ? null : <PhasePill sun={ph0.sun} label={ph0.label} />}
       </View>
     </>
   );
@@ -1384,7 +1367,7 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
       {/* the goal as pictures (the user, 2026-11-17: "make it simple with UI not text"): the cushions still to clear
           with their count (a tick once they're all gone), the friends to pick up, then the ★; under it the stars still
           possible (Blitz: the boards cleared and the best run) */}
-      <View style={[styles.strip, wide && styles.wStrip]}>
+      <View style={styles.strip}>
         <Animated.View style={[styles.goalCard, { transform: [{ translateX: shakeX }] }]}>
           <Text style={styles.goalLabel}>GOAL</Text>
           <View style={styles.goalRow}>
@@ -1432,7 +1415,7 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
   const ctrlEl = blitz ? (
     <>
       {/* Blitz: the rule and the board's clock, on the Crib's glass */}
-      <View style={[styles.glass, wide && styles.wGlass]}>
+      <View style={styles.glass}>
         <Chip bg="#e01e4a" color="#ffffff">
           1 MISTAKE = GAME OVER
         </Chip>
@@ -1462,29 +1445,16 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
   return (
     <View style={styles.fill} onLayout={onRoot}>
       {root ? <Room room={spec.room} phase={spec.phase} width={root.w} height={root.h} /> : null}
-      {wide ? (
-        <View style={styles.wRow}>
-          <View style={styles.wLeft}>
-            {hudEl}
-            {stripEl}
-            <View style={styles.fill} />
-            {padEl}
-          </View>
-          {areaEl}
-          <View style={[styles.wRight, !blitz && styles.wRightLow]}>{ctrlEl}</View>
-        </View>
-      ) : (
-        <>
+      <View style={styles.row}>
+        <View style={styles.left}>
           {hudEl}
-          {areaEl}
           {stripEl}
-          {/* upright: the arrow keys bottom left, the buttons (Blitz: the rule and the clock) beside them */}
-          <View style={[styles.pRow, { paddingBottom: Math.max(insets.bottom, 6) + 6 }]}>
-            {padEl}
-            <View style={styles.fill}>{ctrlEl}</View>
-          </View>
-        </>
-      )}
+          <View style={styles.fill} />
+          {padEl}
+        </View>
+        {areaEl}
+        <View style={[styles.right, !blitz && styles.rightLow]}>{ctrlEl}</View>
+      </View>
 
       {blitz ? (
         <>
@@ -1532,21 +1502,19 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
 
 const GLASS = 'rgba(91,58,41,0.75)';
 const styles = StyleSheet.create({
-  // landscape (REDESIGN_V8)
-  wRow: { flex: 1, flexDirection: 'row' },
-  wLeft: { width: 250, paddingTop: 8, paddingLeft: 10, paddingBottom: 8, gap: 8, zIndex: 3 },
-  wRight: { width: 150, justifyContent: 'center', zIndex: 3 },
-  wRightLow: { justifyContent: 'flex-end', paddingBottom: 10 },
-  wHud: { paddingHorizontal: 0 },
-  wStrip: { flexDirection: 'column', alignItems: 'stretch', marginHorizontal: 0 },
+  // the top bar, the goal and the arrow keys on the left, the board, the buttons (Blitz: the rule and the clock) right
+  row: { flex: 1, flexDirection: 'row' },
+  left: { width: 250, paddingTop: 8, paddingLeft: 10, paddingBottom: 8, gap: 8, zIndex: 3 },
+  right: { width: 150, justifyContent: 'center', zIndex: 3 },
+  rightLow: { justifyContent: 'flex-end', paddingBottom: 10 },
   fill: { flex: 1 },
-  hud: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, zIndex: 3 },
+  hud: { flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 3 },
   titleBox: { flex: 1, minWidth: 0 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -2 },
   tier: { paddingHorizontal: 6, borderRadius: 999, borderWidth: 2, borderColor: '#ffffff' },
   tierText: { fontFamily: F.display, fontSize: 9.5, letterSpacing: 0.6, color: '#ffffff' },
   area: { flex: 1, zIndex: 2 },
-  strip: { flexDirection: 'row', alignItems: 'stretch', gap: 8, marginHorizontal: 12, marginTop: 4, padding: 6, borderRadius: 20, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
+  strip: { flexDirection: 'column', alignItems: 'stretch', gap: 8, marginTop: 4, padding: 6, borderRadius: 20, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
   goalCard: { minWidth: 104, flexShrink: 0, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 15, borderWidth: 3, borderColor: '#ffffff', paddingHorizontal: 5, paddingTop: 1, paddingBottom: 4, alignItems: 'center' },
   goalLabel: { fontFamily: F.display, fontSize: 10.5, letterSpacing: 1.2, color: '#6b3fa0', includeFontPadding: false },
   goalRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingTop: 3 },
@@ -1581,11 +1549,8 @@ const styles = StyleSheet.create({
   pad: { width: KEY_W * 3 - 4, height: KEY_H * 3 - 12, zIndex: 3 },
   key: { position: 'absolute', width: KEY_W },
   keyFace: { height: 32, paddingHorizontal: 0, paddingVertical: 0 },
-  // upright: the arrow keys and the buttons in a row at the bottom
-  pRow: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 12, paddingTop: 8, zIndex: 1 },
   // Blitz: the rule and the clock on the glass, and the best pill once it's beaten
-  glass: { alignSelf: 'center', alignItems: 'center', gap: 8, marginTop: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
-  wGlass: { alignSelf: 'stretch', marginHorizontal: 10 },
+  glass: { alignSelf: 'stretch', alignItems: 'center', gap: 8, marginHorizontal: 10, marginTop: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
   bestPill: { backgroundColor: '#ffb02e', borderColor: '#ffffff' },
   // the cards sit at elevation 50 (squishdoku/Overlays.js)
   fxTop: { zIndex: 60, elevation: 60 },

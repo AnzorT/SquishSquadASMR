@@ -289,3 +289,197 @@ Each chest opening loads its page afresh, so on a slow phone every smash began a
 What made the emulator's numbers low, measured: the Android 17 image's NFC service restarting in a loop (no NFC HAL; `adb shell svc nfc disable` stopped it), the sensors HAL at ~1/3 of a core, swap full, and on the PC Metro at ~2 cores in its file watcher, working through the events of `android/app/build` after each gradle build (thousands of files it never needs). `metro.config.js` now blocks the build outputs and generated copies (android/app/build, android/build, android/.gradle, android/app/.cxx, android/app/src/main/assets, webgame/test/out, webgame/.cache): restart Metro to pick it up. (Blocklist patterns must have the same regex flags as Expo's default, or Metro can't combine them and the release bundle fails.) Release builds install over debug ones keeping the login (both use the debug keystore): `./gradlew assembleRelease -PreactNativeArchitectures=x86_64,arm64-v8a`.
 
 Still open: a real-phone measurement (release build, Galaxy A15 and a 2 GB Android 6-8 phone if one is around); the rig creatures remain the main cost on the menu; the smash is still script-bound in its busiest second (debris and particles).
+
+## 60 fps everywhere, loaders on time, the old UI gone (2026-11-20)
+
+The user's list: screens at 3-5 fps, loading screens heard before they were seen ("half way done"), flicker, a white
+strip under the house, the chest list coming back on page 1 with its dots at the end, a new player getting the old UI
+and tutorial. Measured on the Galaxy A16 (SM-A165F, Helio G99, 90 Hz panel, release builds).
+
+**How it was measured.** `dumpsys SurfaceFlinger --latency <app layer>` once a second (present times of every frame the
+app's window showed: nothing in the app is touched, unlike gfxinfo, which stalls it ~5 s). An idle screen draws nothing,
+so a long gap between two taps is not a slow frame: read p95, not max. `atrace gfx view input sched` for where a frame's
+time goes (UI thread `Choreographer#doFrame`, RenderThread `DrawFrame`). `debug.hwui.show_dirty_regions` to see what
+redraws. Screen recordings cut into timed contact sheets for loaders and transitions.
+
+**What was found and changed:**
+
+- **90 Hz.** The phone's panel runs at 90 Hz, so a frame has 11.1 ms. Most screens needed 12-15 ms on the RenderThread:
+  every frame missed one vsync and waited for the next (22 ms), and screens alternated 11 / 22 ms: "45-60 fps" with
+  constant stutter (Settings, the games' hubs and maps, the house). MainActivity asks for 60 Hz
+  (`preferredRefreshRate = 60`; Samsung shows apps only the panel's top mode, so a mode id alone did nothing) and turns
+  off the touch boost on Android 15+. Same resolution, 16.7 ms per frame: Settings, Stats, Achievements, the Shop, all four
+  games' hubs, maps and levels, Squish Time, the intro and the menu now run at a flat 59.7-60 fps.
+- **The menu was rebuilt on every return.** The Main Menu's WebView was unmounted under every other screen and loaded
+  again on the way back (~3 s of blank brown, then "Loading your house"). It now stays alive under every screen, asleep
+  (App.js `menuAsleep` → GameScreen `asleep` → the page's `sleep` message: nothing drawn or computed) and at opacity 0;
+  it wakes as the screen above starts to leave, exactly where it was (Game Park, Characters …).
+- **Loaders that ran before they were seen.** Squish Time's "Getting ready" now starts its beats and its sound once its
+  first frame is painted, and the squish stage is built under it in the same layer (there was a bare frame between the
+  two). The menu pages' loaders (Characters, Heading home, Level Pass): webgame/README.md "Performance, 2026-11-20".
+- **Placeholders flashed the old design.** Every game screen opened through the old light-blue sky with portrait
+  placeholder blocks before its wooden hub appeared: ScreenBones / ViewBones are now wood-toned, landscape, on the screen's
+  own background. From a level map into a level, the room behind the map is kept up under the level until the level has
+  drawn its own (WorldBg `useRoomUnder`), instead of flashing the bare page between them.
+- **Every React Native screen was 48 dp short of the right edge.** React Native's window size left out the navigation
+  bar's strip although the app hides the bar and draws over it (748 dp vs the root's 796). App.js sets the window size from
+  the root view's real size, so the Shop, Settings, Stats, Achievements … are centred and fill the screen.
+- **Idle loops that went back to JS at every step** (`Animated.loop(Animated.sequence(...))`: the wheel's bulbs, the
+  streak's flame, the vault loader and others) are single native loops (idleLoop.js), so they keep moving while JS is busy.
+- **The chest list** (Shop → Chests): coming back from a chest smash, the list remounted on the first group while the
+  arrows still thought they were on the page you left (a 0 width while hidden under the smash). Zero sizes are ignored,
+  the list starts on the page it's on, and the page dots are gone (the user's request).
+- **The old UI** (classic Home / Lobby / Shop tab / Squad, the old Crib, the old settings sheet, Create-a-squishy, the
+  guided tutorial that kept new players there) and ~60 files only it used are deleted; the packages and permissions only
+  they needed are gone too (image picker, document picker, image manipulator, Firebase Storage; storage and microphone
+  permissions). A new player now starts on the menu. Smaller APK, smaller JS bundle, less to parse at launch.
+- **The house's creatures took turns.** At the frame-rate guard's step 2 (webgame/app/perf.js) every creature was
+  drawn on one frame and none on the next: the house's 4-5 creatures together took ~25 ms on the A16, so those frames
+  missed the 16.7 ms vsync and the house ran at ~35 fps unevenly. Now 1/step of them is drawn each frame (each still
+  every step-th frame, with its own time step), the house starts at step 2, and a phone with room to spare (all of them
+  under 7 ms a frame for 3 s) goes back to every frame. House: 33-35 → 59.5 fps from the first visit.
+- **First opens of Characters and the Level Pass.** Their slowly turning rays were CSS conic gradients under a radial
+  mask, ~1960 px layers the WebView's GPU thread took up to 1-2 s to make the first time, drawing no frame meanwhile; they
+  are now drawn once into a canvas that the GPU turns. The loaders start their motion and sounds only once frames are
+  actually reaching the screen (`SquishPerf.steady`), and these pages don't fade in (a fade frozen part-way was a
+  see-through ghost over the menu). What's left of a first open is ~0.5 s of the GPU making the page's tiles, once per
+  launch; later opens are instant.
+
+- **Squish Time's way in** (PLAY → "I AM READY!" → the stage). Building the stage under the loading beat held the UI
+  thread for 0.2-0.3 s (~230 native views, and every react-native-svg on it painted in software: the full-screen sky,
+  the pooled "+N" coins' outlined titles, the hint hands), right while "I AM READY!" was popping: it froze mid-pop.
+  The sky is now native pieces in one hardware layer (a native gradient, small radial bitmaps scaled and tinted, the
+  dot grid as bitmap blocks: src/squad/SkyBackground.js, assets/squad/sky/make-sky.mjs; `resizeMode="repeat"` drew a
+  single tile on Android, so no tiling). And the beat waits: LoadingScreen `hold` keeps its first frame still until
+  SquishScreen reports it is built and drawn (`onShown`), then pops, plays its sound and fades. ~0.3 s longer on a
+  warm open, but nothing on screen freezes while it moves.
+- **The three WATCH AD buttons loaded three new rewarded ads on every visit** and threw the loaded ones away on the way
+  out. Each ad that arrives makes Google's SDK build a WebView on the main thread: 55-175 ms freezes of the stage half a
+  second after it appeared. The ads now live for the session, one per multiplier (WatchAdButton `adPool`; a used,
+  failed or 50-minute-old ad is replaced): a second visit builds none, and its buttons are ready at once. The first
+  visit after a launch still pays for them.
+- **The house's Catalog, map and rooms redrew continuously** (13-20 fps of redraws under the open Catalog, 4.5 fps
+  on the map): SMIL `<animate>` inside SVG pictures (CSS data-URI backgrounds, `<image>`) makes Chrome re-raster
+  them on every frame. `SquishStill` (webgame/app/perf.js) strips the SMIL from those pictures (catalog cards, the item
+  sheet, room items); the map's own SVG pauses its animations while the map is open; the house tick and the creature
+  loop stop asking for frames while the Catalog, the map or the level-up card covers the room (`SquishPerf.freeze`).
+- **Daily Challenges** was still the old design's white candy card: it's in the wood look now (no scrolling, 59 fps).
+  The streak's DAY 10 tile no longer lets its shine sweep escape the tile. What was left of the old Crib's data
+  (catalog, home, fixtures, dock pictures, the map picture) is gone; only the foods and the time-of-day tints stay.
+
+**A measuring trap.** `dumpsys SurfaceFlinger --list` can show the app's window twice: the window's container layer
+(no buffers, never draws) and the `…MainActivity$_<pid>` layer that does. Reading only the first one makes a busy screen
+look "idle: nothing drawn". Take the layer with the most frames.
+
+**Measured after the round (A16, release, 60 Hz; fps from SurfaceFlinger, p95 frame time in brackets):** intro 58.7,
+menu 60 (16.8 ms), Characters 60, Shop 84-89 before the 60 Hz switch and 60 after, Settings 59.7, Stats 60,
+Achievements 60, sign-in 60, Squish Time 60, house 59.5 (16.7 ms), menu after the house 58.7 (was 33-50), Squishdoku /
+Sort / Stack / Hop hubs 59.7, maps 59.3-60, levels 58.7-60.
+
+**Final pass (same day, the release with everything in it):** Shop (all tabs), Settings, Stats, Achievements, Level Road,
+the four games' hubs, maps and levels, the Game Park, Daily Challenges, Streak: 59-60 fps (screens with nothing moving
+draw nothing). Squish Time: from PLAY, the loading beat shows at once, holds still while the stage is built, then pops,
+fades, and the stage runs at 60 with no pause over 40 ms (warm open, screen recording). Catalog, house map, Kitchen:
+nothing drawn while nothing moves.
+
+**The house, last round (same day).** Every Android WebView frame waits for the WebView's one in-process GPU thread,
+which also rasterises the page's tiles: whatever makes that thread re-raster a lot freezes the whole app's frames.
+- **The rooms' creatures had a CSS filter** (a 22% drop shadow, 1.5 px blur, +6% saturation, +3% contrast: barely
+  visible). Over content that changes every frame, the GPU drew each creature offscreen and filtered it on every frame:
+  ~15 ms of WebView drawing a frame in the Living Room, 50-58 fps. Without it (webgame/patches.mjs): ~10 ms, the GPU
+  thread 60% busy instead of 90%, and the Living Room holds 60 even with the phone hot (thermal status 2). In the house,
+  drawing every creature every frame (step 1) stays on probation for the whole visit (one second under 58 fps: back to
+  taking turns).
+- **Going to a room from the house map** froze the map ~0.9 s after the tap, cut to a blank cream page for 0.5-1.2 s,
+  then popped the room in. The map zoomed 2.6x into the picked room (the WebView rasters the whole map again at 2.6x
+  before the first step), lit the room up (a blurred glow faded in inside the map's SVG: every step re-rasters those map
+  tiles, and each map tile replays the whole map with its 26 blurs), and promoted its cream veil to a layer as the fade
+  began (the map's tiles rastered again). Now: no zoom, no glow on a touch screen, the veil a layer from the start; the
+  map fades to cream, the new room is drawn under a cream veil (`SquishVeil`, 99% so the room still rasters under it),
+  and the veil fades out once frames flow again. Total ~1.5-2 s from the tap, all of it a smooth fade.
+- **The house's back orb** no longer covers the Catalog's first tab.
+
+**The evening round (the user: "no improvements, the map got worse").** The earlier map changes only removed effects; the
+cost was the WebView's GPU thread rastering big vector art (every app frame waits for it). Measured on the A16:
+- **The house map is a picture of itself** (app/menu.js `SquishMapShown`): drawn once into a JPEG on the CPU, kept in
+  memory and IndexedDB by a hash of its markup, laid over the SVG, which is then not drawn at all but still takes the taps
+  (`pointer-events:painted`); the map has its own layer. Second and later opens: one 50 ms hitch (was 0.5-1 s of blank
+  sea, then a frozen map after each tap). The first open of a new map state still draws the SVG once.
+- **Room textures and furniture are pictures** (`SquishTex`, patches.mjs wraps the house's `rnTex` and the room items'
+  `src`): each wall/floor/ceiling/fence texture (an SVG of 64-232 shapes tiled by a slanted pattern) and each piece of
+  furniture (40-100 KB SVGs) is drawn once into a WebP and kept (IndexedDB, loaded at start). Room tiles cost up to
+  300-400 ms each before. Room switch raster: Kitchen 1.16 → 0.27 s, Living Room 1.34 → 0.63-0.73 s.
+- **No grain on the creatures** (webgame/build.mjs `noGrain`, and the games' rig pages' copy): every creature's art had
+  an feTurbulence noise filter (22% multiply), computed again every frame a creature moves. Living Room: GPU thread 89% →
+  53% busy, 54-58 → 60 fps. Not visible at a creature's size on a phone (compared side by side).
+- **Heading home**: its day picture is a JPEG (was an SVG image of the whole scene drawn at several scales); with the
+  room work above its worst frames went from 0.6-1.1 s to 0.18-0.3 s.
+- **The win card** (Trio.js): its characters' WebView is made once the card has settled (650 ms), not mid-spring; the
+  spring plays smoothly, a 0.25 s pause remains on the still card just before the characters appear.
+- The status bar is hidden again whenever the app comes back to the front (MainActivity), so the game isn't pushed down
+  after the lock screen.
+- **Characters' first open, measured** (cold start, release): the page is now built under the loader once its first
+  deal has played (`G.dealt`), so the loader deals from its first frame (it showed a still deck for ~0.9 s while the page
+  under it was drawn for the first time); the page's first drawing (one 0.35 s pause) falls while the dealt cards rest,
+  and the page is up ~0.4 s sooner than before (3.9 s from the tap). It fades once into the page. A flicker found on the way (the loader faded
+  out, came back fully and faded again: the class added as it leaves was `out`, the loader's own faded state) is fixed
+  (`sq-leaving`). **Level Pass first open: no gap over 116 ms.**
+- **Chest list**: no position dots; paging to the last group, switching to another Shop tab and back keeps the group.
+- **The map picture is the same for every room** (the map's markup is identical whichever room you're in: the "you're
+  here" pin and the faces are HTML), so it is made once per house look (a renovation, the weather, the time of day) and
+  kept across launches; its last picture is read and decoded at start (`sq.mapKey`). First map open after a restart:
+  one 0.2 s gap (was 0.23 + 0.5 s).
+
+- **Heading home rebuilt** (the user agreed): the night and each lit window are canvases drawn once (headingHome
+  `nightPics`: the day picture multiplied by the night's colours, each light's windows, halos and panes composited in
+  lighting order) and faded in; no multiply / screen / soft-light layers or masked copies of the house any more. Same
+  look (compared in Chrome at the A16's size). It did **not** remove the stalls (recorded twice on the phone: 0.25-0.33 s
+  at the start and as the night falls, 0.4-0.57 s as the house appears after the flight in): they come from making the
+  day picture (the menu scene's ~2,000 shapes drawn into a CPU canvas on the page's main thread, ~0.28 s), the first
+  upload of the night's canvases, and the house's own first drawing. Tried and reverted: not swapping the scene for its
+  picture under the night (worse: stalls up to 0.55-0.85 s). Also tried: the day picture drawn in 6 strips and the
+  lights composed one per task (`svgCanvas` bands): no change (0.2-0.4 s at the start, 0.35-0.63 s as the house appears),
+  so these stalls are not the page's main thread: they are the WebView's GPU thread drawing the house for the first time
+  (every app frame waits on it). Removing them would mean drawing less of the house the first time it appears (or having
+  it drawn before the trip), a change to the house itself.
+- **Tried and taken out (2026-11-21, the user chose to try it): the house prepared in the background.** The house was
+  mounted invisibly once the menu had been still for 4 s, held, and only revealed by the trip in; going back parked it.
+  Measured on the phone over two trips: 0.27-0.88 s stalls, no better than before (an earlier "no stalls" reading had
+  recorded the Daily Spin, not the trip). It kept the whole house in memory and needed the back key to step around a
+  hidden house, so it was removed. The trip in still stalls 0.2-0.6 s, 3-4 times.
+- **Room first, creatures after (2026-11-21, the user chose it).** On the trip in the house is revealed as its bare room;
+  the furniture layer (`.sq-items`) fades in half a second later and the creatures are mounted one at a time after that
+  (app/menu.js `SquishFill` / `fillEnd`; the house's `mountVis` waits while filling, `mountVis(1)` mounts the next one).
+  Switching rooms on the map is unchanged. Dusk falls at once again (the plain night layer), with the drawn night fading
+  over it when made (the rebuild had made the title sit over the daytime house for ~1.5 s). Measured on the phone: the
+  reveal is smooth (room, then furniture, then creatures over ~1 s); a repeat trip has hitches of at most 0.23 s; the
+  **first trip after a launch** still stalls ~0.3-0.6 s twice while dusk falls (the house being built under it, the
+  night's pictures made).
+
+**Full sweep on the final build (2026-11-21, a@gmail.com, level 28, phone cool):** menu 58.2, Shop 60, Settings 59.6,
+Stats 60, Achievements 60, Streak 60, Daily Challenges 57.7, Daily Spin 60, Level Up 58.2, Characters 60, Game Park 60,
+Squish Time 60, Squishdoku / Sort / Stack / Hop hubs 59.1-60, Squishdoku map and level 60, Living Room 60. Drawing
+nothing while nothing moves (correct): Level Road, Level Pass, the house map, the Kitchen, the Catalog. First trip into
+the house after this launch: pauses of 0.17-0.87 s (accepted by the user "for now"; repeat trips earlier: at most 0.23 s).
+
+**Still open:**
+- **First opens after a launch** (Characters, the Level Pass, the first Squish Time): the loader showed still for
+  ~1-1.5 s before moving (later opens smooth). Traced on Characters (GPU raster per layer, 4 s after the tap): 2.6 s of
+  GPU raster, of which the card row 0.89 s (the whole 10,800 px row, all 86 cards) and the spotlight creature 0.95 s
+  (animating unseen under the loader, rastered again every frame), plus ~90 card pictures decoded and uploaded (~1 s),
+  and the menu's scene behind the page until the next 400 ms cover() round. Changed (webgame/app/menu.js, last thing
+  this day): each group's cards are drawn only while on screen (`content-visibility:auto` at the size measured as it goes
+  in), the spotlight creature is hidden while the loader covers it, the menu is covered from the page's first frame
+  (Characters and the Level Pass), and the cards use small copies of their pictures (webgame/tools/small-cards.py:
+  webgame/app/sm/cards4, assets/looks-sm; 3-10x fewer pixels, the original if one is missing). With the first two only
+  (by CSS over CDP), GPU raster fell 2.6 → 1.7 s and the row 149 → 28 tiles. **Not yet measured on the phone with all of
+  it:** the phone's battery ran down to 1% (it charges slower over the PC's USB than it drained under the tests).
+  Checked in Chrome at the A16's size and density: the loader, the page, a scrolled row (groups appear as they come in,
+  the dividers, the IN USE tag and the selected card's glow intact), no page errors, no missing files.
+- **The cream hold between rooms** is the room's raster time (~1-2 s on the A16). Next: cheaper room pictures (their
+  patterns and blurs).
+- Watching a rewarded ad with the new ad pool has not been tried on a device (the test account must not watch ads):
+  watch one and check the ×N boost starts and the button loads its next ad.
+- The sign-in screen was checked on the phone (log out, log in by email: 60 fps, the keyboard's Go submits). In
+  landscape, Samsung's keyboard opens its full-screen typing box over the form (standard Android; `disableFullscreenUI`
+  would show the form instead, under the keyboard).

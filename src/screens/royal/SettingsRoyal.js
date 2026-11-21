@@ -6,8 +6,8 @@ import sfx from '../../audio/sfx';
 import { Btn, Icon, InkText, Lettering, Orb, PageBg, PageHeader, Plaque, Stage, FONT, INK } from '../../royal';
 
 // Settings in the new look, landscape (REDESIGN_V7 step 3): the Menu's gear opens it (the old Lobby retires). Left:
-// sound, nickname, and the places that lived in the Lobby (Achievements, Stats, Level Pass). Right: feedback, replay the
-// tutorial, log out, and a tester's Test wallet. The same handlers as the old sheet (App.js).
+// sound, nickname, and the places that lived in the Lobby (Achievements, Stats, Level Pass). Right: feedback, log out,
+// and a tester's Test wallet (App.js has the handlers).
 
 // (Achievements left Settings for a trophy button next to the Menu's gear: REDESIGN_V8, the user)
 const LINKS = [
@@ -24,7 +24,7 @@ function Panel({ title, children, style }) {
   );
 }
 
-export default function SettingsRoyal({ onBack, nickname, onSaveNickname, onSubmitFeedback, onLogout, onReplayTutorial, onOpenStats, onOpenAchievements, onOpenRoad, tester, wallet, fpsOn, onToggleFps }) {
+export default function SettingsRoyal({ onBack, nickname, onSaveNickname, onSubmitFeedback, onLogout, onOpenStats, onOpenAchievements, onOpenRoad, tester, wallet, fpsOn, onToggleFps }) {
   const [sound, setSound] = useState({ music: true, effects: true });
   useEffect(() => sfx.subscribe(setSound), []);
   const [nick, setNick] = useState((nickname || '').slice(0, 10));
@@ -110,12 +110,6 @@ export default function SettingsRoyal({ onBack, nickname, onSaveNickname, onSubm
                 <Icon d="M4 5h16v11H8l-4 4Z" size={18} width={2.3} />
                 <InkText size={15}>Send feedback</InkText>
               </Plaque>
-              {onReplayTutorial ? (
-                <Plaque variant="vel" radius={14} onPress={onReplayTutorial} style={styles.link}>
-                  <Icon d="M4 12a8 8 0 1 0 2.3-5.7 M4 4v4h4" size={18} width={2.3} />
-                  <InkText size={15}>Replay tutorial</InkText>
-                </Plaque>
-              ) : null}
               {tester ? (
                 <Plaque variant="vel" radius={14} onPress={() => setWall(true)} style={styles.link}>
                   <Icon d="M4 7h16v12H4Z M4 7l3-3h10l3 3 M15 13h2" size={18} width={2.3} />

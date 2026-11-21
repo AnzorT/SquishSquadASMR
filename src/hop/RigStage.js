@@ -9,6 +9,7 @@
 import React, { forwardRef, useCallback, useImperativeHandle, useRef } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { WEBVIEW_DEBUG } from '../webDebug';
 
 // (web: the same page, served at /android_asset/ by metro.config.js; src/web/WebView.js)
 const hostOf = (page) => Platform.select({ android: `file:///android_asset/rig/${page}.html`, web: `/android_asset/rig/${page}.html`, default: null });
@@ -80,7 +81,7 @@ const RigStage = forwardRef(function RigStage({ style, page = 'hop', calls = CAL
         setBuiltInZoomControls={false}
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
-        webviewDebuggingEnabled
+        webviewDebuggingEnabled={WEBVIEW_DEBUG}
       />
     </View>
   );

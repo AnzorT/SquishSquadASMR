@@ -1,18 +1,16 @@
 import { todayKey } from './dailySpin.js';
 import { xpRules, xpView } from './playerXp.js';
 
-// Progression (the 2026-10-03 design: daily-challenges.js + the tutorial's
-// level cards): levels, daily challenges, the daily chest and the streak.
-// All of it lives on the player's profile document, written by the app like
-// coins are (prototype-grade trust, see src/firebase/firestore.js):
+// Progression (the 2026-10-03 design: daily-challenges.js): levels, daily
+// challenges, the daily chest and the streak. All of it lives on the
+// player's profile document, written by the app like coins are
+// (prototype-grade trust, see src/firebase/firestore.js):
 //
 //   pxp        the player's XP, which the level comes from (src/playerXp.js,
-//              PLAYER_XP.md). The tutorial brings it to level 2 (the first
-//              key) and 3 (the Crib tutorial done); then the mini-games, each
-//              challenge claimed, the chest and squishing fill it (how much:
-//              config/levels `xp`, xpRules). `level` is written beside it
-//              (the console's, the test wallet's).
-//   tut        the tutorial step (src/tutorial/steps.js), 'done' when over.
+//              PLAYER_XP.md): the mini-games, each challenge claimed, the
+//              chest and squishing fill it (how much: config/levels `xp`,
+//              xpRules). `level` is written beside it (the console's, the
+//              test wallet's).
 //   daily      { date, prog: { squish, earn, ad, bath, feed, sleep, dance,
 //              tv, play }, claimed: { [challengeId]: true }, chest: bool } —
 //              today's progress. A new day starts over (the challenges
@@ -52,7 +50,6 @@ export function streakRewardText(r) {
   if (r.kind === 'chest') return 'a free chest in the Shop';
   return 'half price on your next creation';
 }
-export const TUTORIAL_BOOST = 10; // ×10 coins during the tutorial's goal step
 
 // The XP they pay, with their coins (the user, 2026-10-25): config/levels
 // `xp` (xpRules) — these are its defaults. Squishing: 1 XP every
@@ -170,12 +167,8 @@ export function streakTrack(profile, now = new Date()) {
 }
 
 export const level = (profile) => xpView(profile).level;
-// The tutorial (src/tutorial/steps.js) hands out levels 2 and 3. Daily
-// Challenges wait until it has shown them (its c_daily step) or is over — a
-// replay doesn't bring them back early; the Crib opens at level 2.
-const TUT_DAILY = ['c_daily', 'c_offers'];
-const tutOver = (profile) => !profile?.tut || profile.tut === 'done';
-export const dailyUnlocked = (profile) => level(profile) >= DAILY_LEVEL && (tutOver(profile) || TUT_DAILY.includes(profile.tut));
+// Daily Challenges open at DAILY_LEVEL, the Crib at CRIB_LEVEL.
+export const dailyUnlocked = (profile) => level(profile) >= DAILY_LEVEL;
 export const CRIB_LEVEL = 2;
 export const cribUnlocked = (profile) => level(profile) >= CRIB_LEVEL;
 

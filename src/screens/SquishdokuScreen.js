@@ -1,9 +1,7 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Animated, BackHandler, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import CandyBackground from '../components/candy/CandyBackground';
 import { KeptView, ViewSlot, useViewSwitch } from '../components/ViewSwitch';
-import RoundButton, { BackGlyph } from '../components/candy/RoundButton';
 import sfx from '../audio/sfx';
 import Hub from '../squishdoku/Hub';
 import LevelMap from '../squishdoku/LevelMap';
@@ -19,11 +17,10 @@ import { BY_ID } from '../squad/data';
 import { selectedId } from '../squad/lobby';
 import { saveSquishdoku } from '../firebase/firestore';
 import { F, INK } from '../squishdoku/theme';
-import { useWide } from '../royal/GameFrame';
-import { ROW_ON_FLOOR, RoomBackdrop, useRoomStrip } from '../royal/WorldBg';
+import { ROW_ON_FLOOR, RoomBackdrop, useRoomStrip, useRoomUnder } from '../royal/WorldBg';
 import { Orb, WoodBg } from '../royal';
 
-// Squishdoku (SQUISHDOKU.md), opened from the Lobby's Puzzle tile: the hub,
+// Squishdoku (SQUISHDOKU.md), opened from the menu's games: the hub,
 // the level map, a Regular level, or a Blitz run. Each view slides in over
 // the last, as placeholders first (src/components/ViewSwitch.js). The
 // creatures are the catalog's rig stills (`thumb.url`).
@@ -45,12 +42,14 @@ function SquishdokuScreen({ profile, creatures, hidden, uid, adsFree, haptics, o
   const [justUnlocked, setJustUnlocked] = useState(null);
   // the map's background: the room its chapter is played in, scrolling with it
   const strip = useRoomStrip();
+  // the map's room held under a level that's starting, until the level has drawn its own (WorldBg useRoomUnder)
+  const roomUnder = useRoomUnder(sw, sw.view === 'play');
   // re-picked only when what the player owns changes
   const owned = ownedKey(profile);
   const roster = useMemo(() => rosterOf(creatures, profile, hidden), [creatures, owned, hidden]); // eslint-disable-line react-hooks/exhaustive-deps
   // the board's creatures, standing on their cushions (Squish Stack's cut-outs)
   const cast = useMemo(() => castOf(creatures, profile), [creatures, owned]); // eslint-disable-line react-hooks/exhaustive-deps
-  // the buddy under the board: the creature picked in the Lobby
+  // the buddy under the board: the player's selected creature (the Menu's pick)
   const buddyId = selectedId(profile);
   const buddyKey = BY_ID[buddyId] ? BY_ID[buddyId].key : null;
   const buddyUri = useMemo(() => {
@@ -113,32 +112,24 @@ function SquishdokuScreen({ profile, creatures, hidden, uid, adsFree, haptics, o
   }, [go]);
 
   const pl = xpView(profile);
-  // landscape (REDESIGN_V8): the whole screen, the wood look's warm page behind the hub and the map
-  const wide = useWide();
-  const Bg = wide ? WarmBackground : CandyBackground;
 
   return (
-    // a level or a Blitz run fills the screen, room and all (it keeps clear of
-    // the status bar itself)
-    <Bg style={{ paddingTop: view === 'play' || view === 'blitz' ? 0 : insets.top }} sparkles={view !== 'play' && view !== 'blitz'}>
+    // the wood look's warm page behind the hub and the map (REDESIGN_V8); a level or a Blitz run fills the screen,
+    // room and all (it keeps clear of the status bar itself)
+    <WarmBackground style={{ paddingTop: view === 'play' || view === 'blitz' ? 0 : insets.top }}>
       {/* the level map stands in its chapter's room (src/royal/WorldBg.js) */}
-      <RoomBackdrop sw={sw} on={wide && view === 'map'} spans={strip.spans} scrollX={strip.scrollX} />
+      <RoomBackdrop sw={sw} on={view === 'map' || roomUnder} under={roomUnder} spans={strip.spans} scrollX={strip.scrollX} />
       {view === 'hub' || view === 'map' ? (
         <View style={styles.header}>
-          {wide ? (
-            <Orb icon="back" onPress={() => (view === 'map' ? go('hub') : onBack())} />
-          ) : (
-            <RoundButton size={40} onPress={() => (view === 'map' ? go('hub') : onBack())}>
-              <BackGlyph />
-            </RoundButton>
-          )}
-          {wide && view === 'map' ? (
+          <Orb icon="back" onPress={() => (view === 'map' ? go('hub') : onBack())} />
+          {view === 'map' ? (
             // (on the room's wall: on a wooden plaque, to read over the furniture)
             <View style={styles.titleWrap}>
               <Text style={[styles.headerTitle, styles.titlePlaque]}>LEVELS</Text>
             </View>
           ) : (
-            <Text style={styles.headerTitle}>{view === 'map' ? 'LEVELS' : ''}</Text>
+            // (the hub: no title, its room kept)
+            <Text style={styles.headerTitle}>{''}</Text>
           )}
           {view === 'map' ? (
             <View style={styles.lvPill}>
@@ -169,11 +160,11 @@ function SquishdokuScreen({ profile, creatures, hidden, uid, adsFree, haptics, o
         ) : null}
       </Animated.View>
       <RulesCard visible={rules} roster={roster} onClose={() => setRules(false)} />
-    </Bg>
+    </WarmBackground>
   );
 }
 
-// the wood (royal WoodBg, REDESIGN_V9: the user, the wood background) in place of the candy background, landscape
+// the wood (royal WoodBg, REDESIGN_V9: the user, the wood background)
 function WarmBackground({ style, children }) {
   return (
     <View style={[styles.fill, style]}>

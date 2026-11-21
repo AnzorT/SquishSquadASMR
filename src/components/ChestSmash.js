@@ -6,18 +6,16 @@
 // The server has already rolled the chest (squad groupChest, freeChest, adChest, dealChest); this
 // plays that result: the first tap of a Common or Rare plays its upgrade when the server rolled
 // one, and the reveal shows the creature the server granted. `chest` changes → the next chest
-// (bundles open several in a row) without reloading the page. The tutorial sees the smash as
-// boxPhase 'opening' then 'reveal', with targets on the chest and on COLLECT.
+// (bundles open several in a row) without reloading the page.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import TutTarget from '../tutorial/Target';
-import { report as tutReport } from '../tutorial/store';
 import { BY_ID, RAR_LOOK } from '../squad/data';
 import { rigLookOf } from '../squad/looks';
 import sfx from '../audio/sfx';
 import { pageFps, useFpsActive } from './fpsMeter';
+import { WEBVIEW_DEBUG } from '../webDebug';
 
 // (web: the same page, served at /android_asset/ by metro.config.js; src/web/WebView.js)
 const HOST = Platform.select({ android: 'file:///android_asset/chest/host.html', web: '/android_asset/chest/host.html', default: null });
@@ -64,7 +62,6 @@ export default function ChestSmash({ chest, first = null, catalog, onCollect, on
   const ready = useRef(false);
   const shown = useRef(null); // the chest's key on the page, or 'first'
   const [painted, setPainted] = useState(false);
-  const [collectAt, setCollectAt] = useState(null);
   const [effects, setEffects] = useState(true);
   useEffect(() => sfx.subscribe((s) => setEffects(s.effects)), []);
 
@@ -78,7 +75,6 @@ export default function ChestSmash({ chest, first = null, catalog, onCollect, on
       if (!first || shown.current) return;
       shown.current = 'first';
       run(`chestHost.start(${JSON.stringify({ ...scene, group: first.group, size: first.size, wait: true })})`);
-      tutReport({ boxPhase: 'opening' });
       return;
     }
     if (shown.current === chest.key) return;
@@ -88,12 +84,9 @@ export default function ChestSmash({ chest, first = null, catalog, onCollect, on
     if (shown.current === 'first' && first && o.group === first.group && o.size === first.size) run(`chestHost.fill(${JSON.stringify(o)})`);
     else run(`chestHost.start(${JSON.stringify({ ...scene, ...o })})`);
     shown.current = chest.key;
-    setCollectAt(null);
-    tutReport({ boxPhase: 'opening' });
   }, [chest, first, catalog, effects, insets.top, insets.bottom, run]);
   useEffect(() => start(), [start]);
   useEffect(() => run(`chestHost.sound(${effects ? 'true' : 'false'})`), [effects, run]);
-  useEffect(() => () => tutReport({ boxPhase: null }), []);
   // the tester's FPS counter: the page counts its own frames while it's on (fpsMeter.js)
   const fpsOn = useFpsActive();
   const fpsOnRef = useRef(fpsOn);
@@ -133,11 +126,8 @@ export default function ChestSmash({ chest, first = null, catalog, onCollect, on
           onShown?.();
         }
       } else if (m.type === 'reveal') {
-        if (m.collect) setCollectAt(m.collect);
-        tutReport({ boxPhase: 'reveal' });
         sfx.play('sparkle');
       } else if (m.type === 'collect') {
-        tutReport({ boxPhase: null });
         sfx.play('coinShower');
         onCollect();
       }
@@ -166,11 +156,8 @@ export default function ChestSmash({ chest, first = null, catalog, onCollect, on
         scrollEnabled={false}
         bounces={false}
         setBuiltInZoomControls={false}
-        webviewDebuggingEnabled
+        webviewDebuggingEnabled={WEBVIEW_DEBUG}
       />
-      {/* the tutorial's targets: the chest while smashing, COLLECT on the reveal */}
-      <TutTarget name="chestStage" pointerEvents="none" style={styles.stageTarget} />
-      {collectAt && <TutTarget name="revealDone" pointerEvents="none" style={{ position: 'absolute', left: collectAt.x, top: collectAt.y, width: collectAt.w, height: collectAt.h }} />}
     </View>
   );
 }
@@ -178,5 +165,4 @@ export default function ChestSmash({ chest, first = null, catalog, onCollect, on
 const styles = StyleSheet.create({
   web: { flex: 1, backgroundColor: '#22160e' }, // (the vault room's dark, REDESIGN_V9)
   unseen: { opacity: 0 },
-  stageTarget: { position: 'absolute', left: '18%', right: '18%', top: '36%', height: '34%' },
 });

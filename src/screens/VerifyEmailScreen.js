@@ -1,37 +1,35 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import ShadowText from '../components/candy/ShadowText';
-import IntroBackground from '../squad/IntroBackground';
-import RigCreature from '../components/RigCreature';
-import Pressable from '../components/Pressable';
-import HopDots from '../components/candy/HopDots';
-import { BtnText, CandyBtn, F, GOLD_RING } from '../squad/ui';
+import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Btn, Icon, InkText, Lettering, Plaque, FONT } from '../royal';
 import { reloadVerified, sendVerification } from '../firebase/auth';
+import { AuthBg, AuthHeader, Card, CREAM, Dots, ErrorPill, GOLD_TXT, ROOT_BG, tap, useAuthSizes, useFadeUp } from './auth/kit';
 
 // Email verification (REDESIGN_V6 step 8, ruling 4: "make sure they are
 // real"): an email/password account plays once its address is confirmed.
 // Register sends the link; this waits for it — "I've verified" asks Firebase
 // again, "Send it again" resends (Firebase limits how often), and "Log out"
 // is the way back. It also catches accounts made before verification existed.
+//
+// 2026-11-20: the sign-in screen's look (src/screens/auth/kit.js): the house behind, Mittens and the logo along the top
+// where they stood on the sign-in screen (so only the panel changes after registering), and a wood panel with the gold
+// title, the address, the gold button and two wood buttons.
 
-// the sign-in screen's wood look (REDESIGN_V8): brown ink and outlines, a cream card, a gold button
-const INK = '#5b3418';
-const RIM = '#6b4426';
+const MAIL = 'M3.5 6.5h17v11h-17Z M4 7l8 6.2L20 7';
 
 export default function VerifyEmailScreen({ email, onVerified, onLogout }) {
-  // landscape (REDESIGN_V8): Mittens and the title on the left, the card on the right
-  const win = useWindowDimensions();
-  const wide = win.width > win.height;
+  const z = useAuthSizes();
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState({ text: '', bad: false });
+  const [btnW, setBtnW] = useState(0);
+  const noteStyle = useFadeUp(note.text);
   const check = async () => {
     if (busy) return;
     setBusy(true);
     try {
       if (await reloadVerified()) return onVerified();
-      setNote("Not yet — tap the link in the email first. Check your spam folder too.");
+      setNote({ text: 'Not yet — tap the link in the email first. Check your spam folder too.', bad: true });
     } catch (e) {
-      setNote('Could not check right now. Try again in a moment.');
+      setNote({ text: 'Could not check right now. Try again in a moment.', bad: true });
     } finally {
       setBusy(false);
     }
@@ -39,63 +37,76 @@ export default function VerifyEmailScreen({ email, onVerified, onLogout }) {
   const resend = async () => {
     try {
       await sendVerification();
-      setNote(`Sent again to ${email}.`);
+      setNote({ text: `Sent again to ${email}.`, bad: false });
     } catch (e) {
-      setNote('Please wait a minute before sending another.');
+      setNote({ text: 'Please wait a minute before sending another.', bad: true });
     }
   };
+  const cardW = Math.min(z.cardW, z.H < 376 ? 470 : 500);
   return (
-    <IntroBackground>
-      <View style={[styles.col, wide && styles.row2]}>
-        <View style={wide ? styles.side : null}>
-          <RigCreature creatureKey="mittens" style={[styles.mittens, wide && styles.mittensWide]} />
-          <ShadowText style={styles.title} shadows={[[0, 4, RIM], [2.5, 0, RIM], [-2.5, 0, RIM], [0, -2.5, RIM]]}>
-            Check your email
-          </ShadowText>
-        </View>
-        <View style={[styles.cardLip, wide && styles.cardWide]}>
-          <View style={styles.card}>
+    <View style={styles.root}>
+      <AuthBg />
+      <View style={[styles.col, { height: z.H, paddingVertical: z.top }]}>
+        <AuthHeader z={z} />
+        <View style={styles.area}>
+          <Card z={z} width={cardW} style={styles.card}>
+            <View style={styles.title}>
+              <Icon d={MAIL} size={26} color={GOLD_TXT} width={2.4} />
+              <Lettering text="Check your email" variant="gold" size={z.H < 376 ? 21 : 23} />
+            </View>
             <Text style={styles.text}>
               We sent a link to <Text style={styles.email}>{email}</Text>. Tap it to confirm it's really you, then come back here.
             </Text>
-            {!!note && <Text style={styles.note}>{note}</Text>}
-            <CandyBtn kind="gold" onPress={check} padV={10} lip={5} stretch>
-              {busy ? (
-                <HopDots size={14} style={{ height: 26 }} />
-              ) : (
-                <BtnText ring={GOLD_RING} size={20}>
-                  I've verified
-                </BtnText>
-              )}
-            </CandyBtn>
-            <View style={styles.row}>
-              <Pressable onPress={resend} hitSlop={8}>
-                <Text style={styles.link}>Send it again</Text>
-              </Pressable>
-              <Pressable onPress={onLogout} hitSlop={8}>
-                <Text style={styles.link}>Log out</Text>
-              </Pressable>
+            {/* (the note's line is always there, so the buttons don't move when it shows) */}
+            <View style={styles.noteRow}>
+              {note.text ? (
+                <Animated.View style={[styles.noteWrap, noteStyle]}>
+                  {note.bad ? (
+                    <ErrorPill text={note.text} lines={2} />
+                  ) : (
+                    <Text style={styles.sent} numberOfLines={2}>
+                      {note.text}
+                    </Text>
+                  )}
+                </Animated.View>
+              ) : null}
             </View>
-          </View>
+            <View onLayout={(e) => setBtnW(Math.round(e.nativeEvent.layout.width))}>
+              <Btn height={z.btn} radius={15} width={btnW || undefined} glint={!!btnW && !busy} onPress={tap(check)} style={styles.btn}>
+                {/* (an en space between the words: the thick outline closed up a plain one) */}
+                {busy ? <Dots size={10} /> : <Lettering text={'I\u2019VE\u2002VERIFIED'} variant="whiteB" size={z.btnFont} />}
+              </Btn>
+            </View>
+            <View style={styles.links}>
+              <Plaque variant="vel" radius={14} onPress={tap(resend)} hitSlop={4} style={[styles.link, { height: z.social }]}>
+                <Icon d="M4 12a8 8 0 1 0 2.3-5.7 M4 4v4h4" size={17} width={2.4} />
+                <InkText size={15}>Send it again</InkText>
+              </Plaque>
+              <Plaque variant="vel" radius={14} onPress={tap(onLogout)} hitSlop={4} style={[styles.link, { height: z.social }]}>
+                <Icon d="M14 5h5v14h-5 M10 8l-4 4 4 4 M6 12h10" size={17} width={2.4} />
+                <InkText size={15}>Log out</InkText>
+              </Plaque>
+            </View>
+          </Card>
         </View>
       </View>
-    </IntroBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  col: { flex: 1, justifyContent: 'center', paddingHorizontal: 22, gap: 10 },
-  row2: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 30 },
-  side: { alignItems: 'center', gap: 6 },
-  mittens: { width: 150, height: 150, alignSelf: 'center' },
-  mittensWide: { width: 180, height: 180 },
-  cardWide: { width: 400 },
-  title: { alignSelf: 'center', fontFamily: F.display, fontSize: 34, lineHeight: 40, color: '#ffffff' },
-  cardLip: { borderRadius: 28, backgroundColor: RIM, paddingBottom: 5 },
-  card: { gap: 14, padding: 18, borderRadius: 28, backgroundColor: '#fff6e2', borderWidth: 2.5, borderColor: RIM },
-  text: { fontFamily: F.heavy, fontSize: 14, lineHeight: 20, color: INK, textAlign: 'center' },
-  email: { fontFamily: F.black, color: '#c25e00' },
-  note: { fontFamily: F.heavy, fontSize: 12.5, lineHeight: 17, color: '#d0345a', textAlign: 'center' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 6 },
-  link: { fontFamily: F.black, fontSize: 13, color: '#8a3a0e' },
+  root: { flex: 1, backgroundColor: ROOT_BG, overflow: 'hidden' },
+  // (as the sign-in screen's: the header where it was there, the panel centred under it)
+  col: { position: 'absolute', left: 0, right: 0, top: 0, alignItems: 'center' },
+  area: { flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
+  card: { alignItems: 'stretch' },
+  title: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  text: { fontFamily: FONT.bodyHeavy, fontSize: 14.5, lineHeight: 20, color: CREAM, textAlign: 'center', paddingHorizontal: 6, textShadowColor: 'rgba(80,40,12,0.75)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 0.01 },
+  email: { fontFamily: FONT.bodyBlack, color: GOLD_TXT },
+  noteRow: { minHeight: 20, marginVertical: -3, alignItems: 'center', justifyContent: 'center' },
+  noteWrap: { maxWidth: '100%' },
+  sent: { fontFamily: FONT.bodyBlack, fontSize: 12.5, lineHeight: 16, color: '#d6ffb8', textAlign: 'center', textShadowColor: 'rgba(40,60,10,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 0.01 },
+  btn: { alignSelf: 'stretch' },
+  links: { flexDirection: 'row', gap: 12 },
+  link: { flex: 1, flexDirection: 'row', gap: 8 },
 });

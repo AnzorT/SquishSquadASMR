@@ -252,7 +252,7 @@ const CARDS = {
   // the Shop sideways with a made-up wallet, to see its tabs slide (&tab=chests…: the one it opens on). Only switch
   // tabs: its buttons call the server
   shop: () => (
-    <ShopScreen royal startTab={new URLSearchParams(window.location.search).get('tab') || 'daily'} creatures={CREATURES} profile={{ ...PROFILE, coins: 4200 }} priceOf={() => null} onBuyProduct={noop} onSeenOffer={noop} onBack={noop} />
+    <ShopScreen startTab={new URLSearchParams(window.location.search).get('tab') || 'daily'} creatures={CREATURES} profile={{ ...PROFILE, coins: 4200 }} priceOf={() => null} onBuyProduct={noop} onSeenOffer={noop} onBack={noop} />
   ),
   verify: () => <VerifyEmailScreen email="new.player@example.com" onVerified={noop} onLogout={noop} />,
 };

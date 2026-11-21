@@ -1,5 +1,6 @@
-import React, { memo, useEffect, useRef } from 'react';
-import { Animated, Easing } from 'react-native';
+import React, { memo, useMemo } from 'react';
+import { Easing } from 'react-native';
+import { stepKeys, useKeyLoop } from '../components/idleLoop';
 import { GameHub } from '../squishdoku/Hub';
 import { LEVELS, doneIn } from './levels';
 
@@ -16,23 +17,28 @@ function Hub({ rec, onRegular, onBlitz, onRules }) {
 
 export default memo(Hub);
 
-// Doors that open, stay, shut, rattle and open again, forever (the game picker's little fridge).
+// Doors that open, stay, shut, rattle and open again, forever (the game picker's little fridge): open 1.4 s, shut in
+// 380 ms, a 450 ms rattle, shut 200 ms, then open with a little overshoot in 420 ms. One native loop of a phase, read
+// as the door and the rattle (idleLoop.js; a loop around the sequence went back to JS at every step).
+const DOOR = stepKeys(1, [
+  [1, 1400],
+  [0, 380, Easing.in(Easing.quad)],
+  [0, 650],
+  [1, 420, Easing.out(Easing.back(1.4))],
+]);
+const RATTLE = stepKeys(0, [
+  [0, 1780],
+  ...[1, -1, 1, -1, 0].map((v) => [v, 90, Easing.inOut(Easing.quad)]),
+  [0, 620],
+]);
+const LINE = [0, 1];
 export function useDoorLoop() {
-  const door = useRef(new Animated.Value(1)).current;
-  const wob = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const T = (v, ms, ease = Easing.inOut(Easing.quad), val = door) => Animated.timing(val, { toValue: v, duration: ms, easing: ease, useNativeDriver: true });
-    const loop = Animated.loop(
-      Animated.sequence([
-        T(1, 1400),
-        T(0, 380, Easing.in(Easing.quad)),
-        Animated.sequence([1, -1, 1, -1, 0].map((v) => T(v, 90, Easing.inOut(Easing.quad), wob))),
-        T(0, 200),
-        T(1, 420, Easing.out(Easing.back(1.4))),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [door, wob]);
-  return { door, rotate: wob.interpolate({ inputRange: [-1, 1], outputRange: ['-5deg', '5deg'] }) };
+  const p = useKeyLoop(DOOR.ms, { at: LINE, values: LINE });
+  return useMemo(
+    () => ({
+      door: p.interpolate({ inputRange: DOOR.at, outputRange: DOOR.values }),
+      rotate: p.interpolate({ inputRange: RATTLE.at, outputRange: RATTLE.values.map((v) => `${v * 5}deg`) }),
+    }),
+    [p],
+  );
 }

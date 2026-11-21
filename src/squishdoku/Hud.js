@@ -5,11 +5,11 @@ import { Head } from './ui';
 import { F, INK } from './theme';
 import { usePingPong } from '../components/idleLoop';
 
-// The game's HUD pieces: the three score creatures, the timer bar (with the
-// creatures that fall off it as times A and B pass) and Blitz's pips. Their
-// loops (the PERFECT glow, the last seconds' pulse, the current pip) are
-// single native loops (src/components/idleLoop.js), so they don't wake the
-// JS thread while the player is playing.
+// The game's HUD pieces: the three score creatures and the timer bar (with
+// the creatures that fall off it as times A and B pass). Their loops (the
+// PERFECT glow, the last seconds' pulse) are single native loops
+// (src/components/idleLoop.js), so they don't wake the JS thread while the
+// player is playing.
 
 // The three score creatures. `left` of them are still on offer; the others
 // tumble off (down, spinning, fading). While a PERFECT run is still
@@ -132,31 +132,6 @@ const Marker = memo(function Marker({ x, uri, gone }) {
   );
 });
 
-// Blitz's ten pips: done ones filled (each popping as it fills), the
-// current one pulsing. `drain` empties them right to left (back to level 1).
-// (`small`: landscape's narrow left column, REDESIGN_V8)
-export const Pips = memo(function Pips({ count = 10, done, current, small }) {
-  const vals = useRef(Array.from({ length: count }, () => new Animated.Value(0))).current;
-  const now = usePingPong(1000, { eased: false });
-  useEffect(() => {
-    vals.forEach((v, i) => {
-      const on = i < done;
-      Animated.spring(v, { toValue: on ? 1 : 0, friction: on ? 4 : 7, tension: 180, delay: on ? 0 : (count - i) * 50, useNativeDriver: true }).start();
-    });
-  }, [done, vals, count]);
-  return (
-    <View style={[styles.pips, small && styles.pipsSmall]}>
-      {vals.map((v, i) => (
-        <View key={i} style={[styles.pip, small && styles.pipSmall]}>
-          <Animated.View style={[StyleSheet.absoluteFill, styles.pipFill, { opacity: v, transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }] }]} />
-          {i === current ? <Animated.View style={[StyleSheet.absoluteFill, styles.pipNow, { opacity: now }]} /> : null}
-          <Text style={[styles.pipText, small && styles.pipTextSmall]}>{i + 1}</Text>
-        </View>
-      ))}
-    </View>
-  );
-});
-
 const styles = StyleSheet.create({
   scoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
   glow: { position: 'absolute', left: -20, right: -20, top: 6, bottom: 6, borderRadius: 999, overflow: 'hidden' },
@@ -169,12 +144,4 @@ const styles = StyleSheet.create({
   barLabel: { fontFamily: F.display, fontSize: 13.5, color: INK, includeFontPadding: false },
   marker: { position: 'absolute', top: -20, alignItems: 'center' },
   markerPin: { position: 'absolute', bottom: -8, width: 3, height: 12, borderRadius: 2, backgroundColor: '#ffffff' },
-  pips: { flexDirection: 'row', gap: 5, justifyContent: 'center' },
-  pip: { width: 24, height: 24, borderRadius: 12, borderWidth: 2.5, borderColor: '#ffffff', backgroundColor: 'rgba(91,52,24,0.3)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  pipsSmall: { gap: 2.5 },
-  pipSmall: { width: 17, height: 17, borderWidth: 2 },
-  pipTextSmall: { fontSize: 8.5 },
-  pipFill: { backgroundColor: '#3fd7f6', borderRadius: 12 },
-  pipNow: { backgroundColor: '#ffd23a', borderRadius: 12 },
-  pipText: { fontFamily: F.display, fontSize: 10.5, color: '#ffffff', includeFontPadding: false },
 });

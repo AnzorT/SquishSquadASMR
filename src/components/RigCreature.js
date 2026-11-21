@@ -5,6 +5,7 @@ import React, { forwardRef, useCallback, useImperativeHandle, useRef, useState }
 import { Platform, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useRigLook } from '../squad/looks';
+import { WEBVIEW_DEBUG } from '../webDebug';
 
 // (web: the same page, served at /android_asset/ by metro.config.js; src/web/WebView.js)
 const HOST = Platform.select({ android: 'file:///android_asset/rig/host.html', web: '/android_asset/rig/host.html', default: null });
@@ -87,7 +88,7 @@ const RigCreature = forwardRef(function RigCreature({ creatureKey, shuffle = tru
       setBuiltInZoomControls={false}
       showsHorizontalScrollIndicator={false}
       showsVerticalScrollIndicator={false}
-      webviewDebuggingEnabled
+      webviewDebuggingEnabled={WEBVIEW_DEBUG}
     />}
     </View>
   );

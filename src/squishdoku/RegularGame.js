@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGameDims } from '../royal/GameFrame';
-import { Animated, AppState, BackHandler, Easing, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Animated, AppState, BackHandler, Easing, StyleSheet, Text, View } from 'react-native';
 import sfx from '../audio/sfx';
 import RoomBoard, { SDK_TILT } from './RoomBoard';
 import Room, { roomGeometry } from '../hop/Room';
@@ -31,8 +30,7 @@ import { saveSquishdoku } from '../firebase/firestore';
 // stack/roster.js castOf, drawn by their cut-outs).
 
 export default function RegularGame({ startLv, profile, uid, roster, cast = [], head = false, buddyKey, buddyUri, haptics: hapticsOn = true, onExit }) {
-  const { width, height } = useGameDims(); // (the game panel in landscape: REDESIGN_V7)
-  const insets = useSafeAreaInsets();
+  const { width, height } = useGameDims();
   // the board's creatures: the player's own (all of them if they own none)
   const castRef = useRef(cast);
   castRef.current = cast;
@@ -378,7 +376,7 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
   const stage = stageOf(lv);
   const room = ROOMS[stage.room];
   const ph = PH[stage.phase] || PH.day;
-  const barW = width > height ? 196 : Math.min(width - 48, 400);
+  const barW = 196;
   // the room fills the screen; the board lies on its floor (from layouts, not
   // measure(): the screen slides in)
   const [root, setRoot] = useState(null);
@@ -405,13 +403,12 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
   );
   const hidden = phase === 'paused';
 
-  // REDESIGN_V8 (the user: each game laid out sideways): in landscape the top bar and the score / clock sit in a
-  // column on the left, the board in the middle on the room's floor, the buddy and the tools on the right
-  const wide = width > height;
+  // REDESIGN_V8 (the user: each game laid out sideways): the top bar and the score / clock sit in a column on the
+  // left, the board in the middle on the room's floor, the buddy and the tools on the right
   const headerEl = (
     <>
       {/* the Crib's top bar: pause (back once it's over), the room, the time of day */}
-      <View style={[styles.header, wide ? styles.wHeader : { paddingTop: insets.top + 6 }]}>
+      <View style={styles.header}>
         <CribButton face="orange" icon={phase === 'play' ? 'pause' : 'back'} size={44} onPress={phase === 'play' ? pause : exit} />
         <View style={styles.titleBox}>
           <RoomTitle title={room.name} />
@@ -427,14 +424,13 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
             ) : null}
           </View>
         </View>
-        {room.dance || wide ? null : <PhasePill sun={ph.sun} label={ph.label} />}
       </View>
     </>
   );
   const glassEl = (
     <>
       {/* the score creatures and the clock, on the Crib's brown glass */}
-      <View style={[styles.glass, wide && styles.wGlass]}>
+      <View style={styles.glass}>
         {game ? <ScoreRow uris={game.score} left={left} perfect={perfect && phase !== 'loading'} size={40} /> : <View style={{ height: 48 }} />}
         {spec.hearts ? (
           <View style={styles.hearts}>
@@ -491,11 +487,11 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
   );
   const bottomEl = (
     <>
-      {/* the player's Lobby creature cheering them on, beside the tools */}
-      <View style={[styles.bottom, wide ? styles.wBottom : { marginBottom: Math.max(insets.bottom, 6) + 4 }]}>
+      {/* the player's selected creature cheering them on, beside the tools */}
+      <View style={styles.bottom}>
         <Buddy ref={buddy} creatureKey={buddyKey} uri={buddyUri} paused={phase === 'paused' || phase === 'result' || phase === 'timeup' || phase === 'nohearts'} size={84} />
         <View style={styles.toolsCol}>
-          <View style={[styles.tools, wide && styles.wTools]}>
+          <View style={styles.tools}>
             <SdButton kind={xTool ? 'white' : 'pink'} onPress={() => xTool && toggleX()} sound={null} faceStyle={styles.toolFace}>
               <BtnLabel kind={xTool ? 'purple' : 'pink'} size={15}>
                 PLACE
@@ -516,28 +512,19 @@ export default function RegularGame({ startLv, profile, uid, roster, cast = [], 
   return (
     <View style={styles.fill} onLayout={onRoot}>
       {root ? <Room room={stage.room} phase={stage.phase} width={root.w} height={root.h} /> : null}
-      {wide ? (
-        <View style={styles.wRow}>
-          <View style={styles.wLeft}>
-            {headerEl}
-            {glassEl}
-            {room.dance ? null : (
-              <View style={styles.wPhase}>
-                <PhasePill sun={ph.sun} label={ph.label} />
-              </View>
-            )}
-          </View>
-          {boardEl}
-          <View style={styles.wRight}>{bottomEl}</View>
-        </View>
-      ) : (
-        <>
+      <View style={styles.wRow}>
+        <View style={styles.wLeft}>
           {headerEl}
           {glassEl}
-          {boardEl}
-          {bottomEl}
-        </>
-      )}
+          {room.dance ? null : (
+            <View style={styles.wPhase}>
+              <PhasePill sun={ph.sun} label={ph.label} />
+            </View>
+          )}
+        </View>
+        {boardEl}
+        <View style={styles.wRight}>{bottomEl}</View>
+      </View>
 
       <FxLayer ref={fx} />
       <PauseCard visible={phase === 'paused'} onResume={resume} onQuit={exit} />
@@ -609,30 +596,26 @@ function FadeAway({ children, delay = 750 }) {
 const GLASS = 'rgba(91,58,41,0.75)'; // the Crib's pills
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', gap: 8, paddingHorizontal: 12, zIndex: 3 },
+  header: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', gap: 8, paddingHorizontal: 0, zIndex: 3, flexWrap: 'wrap' },
   titleBox: { flex: 1, minWidth: 0 },
   chips: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: -2 },
   sub: { flexShrink: 0, fontFamily: F.heavy, fontSize: 11, color: '#ffffff', letterSpacing: 0.6, textShadowColor: '#5b3a29', textShadowRadius: 1.5, textShadowOffset: { width: 0, height: 1 } },
-  glass: { alignSelf: 'center', alignItems: 'center', marginTop: 6, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8, borderRadius: 20, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
+  glass: { alignSelf: 'stretch', alignItems: 'center', marginTop: 2, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8, borderRadius: 20, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
   hearts: { position: 'absolute', top: 14, right: 10, flexDirection: 'row', gap: 2 },
   bannerSub: { fontFamily: F.display, fontSize: 17, color: '#ffe08a', textAlign: 'center', letterSpacing: 1, marginTop: 4, textShadowColor: INK, textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 1 },
   perfectText: { fontFamily: F.display, fontSize: 10.5, letterSpacing: 0.6, color: '#ffe08a', marginTop: 2 },
   perfectLost: { color: '#e9d6ff' },
   barRow: { marginTop: 22 },
   boardArea: { flex: 1, alignSelf: 'stretch', zIndex: 2 },
-  // landscape (REDESIGN_V8)
+  // REDESIGN_V8: the left column, the board, the right column
   wRow: { flex: 1, flexDirection: 'row' },
   wLeft: { width: 236, paddingTop: 8, paddingLeft: 10, gap: 6, zIndex: 3 },
   wRight: { width: 206, justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 10, zIndex: 3 },
-  wHeader: { paddingHorizontal: 0, flexWrap: 'wrap' },
-  wGlass: { alignSelf: 'stretch', marginTop: 2 },
-  wBottom: { flexDirection: 'column', alignItems: 'center', alignSelf: 'auto' },
-  wTools: { flexDirection: 'column', gap: 8 },
   wPhase: { alignSelf: 'flex-start' },
   makingWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-  bottom: { flexDirection: 'row', alignItems: 'flex-end', alignSelf: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 6, borderRadius: 22, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
+  bottom: { flexDirection: 'column', alignItems: 'center', alignSelf: 'auto', justifyContent: 'center', gap: 10, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 6, borderRadius: 22, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
   toolsCol: { alignItems: 'center', paddingBottom: 2 },
-  tools: { flexDirection: 'row', gap: 8 },
+  tools: { flexDirection: 'column', gap: 8 },
   toolFace: { paddingHorizontal: 20, paddingVertical: 9 },
   hint: { fontFamily: F.heavy, fontSize: 11, color: '#ffffff', marginTop: 2, textAlign: 'center', lineHeight: 14 },
   making: { alignItems: 'center', gap: 10 },

@@ -1,29 +1,30 @@
 import React, { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import CandyBackground from './candy/CandyBackground';
+import { PageBg, WoodBg } from '../royal/parts';
 import { Bone, ViewBones } from './Skeleton';
 
-// A whole screen's placeholder while a screen opened over Home slides in and
-// gets built (App wraps it in ScreenLayer's WhenScreenReady): the candy sky,
-// a header (the back button's spot and the title's) and ViewBones of `kind`.
-function ScreenBones({ kind = 'hub' }) {
-  const insets = useSafeAreaInsets();
+// A whole screen's placeholder while a screen opened over the menu gets built (App wraps it in ScreenLayer's
+// WhenScreenReady): the games' warm page (the same PageBg their hubs stand on), the back orb's and the title's spots,
+// and ViewBones of `kind` ('hub', 'map', 'game', 'list'), all in the wood look, laid out sideways like the screens.
+// bg: the background of the screen coming ('page', the warm page; 'wood', the planks: Squishdoku, the level road).
+// (2026-11-20, the user: "lots of flickering": it was the old design's light-blue sky with portrait bones, flashed
+// for half a second before every game's wooden hub.)
+function ScreenBones({ kind = 'hub', bg = 'page' }) {
   return (
-    <CandyBackground style={{ paddingTop: insets.top }} sparkles>
+    <View style={styles.root}>
+      {bg === 'wood' ? <WoodBg /> : <PageBg />}
       <View style={styles.header}>
-        <Bone w={40} h={40} r={20} tone="sky" />
-        <Bone w="44%" h={26} r={13} tone="sky" />
-        <View style={styles.side} />
+        <Bone w={40} h={40} r={20} tone="wood" />
+        <Bone w={220} h={30} r={15} tone="wood" />
       </View>
       <ViewBones kind={kind} />
-    </CandyBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 6, paddingBottom: 2 },
-  side: { width: 40 },
+  root: { flex: 1 },
+  header: { height: 64, flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16 },
 });
 
 export default memo(ScreenBones);

@@ -51,10 +51,14 @@ function ScreenLayer({ slide, onCovered, onUncover, children }, ref) {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     if (!slide) {
-      onCovered();
+      // covered once this layer's first frame (its placeholder) is on screen, not in the frame it mounts in: what's
+      // under it is hidden on `onCovered` (App.js puts the menu to sleep), which must never show an empty frame
       let second = null;
       const first = requestAnimationFrame(() => {
-        second = requestAnimationFrame(() => setReady(true));
+        second = requestAnimationFrame(() => {
+          onCovered();
+          setReady(true);
+        });
       });
       return () => {
         cancelAnimationFrame(first);
@@ -76,11 +80,12 @@ function ScreenLayer({ slide, onCovered, onUncover, children }, ref) {
   useImperativeHandle(
     ref,
     () => ({
-      exit(then) {
+      // { uncover: false }: another screen takes this one's place (e.g. Stats back to Settings), the menu stays hidden
+      exit(then, { uncover = true } = {}) {
         if (exiting.current) return;
         exiting.current = true;
         Animated.timing(x, { toValue: 1, ...EXIT }).start(() => then());
-        if (onUncover) setTimeout(onUncover, 0);
+        if (onUncover && uncover) setTimeout(onUncover, 0);
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -88,7 +93,7 @@ function ScreenLayer({ slide, onCovered, onUncover, children }, ref) {
   );
   const translateX = x.interpolate({ inputRange: [0, 1], outputRange: [0, width] });
   // (no zIndex/elevation: it sits above Home by order in App's tree, and
-  // App's toasts, sheets and tutorial guide come after it)
+  // App's toasts and sheets come after it)
   return (
     <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateX }] }]}>
       <ScreenReady.Provider value={ready}>{children}</ScreenReady.Provider>

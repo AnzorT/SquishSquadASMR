@@ -58,6 +58,13 @@ const APP_SCRIPTS = ['perf.js', 'boot.js', 'roster.js', 'bridge.js', 'look-lines
 
 const clean = s => s.split('?')[0].split('#')[0].replace(/^\.\//, '');
 
+// PERF 2026-11-20: the creatures' art (export/tripo/<key>/*.svg) wraps each body in a fine noise grain, an feTurbulence
+// filter (22% multiply). A creature is drawn again every frame it moves, and the WebView computed that noise again each
+// time, for every creature: the GPU thread 89% busy in a room with four creatures on the Galaxy A16 (63% without; 54-58
+// fps -> 60). At a creature's size on a phone the grain can't be seen (compared side by side at 2.8x). The group keeps
+// its contents; only the filter goes. (export: also run on android/app/src/main/assets/rig, the games' rig pages' copy)
+export const noGrain = s => s.replace(/<g filter="url\(#ft\)">/g, '<g>');
+
 function pageDeps(text) {
   const deps = new Set();
   for (const m of text.matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g)) if (!/^(https?:)?\/\//.test(m[1])) deps.add(clean(m[1]));
@@ -120,7 +127,11 @@ export async function build(out = OUT) {
   for (const g of ASSETS) for (const root of yard ? [proto, yard] : [proto]) for (const rel of glob(root, g)) if (!EXCLUDE.some(re => re.test(rel))) files.add(rel);
 
   // 3. write
-  fs.rmSync(out, { recursive: true, force: true });
+  // (Windows: a folder another program has open can't be removed, only emptied: empty it then)
+  try { fs.rmSync(out, { recursive: true, force: true }); } catch (e) {
+    if (e.code !== 'EBUSY' && e.code !== 'EPERM') throw e;
+    for (const f of fs.readdirSync(out)) fs.rmSync(path.join(out, f), { recursive: true, force: true });
+  }
   fs.mkdirSync(out, { recursive: true });
   let bytes = 0;
   const manifest = [];
@@ -140,7 +151,8 @@ export async function build(out = OUT) {
         t = t.replace(tag, m => APP_SCRIPTS.concat(pages).map(f => `<script src="app/${f}"></script>\n`).join('') + m);
       }
       fs.writeFileSync(to, t);
-    } else fs.copyFileSync(from, to);
+    } else if (/^export\/tripo\/[^/]+\/[^/]+\.svg$/.test(rel)) fs.writeFileSync(to, noGrain(fs.readFileSync(from, 'utf8')));
+    else fs.copyFileSync(from, to);
     const n = fs.statSync(to).size;
     bytes += n;
     manifest.push([rel, n]);

@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useRef, useState } from 'react';
-import { Lettering as RoyalLettering, Plaque as RoyalPlaque } from '../royal';
+import { Plaque as RoyalPlaque } from '../royal';
 import { Animated, Easing, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Defs, G, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
@@ -16,19 +16,22 @@ import { BigFlame } from '../components/StreakIcons';
 import { productKey } from '../economy';
 import { fmtNum } from '../format';
 import { useProgressive } from '../components/Skeleton';
+import { stepKeys, useKeyLoop, usePingPong } from '../components/idleLoop';
 
-// The Shop's Deals and Gems tabs, drawn from Firestore config/offers
+// The Shop's Deals, Special offers and Gems tabs, drawn from Firestore config/offers
 // (REDESIGN_V6 ruling 2: which offers show, what they hold, their badges,
 // timers and order change without an app update; prices are the stores').
 // Restyled 2026-10-24 (user: "modify the UI and style of the deals and gems
 // shop"): each offer is its own candy card with a lip, a ribbon or a burst
 // badge, and a big price button. The daily streak became one too on
-// 2026-10-25, in the Remove Ads card's layout.
+// 2026-10-25, in the Remove Ads card's layout. Sideways (REDESIGN_V7, V8): the
+// cards side by side, each in a column of the same height; the buttons are the
+// wood look's plaques.
 //   Deals: offers with a negative `order` first (Remove Ads, $0.99), then the
-//   7-day streak, then the rest in order: the gem jar, the bundles, the
-//   season pass. With ads already off, Remove Ads is a thank-you line at the
-//   end.
-//   Gems: the first-buy 2X banner, the packs (double on a pack's first buy),
+//   7-day streak, then the rest in order: the gem jar, the season pass. With
+//   ads already off, Remove Ads is a thank-you line at the end.
+//   Special offers: the bundles.
+//   Gems: the first-buy 2X ribbon, the packs (double on a pack's first buy),
 //   and gems → coins.
 
 const fmt = fmtNum;
@@ -45,36 +48,17 @@ const STYLES = {
 const GREEN_BTN = { colors: ['#e2ffcf', '#7be884', '#26a94e'], rim: '#17652f' };
 const GOLD_BTN = { colors: ['#fff9c9', '#ffd84a', '#ffa60a'], rim: '#9c4d06' };
 const PINK_BTN = { colors: ['#ffe2c8', '#ff9a4a', '#e0601c'], rim: '#8a3a0e' }; // (REDESIGN_V8: orange, not pink)
-const PURPLE_BTN = { colors: ['#f6d9b0', '#d9a066', '#a86e3a'], rim: '#6b4426' }; // (REDESIGN_V8: wood, not purple)
 const rewardText = (r) => (r.k === 'coins' ? `${fmt(r.n)}` : r.k === 'gems' ? `${r.n}` : SIZE_NAME[shownSize(r.t)] || '');
 const DAY = 864e5;
 
 // --- shared pieces -----------------------------------------------------------------------
 
-// The candy button: a white-bordered gradient in a ring with a lip, the
-// shine across its top. Sinks into its lip while pressed.
-// The Shop in the new look (REDESIGN_V7, ShopScreen `royal`): its buttons, headings and the landscape layout.
-export const RoyalShop = React.createContext(false);
-// Deals in landscape (REDESIGN_V8, the user: "No more ads" and the daily streak the same size): every card fills a
-// column of the same height, its parts spaced out to fill it
-const DealsWide = React.createContext(false);
-function Btn({ look, lip = 5, radius = 16, height, onPress, children, style, disabled }) {
-  const royal = React.useContext(RoyalShop);
-  if (royal)
-    return (
-      <RoyalPlaque variant={look === PURPLE_BTN ? 'vel' : 'gold'} tips radius={radius} onPress={onPress} disabled={disabled} style={[{ height, flexDirection: 'row', gap: 8, paddingHorizontal: 12 }, style]}>
-        {children}
-      </RoyalPlaque>
-    );
+// A button: the wood look's gold plaque (REDESIGN_V7); its label (BtnLabel) outlined in its `look`'s rim colour.
+function Btn({ radius = 16, height, onPress, children, style, disabled }) {
   return (
-    <Pressable disabled={disabled} onPress={onPress} style={({ pressed }) => [style, pressed && { transform: [{ translateY: lip - 1 }] }]}>
-      <View style={{ borderRadius: radius + 2.5, backgroundColor: look.rim, padding: 2.5, paddingBottom: 2.5 + lip }}>
-        <LinearGradient colors={look.colors} locations={[0, 0.5, 1]} style={[styles.btnFace, { height, borderRadius: radius }]}>
-          <View pointerEvents="none" style={[styles.btnShine, { borderRadius: radius }]} />
-          {children}
-        </LinearGradient>
-      </View>
-    </Pressable>
+    <RoyalPlaque variant="gold" tips radius={radius} onPress={onPress} disabled={disabled} style={[{ height, flexDirection: 'row', gap: 8, paddingHorizontal: 12 }, style]}>
+      {children}
+    </RoyalPlaque>
   );
 }
 const BtnLabel = ({ children, look, size = 18 }) => (
@@ -83,42 +67,11 @@ const BtnLabel = ({ children, look, size = 18 }) => (
   </ShadowText>
 );
 
-// A section's heading: white candy letters outlined in plum, a note at the right.
-function Heading({ title, note, icon }) {
-  const royal = React.useContext(RoyalShop);
-  if (royal)
-    return (
-      <View style={styles.headingWide}>
-        {String(title).split(' ').map((w, i) => (
-          <RoyalLettering key={i} text={w} variant="gold" size={22} />
-        ))}
-        {note ? <Text style={styles.headingWideNote}>{note}</Text> : null}
-      </View>
-    );
-  return (
-    <View style={styles.heading}>
-      {icon}
-      <ShadowText style={styles.headingText} shadows={outline3(INK, 2.5)}>
-        {title}
-      </ShadowText>
-      {note ? <Text style={styles.headingNote}>{note}</Text> : null}
-    </View>
-  );
-}
-
-// A star-burst badge ("80%" over "OFF"), turning slowly back and forth.
+// A star-burst badge ("80%" over "OFF"), turning slowly back and forth (1.1 s each way).
+// (The idle motions here are one native loop each, src/components/idleLoop.js: a loop around a sequence went back
+// to JS at every step, so they stalled whenever JS was busy.)
 function Burst({ top, bottom, size = 70, colors = ['#fff36b', '#ffb000'], ink = '#a3001f', style }) {
-  const t = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(t, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(t, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [t]);
+  const t = usePingPong(2200);
   const pts = [];
   const n = 14;
   for (let i = 0; i < n * 2; i++) {
@@ -210,19 +163,9 @@ const Glow = memo(function Glow({ size, color = '#ffffff', opacity = 0.9, style 
 
 // --- Remove Ads --------------------------------------------------------------------------
 
-// A little TV saying AD, crossed out, wobbling.
+// A little TV saying AD, crossed out, wobbling (0.7 s each way).
 function NoAdsArt() {
-  const t = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(t, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(t, { toValue: 0, duration: 700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [t]);
+  const t = usePingPong(1400);
   return (
     <Animated.View style={{ transform: [{ rotate: t.interpolate({ inputRange: [0, 1], outputRange: ['-6deg', '6deg'] }) }, { translateY: t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, -4, 0] }) }] }}>
       <Svg width={96} height={96} viewBox="0 0 100 100">
@@ -249,11 +192,10 @@ function NoAdsArt() {
 const PERKS = ['No banner or pop-up ads', 'Ad chests open with no video', 'Boosts and revives, video-free'];
 
 function NoAds({ offer, price, onPress }) {
-  const fit = React.useContext(DealsWide);
   return (
-    <View style={[styles.cardWrap, fit && styles.flex1]}>
-      <View style={[styles.cardRing, { backgroundColor: '#1d4f9a' }, fit && styles.flex1]}>
-        <LinearGradient colors={['#d6ecff', '#5aa8ff', '#2f6fd6']} locations={[0, 0.5, 1]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={[styles.card, fit && styles.cardFit]}>
+    <View style={[styles.cardWrap, styles.flex1]}>
+      <View style={[styles.cardRing, { backgroundColor: '#1d4f9a' }, styles.flex1]}>
+        <LinearGradient colors={['#d6ecff', '#5aa8ff', '#2f6fd6']} locations={[0, 0.5, 1]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={[styles.card, styles.cardFit]}>
           <RaysSpin size={340} color="#ffffff" opacity={0.28} durationMs={22000} style={{ left: -150, top: -150 }} />
           <ShineSweep durationMs={3200} strength={0.45} />
           <Twinkle size={14} color="#fff3a0" duration={1.8} style={{ position: 'absolute', top: 14, left: 104 }} />
@@ -261,7 +203,7 @@ function NoAds({ offer, price, onPress }) {
           <View style={styles.noAdsRow}>
             <NoAdsArt />
             <View style={styles.noAdsText}>
-              <ShadowText style={[styles.noAdsTitle, fit && styles.titleFit]} shadows={outline3('#1d4f9a', 2.5)}>
+              <ShadowText style={[styles.noAdsTitle, styles.titleFit]} shadows={outline3('#1d4f9a', 2.5)}>
                 NO MORE ADS
               </ShadowText>
               {PERKS.map((p) => (
@@ -272,9 +214,9 @@ function NoAds({ offer, price, onPress }) {
               ))}
             </View>
           </View>
-          <Btn look={GOLD_BTN} height={fit ? 50 : 56} radius={20} lip={6} onPress={onPress}>
+          <Btn height={50} radius={20} onPress={onPress}>
             <View style={{ alignItems: 'center' }}>
-              <BtnLabel look={GOLD_BTN} size={fit ? 23 : 26}>
+              <BtnLabel look={GOLD_BTN} size={23}>
                 {price}
               </BtnLabel>
               <Text style={styles.oneTime}>ONE-TIME PURCHASE</Text>
@@ -304,21 +246,15 @@ const NoAdsOwned = () => (
 // the flame and three lines at the top, the seven days, a big CLAIM button
 // (or the time to the next gift once today's is in).
 
-// The streak's flame with its count on it, flickering from its base; cold
+// The streak's flame with its count on it, flickering from its base (up 520 ms, down 640 ms); cold
 // (violet) before the first day.
-function StreakFlame({ count, small }) {
-  const t = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(t, { toValue: 1, duration: 520, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(t, { toValue: 0, duration: 640, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [t]);
-  const W = small ? 62 : 82; // (small: a Deals column in landscape)
+const FLICKER = stepKeys(0, [
+  [1, 520, Easing.inOut(Easing.sin)],
+  [0, 640, Easing.inOut(Easing.sin)],
+]);
+function StreakFlame({ count }) {
+  const t = useKeyLoop(FLICKER.ms, FLICKER);
+  const W = 62; // (small enough for a Deals column)
   const H = W * 1.15;
   const flicker = [
     { translateY: H / 2 },
@@ -354,20 +290,9 @@ const dayBit = (r, i) => (r.k === 'gems' ? GEM[i % 6] : COIN[i % 6]);
 
 // `artRef`: today's art (where its claim flies from)
 function StreakDay({ r, i, last, done, today, hot, artRef, onPress }) {
-  const fit = React.useContext(DealsWide);
   const look = today ? DAY_LOOK.today : done ? DAY_LOOK.done : last ? DAY_LOOK.big : DAY_LOOK.next;
-  const bob = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (!today) return undefined;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(bob, { toValue: 1, duration: 650, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(bob, { toValue: 0, duration: 650, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [today, bob]);
+  // today's gift bobs (0.65 s each way)
+  const bob = usePingPong(1300, { on: !!today });
   const art =
     r.k === 'chest' ? (
       <Image source={GCHEST[hot][`${shownSize(r.t)}-grow`]} style={last ? styles.dayChestBig : styles.dayChest} resizeMode="contain" />
@@ -377,7 +302,7 @@ function StreakDay({ r, i, last, done, today, hot, artRef, onPress }) {
   return (
     <Pressable onPress={onPress} style={[styles.daySlot, last && styles.daySlotLast]}>
       <View style={[styles.dayRing, { backgroundColor: look.ring }]}>
-        <LinearGradient colors={look.bg} style={[styles.dayFace, fit && styles.dayFaceFit]}>
+        <LinearGradient colors={look.bg} style={styles.dayFace}>
           {last && !done ? <RaysSpin size={130} color="#ffffff" opacity={0.7} durationMs={16000} style={{ alignSelf: 'center', top: -30 }} /> : null}
           <Text style={[styles.dayLabel, { color: look.ink }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
             {today ? 'TODAY' : `DAY ${i + 1}`}
@@ -408,24 +333,23 @@ function Streak({ streak, profile, day, hot, onClaim }) {
   const alive = doneToday || st.last === yesterday;
   const cnt = alive ? st.count || 0 : 0;
   const idx = doneToday ? (cnt - 1) % streak.length : cnt % streak.length;
-  const perks = ['A free gift every day', `Day ${streak.length}: ${rewardLong(streak[streak.length - 1])}`, 'Miss a day and it starts over'];
+  const perks = ['A free gift every day', `Day ${streak.length}: ${rewardLong(streak[streak.length - 1])}`];
   const from = { view: todayArt, img: dayBit(streak[idx], idx) };
-  const fit = React.useContext(DealsWide);
   return (
-    <View style={[styles.cardWrap, fit && styles.flex1]}>
-      <View style={[styles.cardRing, { backgroundColor: '#9a2a06' }, fit && styles.flex1]}>
-        <LinearGradient colors={['#ffe27a', '#ff9a3d', '#ec4a22']} locations={[0, 0.5, 1]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={[styles.card, fit && styles.cardFit]}>
+    <View style={[styles.cardWrap, styles.flex1]}>
+      <View style={[styles.cardRing, { backgroundColor: '#9a2a06' }, styles.flex1]}>
+        <LinearGradient colors={['#ffe27a', '#ff9a3d', '#ec4a22']} locations={[0, 0.5, 1]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={[styles.card, styles.cardFit]}>
           <RaysSpin size={340} color="#ffffff" opacity={0.28} durationMs={22000} style={{ left: -150, top: -150 }} />
           <ShineSweep durationMs={3400} delayMs={900} strength={0.4} />
           <Twinkle size={14} color="#ffffff" duration={1.8} style={{ position: 'absolute', top: 12, left: 92 }} />
           <Twinkle size={10} color="#fff3a0" duration={2.4} delay={0.7} style={{ position: 'absolute', top: 96, left: 10 }} />
           <View style={styles.streakTop}>
-            <StreakFlame count={cnt} small={fit} />
+            <StreakFlame count={cnt} />
             <View style={styles.streakText}>
-              <ShadowText style={[styles.noAdsTitle, fit && styles.titleFit]} shadows={outline3('#9a2a06', 2.5)}>
+              <ShadowText style={[styles.noAdsTitle, styles.titleFit]} shadows={outline3('#9a2a06', 2.5)}>
                 DAILY STREAK
               </ShadowText>
-              {(fit ? perks.slice(0, 2) : perks).map((p) => (
+              {perks.map((p) => (
                 <View key={p} style={styles.perk}>
                   <Check size={16} color="#ff6a1a" />
                   <Text style={[styles.perkText, styles.streakPerk]}>{p}</Text>
@@ -433,7 +357,7 @@ function Streak({ streak, profile, day, hot, onClaim }) {
               ))}
             </View>
           </View>
-          <View style={[styles.dayGrid, fit && styles.dayGridFit]}>
+          <View style={styles.dayGrid}>
             {streak.map((r, i) => {
               const done = doneToday ? i <= idx : i < idx;
               const today = !doneToday && i === idx;
@@ -441,16 +365,16 @@ function Streak({ streak, profile, day, hot, onClaim }) {
             })}
           </View>
           {doneToday ? (
-            <View style={[styles.streakWait, fit && { height: 52 }]}>
+            <View style={styles.streakWait}>
               <ShadowText style={styles.streakWaitTitle} shadows={outline3('#9a2a06', 2)}>
                 {`${cnt} DAY${cnt === 1 ? '' : 'S'} IN A ROW!`}
               </ShadowText>
               <Countdown to={Date.now() + untilMidnight()} style={styles.streakWaitText} prefix="Next gift in " />
             </View>
           ) : (
-            <Btn look={GREEN_BTN} height={fit ? 44 : 56} radius={18} lip={fit ? 5 : 6} onPress={() => onClaim(true, false, idx, from)}>
+            <Btn height={44} radius={18} onPress={() => onClaim(true, false, idx, from)}>
               <View style={{ alignItems: 'center' }}>
-                <BtnLabel look={GREEN_BTN} size={fit ? 21 : 24}>
+                <BtnLabel look={GREEN_BTN} size={21}>
                   {`CLAIM DAY ${idx + 1}`}
                 </BtnLabel>
                 <Text style={[styles.oneTime, { color: '#17652f' }]}>{`FREE · ${rewardLong(streak[idx]).toUpperCase()}`}</Text>
@@ -471,11 +395,10 @@ function Jar({ offer, profile, price, onBuy }) {
   const max = offer.max || 1500;
   const pct = Math.min(100, Math.round((gems / max) * 100));
   const full = gems >= max;
-  const fit = React.useContext(DealsWide);
   return (
-    <View style={[styles.cardWrap, fit && styles.flex1]}>
-      <View style={[styles.cardRing, { backgroundColor: '#14917e' }, fit && styles.flex1]}>
-        <LinearGradient colors={['#effffb', '#bff2e8', '#6fd6c4']} locations={[0, 0.6, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.card, styles.jarCard, fit && styles.cardFit]}>
+    <View style={[styles.cardWrap, styles.flex1]}>
+      <View style={[styles.cardRing, { backgroundColor: '#14917e' }, styles.flex1]}>
+        <LinearGradient colors={['#effffb', '#bff2e8', '#6fd6c4']} locations={[0, 0.6, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.card, styles.jarCard, styles.cardFit]}>
           <View style={styles.jarRing}>
             <View style={styles.jar}>
               <LinearGradient colors={['#b9e6ff', '#8a5cff', '#6a22d6']} style={[styles.jarFill, { height: `${pct}%` }]} />
@@ -502,7 +425,7 @@ function Jar({ offer, profile, price, onBuy }) {
               <LinearGradient colors={['#b9e6ff', '#8a5cff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.meterFill, { width: `${Math.max(4, pct)}%` }]} />
               <Text style={styles.meterText}>{`${fmt(gems)} / ${fmt(max)}`}</Text>
             </View>
-            <Btn look={PINK_BTN} height={38} radius={13} lip={4} onPress={() => onBuy(offer, gems)}>
+            <Btn height={38} radius={13} onPress={() => onBuy(offer, gems)}>
               <BtnLabel look={PINK_BTN} size={16}>
                 {`BREAK IT · ${price}`}
               </BtnLabel>
@@ -619,7 +542,7 @@ function Bundle({ offer, hot, price, seenAt, onBuy, index }) {
               />
             )}
           </View>
-          <Btn look={GREEN_BTN} height={50} radius={18} lip={5} onPress={() => onBuy(offer)}>
+          <Btn height={50} radius={18} onPress={() => onBuy(offer)}>
             {!!offer.was && <Text style={styles.was}>{offer.was}</Text>}
             <BtnLabel look={GREEN_BTN} size={22}>
               {price}
@@ -718,7 +641,7 @@ function Pass({ pass, profile, price, onClaim, onBuy }) {
               <Text style={styles.passOwnedText}>Pass unlocked: every gold reward is yours to claim</Text>
             </View>
           ) : (
-            <Btn look={GOLD_BTN} height={50} radius={18} lip={5} onPress={onBuy}>
+            <Btn height={50} radius={18} onPress={onBuy}>
               <BtnLabel look={GOLD_BTN} size={18}>
                 {`UNLOCK GOLD REWARDS · ${price}`}
               </BtnLabel>
@@ -732,12 +655,12 @@ function Pass({ pass, profile, price, onClaim, onBuy }) {
 
 // `buyOffer(offer, extra)`, `priceOf(key)`, `claimStreak(from)`, `claimPass(i, from)`, `seeOffer(id)`
 // (`from`: { view, img }, the prize's icon its coins or gems fly out of)
-// `part`: 'all' (the portrait Shop: everything, the bundles under a "Special offers" heading), or the landscape
-// Shop's two tabs (2026-11-16, the user: the bundles get a Special offers tab of their own): 'deals' (everything but
-// the bundles) and 'special' (the bundles only, no heading). A one-time bundle's window starts when its tab first shows.
-export const DealsTab = memo(function DealsTab({ config, profile, day, hidden, priceOf, onBuyOffer, onClaimStreak, onClaimPass, onNoAds, onSeen, toast, wide = false, part = 'all' }) {
-  // landscape (REDESIGN_V7): the cards side by side, each in a column of its own
-  const col = (el, key) => (wide && el ? <View key={key} style={styles.wideCol}>{el}</View> : el);
+// `part`: which of the Shop's two tabs (2026-11-16, the user: the bundles get a Special offers tab of their own):
+// 'deals' (everything but the bundles) or 'special' (the bundles only). A one-time bundle's window starts when its tab
+// first shows.
+export const DealsTab = memo(function DealsTab({ config, profile, day, hidden, priceOf, onBuyOffer, onClaimStreak, onClaimPass, onNoAds, onSeen, toast, part }) {
+  // the cards side by side, each in a column of its own (REDESIGN_V7)
+  const col = (el, key) => (el ? <View key={key} style={styles.wideCol}>{el}</View> : el);
   const C = offersOf(config);
   const hot = lineup(day, hidden);
   const now = Date.now();
@@ -749,7 +672,7 @@ export const DealsTab = memo(function DealsTab({ config, profile, day, hidden, p
     .filter((o) => !(o.once && bought[o.id]))
     .filter((o) => !(o.once && o.windowHours && seen[o.id] && now > seen[o.id] + o.windowHours * 3600e3))
     .filter((o) => !(o.kind === 'pass' && C.pass.ends && now > Date.parse(C.pass.ends)))
-    .filter((o) => part === 'all' || (part === 'special') === (o.kind === 'bundle'))
+    .filter((o) => (part === 'special') === (o.kind === 'bundle'))
     .sort((a, b) => (a.order || 0) - (b.order || 0));
   // a one-time offer's window starts the first time it shows
   useEffect(() => {
@@ -781,7 +704,6 @@ export const DealsTab = memo(function DealsTab({ config, profile, day, hidden, p
   };
   const first = offers.filter((o) => (o.order || 0) < 0);
   const rest = offers.filter((o) => (o.order || 0) >= 0);
-  const bundles = rest.filter((o) => o.kind === 'bundle');
   const streakN = part === 'special' ? 0 : 1;
   // The page a part a frame as it's built (the offers on top, the streak,
   // then each offer). All at once was one 0.3 s frame on the Galaxy A15, and
@@ -797,8 +719,7 @@ export const DealsTab = memo(function DealsTab({ config, profile, day, hidden, p
       </View>
     );
   return (
-    <DealsWide.Provider value={wide}>
-    <View style={wide ? styles.tabWide : styles.tab}>
+    <View style={styles.tabWide}>
       {first.slice(0, shown).map((o, i) => col(card(o, i), o.id))}
       {streakN && shown > first.length ? col(
         <Streak
@@ -809,15 +730,9 @@ export const DealsTab = memo(function DealsTab({ config, profile, day, hidden, p
           onClaim={(today, done, i, from) => (today ? onClaimStreak(from) : toast(done ? 'Already claimed' : `Come back on day ${i + 1}`))}
         />, 'streak'
       ) : null}
-      {rest.slice(0, shownRest).map((o, i) => (
-        <React.Fragment key={o.id}>
-          {part === 'all' && o.kind === 'bundle' && o.id === bundles[0]?.id ? <Heading title="Special offers" note="Limited bundles" /> : null}
-          {col(card(o, i), o.id)}
-        </React.Fragment>
-      ))}
+      {rest.slice(0, shownRest).map((o, i) => col(card(o, i), o.id))}
       {part !== 'special' && adsFree && offers.some((o) => o.kind === 'noads') ? col(<NoAdsOwned />, 'noads') : null}
     </View>
-    </DealsWide.Provider>
   );
 });
 
@@ -835,14 +750,14 @@ const PACK_LOOK = [
 ];
 const PILE = [[0], [-0.6, 0.6], [-1, 0, 1], [-1.4, -0.45, 0.45, 1.4], [-1.6, -0.8, 0, 0.8, 1.6], [-2, -1, 0, 1, 2]];
 
-function Pack({ p, pi, dbl, price, onPress, wide }) {
+function Pack({ p, pi, dbl, price, onPress }) {
   const look = PACK_LOOK[Math.min(pi, PACK_LOOK.length - 1)];
   const pl = PILE[Math.min(PILE.length - 1, Math.max(0, (p.icons || pi + 1) - 1))];
   const big = pi >= 3;
   return (
-    <Pressable style={({ pressed }) => [styles.packSlot, wide && styles.packSlotWide, pressed && { transform: [{ scale: 0.97 }] }]} onPress={onPress}>
+    <Pressable style={({ pressed }) => [styles.packSlot, pressed && { transform: [{ scale: 0.97 }] }]} onPress={onPress}>
       <View style={[styles.packRing, { backgroundColor: look.rim }]}>
-        <LinearGradient colors={look.bg} style={[styles.pack, wide && styles.packWide]}>
+        <LinearGradient colors={look.bg} style={styles.pack}>
           {p.tag ? <RaysSpin size={200} color="#ffffff" opacity={0.55} durationMs={18000} style={{ top: -60, alignSelf: 'center' }} /> : null}
           <View style={styles.gemPile}>
             <Glow size={120} color={look.glow} opacity={0.95} style={{ top: -22 }} />
@@ -852,15 +767,15 @@ function Pack({ p, pi, dbl, price, onPress, wide }) {
               return <Image key={i} source={GEM[(pi + i) % 6]} style={{ width: s, height: s, marginHorizontal: -6, marginBottom: Math.round(Math.max(0, 8 - c * 6)), transform: [{ rotate: `${Math.round(o * 10)}deg` }] }} />;
             })}
           </View>
-          <ShadowText style={[styles.packAmt, big && { fontSize: 26 }, wide && { fontSize: 21, lineHeight: 25 }]} shadows={outline3(look.rim, 2)}>
+          <ShadowText style={styles.packAmt} shadows={outline3(look.rim, 2)}>
             {fmt(dbl ? p.gems * 2 : p.gems)}
           </ShadowText>
           <View style={styles.row4}>
             {dbl ? <Text style={styles.packWas}>{fmt(p.gems)}</Text> : null}
             <Text style={[styles.packName, { color: look.rim }]}>{(p.name || '').toUpperCase()}</Text>
           </View>
-          <Btn look={GREEN_BTN} height={wide ? 32 : 36} radius={13} lip={4} style={{ alignSelf: 'stretch', marginTop: 4 }} onPress={onPress}>
-            <BtnLabel look={GREEN_BTN} size={wide ? 15 : 17}>
+          <Btn height={32} radius={13} style={{ alignSelf: 'stretch', marginTop: 4 }} onPress={onPress}>
+            <BtnLabel look={GREEN_BTN} size={15}>
               {price}
             </BtnLabel>
           </Btn>
@@ -884,134 +799,66 @@ function Pack({ p, pi, dbl, price, onPress, wide }) {
 
 const SWAP_TAGS = ['', '+12%', '+25%'];
 
-export const GemsTab = memo(function GemsTab({ config, profile, priceOf, onPack, onSwap, wide = false }) {
+export const GemsTab = memo(function GemsTab({ config, profile, priceOf, onPack, onSwap }) {
   const C = offersOf(config);
   const first = profile?.gemFirst || {};
   const anyDouble = C.packs.some((p) => !first[p.product]);
   // the packs one a frame as the page is built, then the swaps
   const packsShown = useProgressive(C.packs.length + 1, 1, 1);
-  if (wide)
-    // landscape (REDESIGN_V8, the user): every pack side by side, all on screen; the 2X bonus a ribbon above them; the
-    // swaps (gems for coins) in a short row under them
-    return (
-      <View style={styles.gemsWide}>
-        {anyDouble ? (
-          <LinearGradient colors={['#fffbe0', '#ffe27a', '#ffb000']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gemRibbon}>
-            <Text style={styles.gemRibbon2x}>2X</Text>
-            <Text style={styles.gemRibbonT}>FIRST BUY BONUS · every pack gives double gems the first time you buy it</Text>
-          </LinearGradient>
-        ) : null}
-        <View style={styles.packsRow}>
-          {C.packs.slice(0, packsShown).map((p, pi) => {
-            const key = productKey(p.product);
-            return <Pack key={p.product} p={p} pi={pi} wide dbl={!first[p.product]} price={key ? priceOf(key) : ''} onPress={() => key && onPack(key)} />;
-          })}
-        </View>
-        {packsShown > C.packs.length ? (
-          <View style={styles.swapsRow}>
-            <Text style={styles.swapsLabel}>Swap gems for coins</Text>
-            {SWAPS.map((w, i) => (
-              <Pressable key={i} onPress={() => onSwap(i)} style={({ pressed }) => [styles.swapChip, pressed && { transform: [{ translateY: 2 }] }]}>
-                <Image source={COIN[(i + 1) % 6]} style={styles.img22} />
-                <Text style={styles.swapChipCoins}>{fmt(w.coins)}</Text>
-                <View style={styles.swapChipPrice}>
-                  <Image source={GEM[0]} style={styles.img18} />
-                  <Text style={styles.swapChipGems}>{fmt(w.gems)}</Text>
-                </View>
-                {!!SWAP_TAGS[i] && <Text style={styles.swapChipTag}>{SWAP_TAGS[i]}</Text>}
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-      </View>
-    );
+  // REDESIGN_V8 (the user): every pack side by side, all on screen; the 2X bonus a ribbon above them; the swaps (gems
+  // for coins) in a short row under them
   return (
-    <View style={wide ? styles.tabWide : styles.tab}>
-      {anyDouble && (
-        <View style={wide ? [styles.cardWrap, styles.wideCol] : styles.cardWrap}>
-          <View style={[styles.cardRing, { backgroundColor: '#a04a00' }]}>
-            <LinearGradient colors={['#fffbe0', '#ffe27a', '#ffb000']} locations={[0, 0.55, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.card, styles.double]}>
-              <ShineSweep durationMs={2800} strength={0.6} />
-              <Burst top="2X" size={72} colors={['#ff8fb1', '#e0123f']} ink="#ffffff" style={styles.doubleBurst} />
-              <View style={{ flex: 1, gap: 2 }}>
-                <ShadowText style={styles.doubleTitle} shadows={outline3('#a04a00', 2)}>
-                  FIRST BUY BONUS
-                </ShadowText>
-                <Text style={styles.doubleText}>Every pack gives double gems the first time you buy it.</Text>
-              </View>
-              <View style={styles.doubleGems}>
-                <Image source={GEM[2]} style={[styles.img34, { transform: [{ rotate: '-14deg' }] }]} />
-                <Image source={GEM[5]} style={[styles.img34, { marginLeft: -12, marginTop: -16, transform: [{ rotate: '12deg' }] }]} />
-              </View>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
-      <Heading title="Gem packs" note="Gems open the best chests" />
-      <View style={wide ? [styles.packs, styles.packsWide] : styles.packs}>
+    <View style={styles.gemsWide}>
+      {anyDouble ? (
+        <LinearGradient colors={['#fffbe0', '#ffe27a', '#ffb000']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gemRibbon}>
+          <Text style={styles.gemRibbon2x}>2X</Text>
+          <Text style={styles.gemRibbonT}>FIRST BUY BONUS · every pack gives double gems the first time you buy it</Text>
+        </LinearGradient>
+      ) : null}
+      <View style={styles.packsRow}>
         {C.packs.slice(0, packsShown).map((p, pi) => {
           const key = productKey(p.product);
-          return <Pack key={p.product} p={p} pi={pi} wide={wide} dbl={!first[p.product]} price={key ? priceOf(key) : ''} onPress={() => key && onPack(key)} />;
+          return <Pack key={p.product} p={p} pi={pi} dbl={!first[p.product]} price={key ? priceOf(key) : ''} onPress={() => key && onPack(key)} />;
         })}
       </View>
-      {packsShown > C.packs.length && <Heading title="Swap gems for coins" />}
-      {packsShown > C.packs.length && (
-        <View style={wide ? [styles.swaps, styles.swapsWide] : styles.swaps}>
+      {packsShown > C.packs.length ? (
+        <View style={styles.swapsRow}>
+          <Text style={styles.swapsLabel}>Swap gems for coins</Text>
           {SWAPS.map((w, i) => (
-            <View key={i} style={styles.swapSlot}>
-              <View style={[styles.swapRing]}>
-                <LinearGradient colors={['#fffdf2', '#ffefc2']} style={styles.swap}>
-                  {!!SWAP_TAGS[i] && (
-                    <View style={styles.swapTag}>
-                      <Text style={styles.swapTagText}>{SWAP_TAGS[i]}</Text>
-                    </View>
-                  )}
-                  <View style={styles.coinPile}>
-                    <Glow size={70} color="#fff6c4" />
-                    {Array.from({ length: i + 1 }, (_, j) => (
-                      <Image key={j} source={COIN[(i + j + 1) % 6]} style={[styles.img36, { marginHorizontal: -9, marginBottom: j === 1 ? 8 : 0 }]} />
-                    ))}
-                  </View>
-                  <ShadowText style={styles.swapCoins} shadows={outline3('#a04a00', 1.5)}>
-                    {fmt(w.coins)}
-                  </ShadowText>
-                  <Btn look={PURPLE_BTN} height={34} radius={12} lip={4} style={{ alignSelf: 'stretch' }} onPress={() => onSwap(i)}>
-                    <Image source={GEM[0]} style={styles.img22} />
-                    <BtnLabel look={PURPLE_BTN} size={15}>
-                      {fmt(w.gems)}
-                    </BtnLabel>
-                  </Btn>
-                </LinearGradient>
+            <Pressable key={i} onPress={() => onSwap(i)} style={({ pressed }) => [styles.swapChip, pressed && { transform: [{ translateY: 2 }] }]}>
+              <Image source={COIN[(i + 1) % 6]} style={styles.img22} />
+              <Text style={styles.swapChipCoins}>{fmt(w.coins)}</Text>
+              <View style={styles.swapChipPrice}>
+                <Image source={GEM[0]} style={styles.img18} />
+                <Text style={styles.swapChipGems}>{fmt(w.gems)}</Text>
               </View>
-            </View>
+              {!!SWAP_TAGS[i] && <Text style={styles.swapChipTag}>{SWAP_TAGS[i]}</Text>}
+            </Pressable>
           ))}
         </View>
-      )}
+      ) : null}
     </View>
   );
 });
 
 const styles = StyleSheet.create({
-  tab: { gap: 18, paddingTop: 4 },
-  // landscape (REDESIGN_V7): the sections side by side in a row that scrolls sideways
+  // the sections side by side in a row that scrolls sideways (REDESIGN_V7)
   tabWide: { flexDirection: 'row', alignItems: 'center', gap: 18, paddingTop: 10, paddingBottom: 8 },
   wideCol: { width: 330, height: 262 },
   // the Special offers tab with every bundle bought or gone
   specialNone: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
   specialNoneT: { fontFamily: F.display, fontSize: 18, color: '#fff6e2', textAlign: 'center', textShadowColor: 'rgba(107,68,38,0.8)', textShadowOffset: { width: 0, height: 1.5 }, textShadowRadius: 1, includeFontPadding: false },
+  // (REDESIGN_V8, the user: "No more ads" and the daily streak the same size): every card fills a column of the same
+  // height, its parts spaced out to fill it
   flex1: { flex: 1 },
   cardFit: { flex: 1, justifyContent: 'space-between', gap: 6, padding: 10 },
   titleFit: { fontSize: 21, lineHeight: 25, paddingRight: 34 },
-  dayGridFit: { minHeight: 0 },
-  dayFaceFit: { minHeight: 60, paddingVertical: 3 },
-  // the Gems tab in landscape (REDESIGN_V8)
+  // the Gems tab (REDESIGN_V8)
   gemsWide: { flex: 1, alignItems: 'center', gap: 10, paddingTop: 2 },
   gemRibbon: { height: 26, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 2, borderColor: '#a04a00' },
   gemRibbon2x: { fontFamily: F.display, fontSize: 15, color: '#e0123f', includeFontPadding: false },
   gemRibbonT: { fontFamily: F.black, fontSize: 11.5, color: '#7a3a00', includeFontPadding: false },
   packsRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-end', paddingTop: 10 },
-  packSlotWide: { width: 120 },
-  packWide: { paddingTop: 12, paddingHorizontal: 7, paddingBottom: 8 },
   swapsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   swapsLabel: { fontFamily: F.display, fontSize: 14, color: '#fff6e2', textShadowColor: 'rgba(107,68,38,0.8)', textShadowOffset: { width: 0, height: 1.5 }, textShadowRadius: 1, includeFontPadding: false },
   swapChip: { height: 36, flexDirection: 'row', alignItems: 'center', gap: 5, paddingLeft: 8, paddingRight: 4, borderRadius: 999, backgroundColor: '#fff6e2', borderWidth: 2, borderColor: '#6b4426', borderBottomWidth: 4 },
@@ -1020,20 +867,9 @@ const styles = StyleSheet.create({
   swapChipGems: { fontFamily: F.display, fontSize: 13, color: '#5b3418', includeFontPadding: false },
   swapChipTag: { position: 'absolute', right: -6, top: -9, paddingHorizontal: 4, borderRadius: 999, overflow: 'hidden', backgroundColor: '#26a94e', color: '#ffffff', fontFamily: F.black, fontSize: 8.5 },
   img18: { width: 18, height: 18 },
-  headingWide: { width: 120, alignItems: 'center', gap: 0 },
-  headingWideNote: { fontFamily: F.black, fontSize: 11, color: '#eadcff', textAlign: 'center', marginTop: 4 },
-  packsWide: { flexWrap: 'nowrap', justifyContent: 'flex-start', gap: 16 },
-  swapsWide: { width: 330 },
   row4: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   row6: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   img22: { width: 22, height: 22 },
-  img34: { width: 34, height: 34 },
-  img36: { width: 36, height: 36 },
-  btnFace: { borderWidth: 3, borderColor: '#ffffff', overflow: 'hidden', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12 },
-  btnShine: { position: 'absolute', left: '7%', right: '7%', top: 2, height: '42%', backgroundColor: 'rgba(255,255,255,0.5)' },
-  heading: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: -6, paddingHorizontal: 2 },
-  headingText: { fontFamily: F.display, fontSize: 21, color: '#ffffff', includeFontPadding: false },
-  headingNote: { marginLeft: 'auto', fontFamily: F.black, fontSize: 11.5, color: '#6a4a9a' },
   // a card: a white border in a coloured ring with a deep lip
   cardWrap: {},
   cardRing: { borderRadius: 28, padding: 2.5, paddingBottom: 8 },
@@ -1062,12 +898,11 @@ const styles = StyleSheet.create({
   flameNum: { position: 'absolute', left: 0, right: 0, bottom: '9%', alignItems: 'center' },
   flameNumText: { fontFamily: F.display, fontSize: 30, color: '#ffffff', includeFontPadding: false },
   // all seven in one row (user, 2026-10-25), day 7 a little wider
-  // (a height of its own: its cells grow into it, and in the landscape Shop it had none, so the claim button sat on them)
-  dayGrid: { flexDirection: 'row', gap: 4, minHeight: 84 },
+  dayGrid: { flexDirection: 'row', gap: 4, minHeight: 0 },
   daySlot: { flex: 1, minWidth: 0 },
   daySlotLast: { flex: 1.35 },
   dayRing: { flex: 1, borderRadius: 14, padding: 2, paddingBottom: 4 },
-  dayFace: { flex: 1, minHeight: 74, alignItems: 'center', justifyContent: 'center', gap: 2, paddingVertical: 5, paddingHorizontal: 2, borderRadius: 12, borderWidth: 2, borderColor: '#ffffff', overflow: 'hidden' },
+  dayFace: { flex: 1, minHeight: 60, alignItems: 'center', justifyContent: 'center', gap: 2, paddingVertical: 3, paddingHorizontal: 2, borderRadius: 12, borderWidth: 2, borderColor: '#ffffff', overflow: 'hidden' },
   dayLabel: { fontFamily: F.black, fontSize: 8.5, letterSpacing: 0.3, maxWidth: '100%' },
   dayImg: { width: 26, height: 26 },
   dayImgBig: { width: 32, height: 32 },
@@ -1075,7 +910,7 @@ const styles = StyleSheet.create({
   dayChestBig: { width: 48, height: 40 },
   dayAmt: { fontFamily: F.display, fontSize: 11.5, includeFontPadding: false, maxWidth: '100%' },
   dayDone: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.7)', alignItems: 'center', justifyContent: 'center' },
-  streakWait: { height: 64, alignItems: 'center', justifyContent: 'center', gap: 1, borderRadius: 22, backgroundColor: 'rgba(122,30,0,0.28)', borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.85)' },
+  streakWait: { height: 52, alignItems: 'center', justifyContent: 'center', gap: 1, borderRadius: 22, backgroundColor: 'rgba(122,30,0,0.28)', borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.85)' },
   streakWaitTitle: { fontFamily: F.display, fontSize: 20, color: '#ffffff', includeFontPadding: false },
   streakWaitText: { fontFamily: F.black, fontSize: 12, letterSpacing: 0.4, color: '#fff3d6' },
   // jar
@@ -1141,31 +976,17 @@ const styles = StyleSheet.create({
   nodeStateText: { fontFamily: F.black, fontSize: 9.5, color: '#45107a' },
   passOwned: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.18)' },
   passOwnedText: { flex: 1, fontFamily: F.black, fontSize: 12, color: '#ffffff' },
-  // gems
-  double: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
-  doubleBurst: {},
-  doubleTitle: { fontFamily: F.display, fontSize: 19, color: '#ffffff', includeFontPadding: false },
-  doubleText: { fontFamily: F.heavy, fontSize: 12, lineHeight: 15.5, color: '#7a3d00' },
-  doubleGems: { flexDirection: 'row', alignItems: 'center' },
-  packs: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 20 },
-  packSlot: { width: '48.4%' },
+  // the gem packs
+  packSlot: { width: 120 },
   packRing: { borderRadius: 26, padding: 2.5, paddingBottom: 7 },
-  pack: { alignItems: 'center', gap: 2, paddingTop: 18, paddingHorizontal: 10, paddingBottom: 10, borderRadius: 23.5, borderWidth: 3, borderColor: '#ffffff', overflow: 'hidden' },
+  pack: { alignItems: 'center', gap: 2, paddingTop: 12, paddingHorizontal: 7, paddingBottom: 8, borderRadius: 23.5, borderWidth: 3, borderColor: '#ffffff', overflow: 'hidden' },
   pack2x: { position: 'absolute', left: 8, top: 8, paddingHorizontal: 6, borderRadius: 8, backgroundColor: '#e01e4a', borderWidth: 2, borderColor: '#ffffff', transform: [{ rotate: '-8deg' }] },
   pack2xText: { fontFamily: F.display, fontSize: 13, color: '#ffffff' },
   gemPile: { height: 64, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
-  packAmt: { fontFamily: F.display, fontSize: 24, lineHeight: 28, color: '#ffffff', includeFontPadding: false },
+  packAmt: { fontFamily: F.display, fontSize: 21, lineHeight: 25, color: '#ffffff', includeFontPadding: false },
   packWas: { fontFamily: F.black, fontSize: 11, color: '#a898c8', textDecorationLine: 'line-through' },
   packName: { fontFamily: F.black, fontSize: 10, letterSpacing: 1 },
   packTagWrap: { position: 'absolute', top: -11, left: 0, right: 0, alignItems: 'center' },
   packTag: { paddingHorizontal: 10, paddingVertical: 2, borderRadius: 999, borderWidth: 2, borderColor: '#ffffff' },
   packTagText: { fontFamily: F.black, fontSize: 9.5, letterSpacing: 0.6, color: '#ffffff' },
-  swaps: { flexDirection: 'row', justifyContent: 'space-between' },
-  swapSlot: { width: '31.6%' },
-  swapRing: { borderRadius: 22, padding: 2, paddingBottom: 6, backgroundColor: '#c46a00' },
-  swap: { alignItems: 'center', gap: 4, paddingTop: 10, paddingHorizontal: 7, paddingBottom: 8, borderRadius: 20, borderWidth: 2.5, borderColor: '#ffffff', overflow: 'hidden' },
-  coinPile: { height: 46, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
-  swapCoins: { fontFamily: F.display, fontSize: 18, color: '#ffffff', includeFontPadding: false },
-  swapTag: { position: 'absolute', right: 5, top: 5, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 999, backgroundColor: '#26a94e', borderWidth: 1.5, borderColor: '#ffffff' },
-  swapTagText: { fontFamily: F.black, fontSize: 9, color: '#ffffff' },
 });

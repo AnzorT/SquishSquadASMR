@@ -1,9 +1,7 @@
-import { useWide } from '../royal/GameFrame';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, AppState, BackHandler, Easing, Image, PanResponder, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Defs, Ellipse, Path, RadialGradient, Stop } from 'react-native-svg';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CribButton, RoomTitle } from '../crib/Hud';
 import Room from '../hop/Room';
 import ShadowText, { outline3 } from '../components/candy/ShadowText';
@@ -79,24 +77,15 @@ const SHUT_MS = 650;
 const BLITZ_SOUNDS = ['sd_count', 'sd_go', 'sd_pip', 'sd_blitzNext', 'sd_blitzFail', 'sd_blitzWin', 'sd_drain', 'sd_revive', 'sd_timeUp'];
 const LOAD_SOUNDS = ['fs_pop', 'fs_peek', 'fs_doorClose', 'fs_doorOpen', 'fs_rattle', 'fs_jump', 'fs_land', 'fs_tumble', 'fs_pick', 'fs_drop', 'fs_snap', 'fs_wrong', 'fs_impostor', 'fs_swap', 'fs_heart', 'fs_mixed', 'sd_tick', 'sd_solve', 'sd_confetti', 'sd_boardIn'];
 
-// the tray: one row up to 6, else two
+// the tray (REDESIGN_V8, the games sideways): a column at the right of the play area, one or two spots across, and
+// the fridge gets the area's whole height beside it
 function trayGeo(w, h, cap) {
-  const perRow = cap > 6 ? Math.ceil(cap / 2) : Math.max(cap, 4);
-  const rows = cap > 6 ? 2 : 1;
-  const cell = Math.floor(Math.min(58, (w - 48) / perRow));
-  const tw = perRow * cell + 24;
-  const th = rows * cell + 26;
-  return { cell, perRow, rows, tw, th, tx: Math.round((w - tw) / 2), ty: h - th - 6 };
-}
-// landscape (REDESIGN_V8, the games sideways): the tray stands as a column at the right of the play area, one or two
-// spots across, and the fridge gets the area's whole height beside it
-function trayGeoWide(w, h, cap) {
   const perRow = cap > 4 ? 2 : 1;
   const rows = Math.ceil(cap / perRow);
   const cell = Math.floor(Math.min(58, (h - 44) / rows));
   const tw = perRow * cell + 24;
   const th = rows * cell + 26;
-  return { cell, perRow, rows, tw, th, tx: w - tw - 10, ty: Math.round((h - th) / 2), wide: true };
+  return { cell, perRow, rows, tw, th, tx: w - tw - 10, ty: Math.round((h - th) / 2) };
 }
 const trayCenter = (tg, j) => ({ x: tg.tx + 12 + (j % tg.perRow) * tg.cell + tg.cell / 2, y: tg.ty + 15 + Math.floor(j / tg.perRow) * tg.cell + tg.cell / 2 });
 
@@ -327,8 +316,7 @@ export default function SortGame({ startLv, pool, blitz = false, ad, adsFree = f
     if (width > 0 && height > 0) setArea((a) => (a && a.w === width && a.h === height ? a : { w: width, h: height }));
     areaRef.current?.measure((x, y, w, h, px, py) => (origin.current = { x: px, y: py }));
   }, []);
-  const wide = useWide();
-  // the whole screen (the kitchen behind it) and the phone's insets (the level runs edge to edge since 2026-11-17)
+  // the whole screen (the kitchen behind it; the level runs edge to edge since 2026-11-17)
   const [root, setRoot] = useState(null);
   const rootRef = useRef(null);
   rootRef.current = root;
@@ -336,12 +324,11 @@ export default function SortGame({ startLv, pool, blitz = false, ad, adsFree = f
     const { width, height } = e.nativeEvent.layout;
     if (width > 0 && height > 0) setRoot((r) => (r && r.w === width && r.h === height ? r : { w: width, h: height }));
   }, []);
-  const insets = useSafeAreaInsets();
-  const tg = useMemo(() => (area ? (wide ? trayGeoWide : trayGeo)(area.w, area.h, board.trayCap) : null), [area, board, wide]);
+  const tg = useMemo(() => (area ? trayGeo(area.w, area.h, board.trayCap) : null), [area, board]);
   // the level's fridge, small to very very large (models.js)
   const m = modelOf(theme, spec.model);
   const g = useMemo(
-    () => (area ? (tg.wide ? geometry({ w: area.w - tg.tw - 20, h: area.h, rows: spec.rows, cols: spec.cols, model: m, trayH: 0 }) : geometry({ w: area.w, h: area.h, rows: spec.rows, cols: spec.cols, model: m, trayH: tg.th + 6 })) : null),
+    () => (area ? geometry({ w: area.w - tg.tw - 20, h: area.h, rows: spec.rows, cols: spec.cols, model: m, trayH: 0 }) : null),
     [area, spec, m, tg],
   );
   // the squishies stand on the shelves, smaller than their spots (the
@@ -1612,10 +1599,10 @@ export default function SortGame({ startLv, pool, blitz = false, ad, adsFree = f
   // Blitz: the best run so far, and whether this one has beaten it
   const bestRun = record(profile).blitz.top;
   const beat = blitz && cleared > bestRun && bestRun > 0;
-  const barW = wide ? 186 : Math.min((root ? root.w : 360) - 70, 320);
+  const barW = 186;
   const topEl = (
     <>
-      <View style={[styles.hud, wide ? styles.wHud : { paddingTop: insets.top + 6 }]}>
+      <View style={styles.hud}>
         <CribButton face="orange" icon={blitz && placing ? 'pause' : 'back'} size={44} onPress={() => (phaseRef.current === 'place' ? pause() : leave())} />
         <View style={styles.titleBox}>
           <RoomTitle title={blitz ? 'Blitz Mode' : m.name} />
@@ -1628,7 +1615,7 @@ export default function SortGame({ startLv, pool, blitz = false, ad, adsFree = f
           )}
         </View>
       </View>
-      <View style={[styles.glass, wide && styles.wGlass]}>
+      <View style={styles.glass}>
         {blitz ? (
           <>
             <View style={styles.pills}>
@@ -1714,18 +1701,11 @@ export default function SortGame({ startLv, pool, blitz = false, ad, adsFree = f
     <View style={styles.fill} onLayout={onRoot}>
       {/* the fridge stands in the Crib's kitchen (as Squish Hop's levels stand in its rooms) */}
       {root ? <Room room="kitchen" phase="day" width={root.w} height={root.h} /> : null}
-      {wide ? (
-        // landscape (REDESIGN_V8): the top bar and the glass in a column on the left
-        <View style={styles.wRow}>
-          <View style={styles.wLeft}>{topEl}</View>
-          {areaEl}
-        </View>
-      ) : (
-        <>
-          {topEl}
-          <View style={[styles.fill, { paddingBottom: insets.bottom }]}>{areaEl}</View>
-        </>
-      )}
+      {/* (REDESIGN_V8) the top bar and the glass in a column on the left, the play area beside it */}
+      <View style={styles.row}>
+        <View style={styles.left}>{topEl}</View>
+        {areaEl}
+      </View>
 
       {blitz ? (
         <>
@@ -1767,13 +1747,12 @@ const GLASS = 'rgba(91,58,41,0.75)';
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   // the top bar and the glass, as Squish Hop's (hop/Game.js)
-  hud: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, zIndex: 3 },
+  hud: { flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 3 },
   titleBox: { flex: 1, minWidth: 0 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -2 },
   tier: { paddingHorizontal: 6, borderRadius: 999, borderWidth: 2, borderColor: '#ffffff' },
   tierText: { fontFamily: F.display, fontSize: 9.5, letterSpacing: 0.6, color: '#ffffff' },
-  glass: { alignItems: 'center', gap: 8, marginHorizontal: 12, marginTop: 4, paddingHorizontal: 10, paddingVertical: 9, borderRadius: 20, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
-  wGlass: { marginHorizontal: 0 },
+  glass: { alignItems: 'center', gap: 8, marginTop: 4, paddingHorizontal: 10, paddingVertical: 9, borderRadius: 20, backgroundColor: GLASS, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', zIndex: 1 },
   hearts: { flexDirection: 'row', gap: 4 },
   // Blitz: the rounds cleared and the best run (Squish Hop's pills; the best in orange once it's beaten)
   pills: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -1787,10 +1766,8 @@ const styles = StyleSheet.create({
   track: { flex: 1, height: 14, borderRadius: 7, backgroundColor: 'rgba(69,16,122,0.18)', borderWidth: 2, borderColor: '#ffffff', overflow: 'hidden' },
   trackShine: { position: 'absolute', left: 4, right: 4, top: 1.5, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.6)' },
   area: { flex: 1 },
-  // landscape (REDESIGN_V8)
-  wRow: { flex: 1, flexDirection: 'row' },
-  wLeft: { width: 240, paddingTop: 8, paddingLeft: 10, gap: 8, zIndex: 3 },
-  wHud: { paddingHorizontal: 0 },
+  row: { flex: 1, flexDirection: 'row' },
+  left: { width: 240, paddingTop: 8, paddingLeft: 10, gap: 8, zIndex: 3 },
   wrap: { position: 'absolute' },
   insideImg: { position: 'absolute', left: 0, top: 0 },
   prop: { position: 'absolute' },

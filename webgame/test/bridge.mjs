@@ -130,7 +130,9 @@ check(mapBack === true && !offMap.map && offMap.orb, 'Android back on the map go
 // back button: leaves the house
 const back = await page.evaluate(() => window.SquishApp.back());
 await page.waitForTimeout(1500);
-check(back === true && !(await page.$('.mm-hback')), 'Android back leaves the house');
+// (2026-11-21: the house is then parked, ready for the next trip: still in the page, invisible and untouchable)
+const parked = await page.evaluate(() => { const h = document.querySelector('.mm-house'); return !h || (getComputedStyle(h).pointerEvents === 'none' && +getComputedStyle(h).opacity < 0.05); });
+check(back === true && parked, 'Android back leaves the house (parked out of sight)', { back, parked });
 
 // round 11: no GAMES tab, no "Let's play" board, CHARACTERS, a living level crest
 const hudBits = await page.evaluate(() => ({ tabs: [...document.querySelectorAll('.mm-tab')].map(t => t.textContent.trim()), board: !!document.querySelector('.mm-card .k'), pills: !!document.querySelector('.mm-lv .tag'), crest: !!document.querySelector('.sq-crest .sq-cin') }));
@@ -283,6 +285,33 @@ await page3.evaluate(() => { window.__SQUISH_INIT__ = window.__late; });
 await page3.waitForTimeout(800);
 const late = await page3.evaluate(() => ({ picks: window.__sent.filter(m => m.type === 'select').length, shown: window.SquishSquad.ROSTER[window.SquadLobby.selected()].key }));
 check(late.picks === 0 && late.shown === 'nimbo', 'start data arriving late: no stray pick goes to the app, and the menu shows the app character', late);
+
+// PERF 2026-11-20: sleep / wake. Asleep, nothing runs (frames, timers, the page's clock, CSS animations); 'state' is
+// applied at once, 'screen' waits for wake; on wake everything carries on where it was
+const sleep = await page3.evaluate(() => new Promise(res => {
+  const A = window.SquishApp, out = {};
+  let frames = 0; const count = () => { frames++; requestAnimationFrame(count); }; requestAnimationFrame(count);
+  let fired = 0; setTimeout(() => { fired = performance.now(); }, 300);
+  setTimeout(() => {
+    out.t0 = performance.now(); out.f0 = frames;
+    A.receive({ type: 'sleep', on: true });
+    out.asleep = !!window.SquishSleep.asleep;
+    A.receive({ type: 'state', state: { coins: 4242 } });
+    A.receive({ type: 'screen', screen: 'house' });
+    const nat = window.SquishSleep.native;
+    nat.setTimeout(() => {
+      out.framesAsleep = frames - out.f0; out.clockAsleep = performance.now() - out.t0; out.firedAsleep = !!fired;
+      out.coins = window.SquishSquad.wallet().coins; out.walkedAsleep = !!document.querySelector('.mm-hud.mm-gone');
+      out.cssPaused = getComputedStyle(document.documentElement).getPropertyValue('--x') === '' && document.documentElement.classList.contains('sq-sleep');
+      A.receive({ type: 'sleep', on: false });
+      out.awake = !window.SquishSleep.asleep;
+      nat.setTimeout(() => { out.framesAwake = frames - out.f0 - out.framesAsleep; out.fired = fired ? Math.round(fired - out.t0) : 0; out.walked = !!document.querySelector('.mm-hud.mm-gone'); res(out); }, 800);
+    }, 700);
+  }, 100);
+}));
+check(sleep.asleep && sleep.framesAsleep <= 1 && sleep.clockAsleep < 5 && !sleep.firedAsleep && sleep.cssPaused, 'asleep: no frames, no timers, the page\'s clock stands still, CSS animations paused', sleep);
+check(sleep.coins === 4242 && !sleep.walkedAsleep, 'asleep: the app\'s state is applied at once, a screen change waits for wake', sleep);
+check(sleep.awake && sleep.framesAwake > 5 && sleep.fired > 150 && sleep.fired < 400 && sleep.walked, 'awake: frames and timers carry on (a timer fires after the time it had left), the parked screen change plays', sleep);
 
 check(!errors.length, 'no page errors, no internet', errors.slice(0, 5));
 await browser.close();

@@ -18,19 +18,18 @@ export const RIGS_OK = Platform.OS === 'android' || Platform.OS === 'web';
 const CALLS = ['cast', 'run'];
 // the page is given this long to draw the three, from the card opening
 const WAIT_MS = 4000;
-// the WebView is made a moment after the card starts springing up (making one holds the UI thread)
-const MOUNT_MS = 160;
+// the WebView is made once the card has sprung up and settled (PERF 2026-11-20: making one holds the UI thread for
+// 0.1-0.3 s on the Galaxy A16; made 160 ms in, it froze the card mid-spring and the screen read 41-45 fps; the grey
+// shapes stand in meanwhile, and the stars still wait for the characters)
+const MOUNT_MS = 650;
 // the grey shapes fade in only if the page is still loading by then (no flash on a fast one)
 const SHAPES_MS = 380;
 
 // where the three stand (fractions of the row's width), and the row: TW × TH, the characters' most width and height
-// (the middle one bigger), and the page's room past the row (BX each side, BT above for the jump, BB below)
+// (the middle one bigger), and the page's room past the row (BX each side, BT above for the jump, BB below); sized for
+// the sideways screen's one-column card
 const AT = [0.17, 0.5, 0.83];
-const LAYOUT = {
-  tall: { TW: 264, TH: 104, W: [68, 84, 68], H: [78, 96, 78], BX: 36, BT: 96, BB: 24 },
-  compact: { TW: 300, TH: 88, W: [62, 74, 62], H: [70, 84, 70], BX: 36, BT: 76, BB: 22 },
-};
-export const trioHeight = (compact) => (compact ? LAYOUT.compact : LAYOUT.tall).TH;
+const L = { TW: 300, TH: 88, W: [62, 74, 62], H: [70, 84, 70], BX: 36, BT: 76, BB: 22 };
 
 // Three rig keys for a result: `want`'s, any missing ones topped up from `pool` (no repeats while there are others),
 // or null with none at all.
@@ -42,8 +41,7 @@ export function trioOf(want, pool = []) {
   return any ? out.map((k) => k || any) : null;
 }
 
-export default function Trio({ keys, stars, T0, STEP, compact, onGo }) {
-  const L = compact ? LAYOUT.compact : LAYOUT.tall;
+export default function Trio({ keys, stars, T0, STEP, onGo }) {
   const stage = useRef(null);
   const [on, setOn] = useState(false);
   const went = useRef(false);
@@ -72,7 +70,7 @@ export default function Trio({ keys, stars, T0, STEP, compact, onGo }) {
   const onReady = useCallback(() => {
     const list = keys.map((key, i) => ({ id: `r${i}`, key, W: L.W[i], H: L.H[i], x: L.BX + L.TW * AT[i], y: L.BT + L.TH - 4 }));
     stage.current && stage.current.cast(list, tag);
-  }, [keys, L, tag]);
+  }, [keys, tag]);
   const onCast = useCallback(
     (m) => {
       if (went.current || m.tag !== tag) return;

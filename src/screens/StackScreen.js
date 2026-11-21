@@ -1,11 +1,10 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, BackHandler, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GameBackground as CandyBackground, GameBack, useWide } from '../royal/GameFrame';
+import { GameBackground, GameBack } from '../royal/GameFrame';
 import { KeptView, ViewSlot, useViewSwitch } from '../components/ViewSwitch';
 import RoundButton, { BackGlyph } from '../components/candy/RoundButton';
 import sfx from '../audio/sfx';
-import LevelMap from '../sort/LevelMap';
 import ForestMap from '../stack/ForestMap';
 import StackGame from '../stack/Game';
 import Hub from '../stack/Hub';
@@ -18,9 +17,9 @@ import { selectedId } from '../squad/lobby';
 import { saveStack } from '../firebase/firestore';
 import { F, INK } from '../squishdoku/theme';
 
-// Squish Stack (SQUISH_STACK.md), opened from the Lobby's PLAY game picker:
-// the hub (REGULAR MODE and BLITZ MODE cards), REGULAR's 50-level map (Squish
-// Sort's map, with this game's levels) and a level, each sliding in over the
+// Squish Stack (SQUISH_STACK.md), opened from the Menu's Game Park: the hub
+// (REGULAR MODE and BLITZ MODE cards), REGULAR's 50-level forest road
+// (src/stack/ForestMap.js) and a level, each sliding in over the
 // last as placeholders first (src/components/ViewSwitch.js); or BLITZ MODE,
 // straight from the hub.
 
@@ -37,14 +36,12 @@ function StackScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack
   const insets = useSafeAreaInsets();
   const rec = record(profile);
   const sw = useViewSwitch('hub'); // hub | map | game | blitz
-  const wide = useWide();
   const { view, go } = sw;
   const [playLv, setPlayLv] = useState(1);
   const [rules, setRules] = useState(false);
   const owned = ownedKey(profile);
   const cast = useMemo(() => castOf(creatures, profile, hidden), [creatures, hidden, owned]); // eslint-disable-line react-hooks/exhaustive-deps
-  const uris = useMemo(() => cast.map((c) => c.uri), [cast]);
-  // the forest map's walker: the player's selected character (the Lobby's / the Menu's pick)
+  // the forest map's walker: the player's selected character (the Menu's pick)
   const walker = BY_ID[selectedId(profile)]?.key || null;
   // each time the map comes into view (the walker gets a fresh page: src/stack/ForestMap.js)
   const visits = useRef({ n: 0, last: null });
@@ -102,16 +99,15 @@ function StackScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack
     </View>
   );
 
-  // sideways the map is the forest, the whole screen, with this bar over its sky
-  const forest = wide;
+  // the map is the forest, the whole screen, with this bar over its sky
   const header = (
     <View style={styles.header}>
       <GameBack onPress={() => (view === 'map' ? go('hub') : onBack())} />
       {view === 'map' ? (
         <>
           <View style={styles.titleBox}>
-            <Text style={[styles.headerTitle, forest && styles.onSky]}>SQUISH STACK</Text>
-            <Text style={[styles.headerSub, forest && styles.onSkySub]}>{`${doneOf(rec)} / ${LEVELS} levels`}</Text>
+            <Text style={styles.headerTitle}>SQUISH STACK</Text>
+            <Text style={styles.headerSub}>{`${doneOf(rec)} / ${LEVELS} levels`}</Text>
           </View>
           <View style={styles.starPill}>
             <Text style={styles.starPillText}>{`★ ${starsOf(rec)}`}</Text>
@@ -122,16 +118,12 @@ function StackScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack
   );
 
   return (
-    <CandyBackground style={{ paddingTop: insets.top }} sparkles>
-      {!playing && !(forest && view === 'map') ? header : null}
+    <GameBackground style={{ paddingTop: insets.top }}>
+      {!playing && view !== 'map' ? header : null}
       <Animated.View style={[styles.fill, sw.style]}>
         {/* the map stays built under a level, so leaving the level is instant */}
         <KeptView sw={sw} name="map" keepWhile={view === 'game'} bones="map">
-          {forest ? (
-            <ForestMap rec={rec} list={LEVEL_LIST} bannerOf={bannerOf} onPlay={play} walker={walker} visit={visits.current.n} header={header} />
-          ) : (
-            <LevelMap rec={rec} uris={uris} onPlay={play} list={LEVEL_LIST} bannerOf={bannerOf} />
-          )}
+          <ForestMap rec={rec} list={LEVEL_LIST} bannerOf={bannerOf} onPlay={play} walker={walker} visit={visits.current.n} header={header} />
         </KeptView>
         {view !== 'map' ? (
           <ViewSlot sw={sw} bones={BONES[view]}>
@@ -158,7 +150,7 @@ function StackScreen({ profile, creatures, hidden, uid, adsFree, haptics, onBack
         ) : null}
       </Animated.View>
       <RulesCard visible={rules} onClose={() => setRules(false)} />
-    </CandyBackground>
+    </GameBackground>
   );
 }
 
@@ -166,13 +158,11 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 6, paddingBottom: 2 },
   titleBox: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontFamily: F.display, fontSize: 20, letterSpacing: 1, color: '#8a3a0e' },
-  headerSub: { fontFamily: F.heavy, fontSize: 11.5, color: INK },
+  // over the forest's sky
+  headerTitle: { fontFamily: F.display, fontSize: 20, letterSpacing: 1, color: '#ffffff', textShadowColor: 'rgba(90,40,10,0.85)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 3 },
+  headerSub: { fontFamily: F.heavy, fontSize: 11.5, color: '#ffffff', textShadowColor: 'rgba(60,30,10,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
   starPill: { backgroundColor: '#ffffff', borderRadius: 999, borderWidth: 2.5, borderColor: '#ffd23a', paddingHorizontal: 10, paddingVertical: 4 },
   starPillText: { fontFamily: F.display, fontSize: 14, color: '#b86200' },
-  // over the forest's sky
-  onSky: { color: '#ffffff', textShadowColor: 'rgba(90,40,10,0.85)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 3 },
-  onSkySub: { color: '#ffffff', textShadowColor: 'rgba(60,30,10,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
   wait: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30, gap: 16 },
   waitText: { fontFamily: F.display, fontSize: 16, color: INK, textAlign: 'center' },
 });

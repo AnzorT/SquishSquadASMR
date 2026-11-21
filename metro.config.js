@@ -33,7 +33,6 @@ const WEB_SWAPS = {
   '@react-native-firebase/app': 'src/web/firebase/app.js',
   '@react-native-firebase/auth': 'src/web/firebase/auth.js',
   '@react-native-firebase/firestore': 'src/web/firebase/firestore.js',
-  '@react-native-firebase/storage': 'src/web/firebase/storage.js',
   'react-native-google-mobile-ads': 'src/web/ads.js',
   'react-native-webview': 'src/web/WebView.js',
   'expo-file-system': 'src/web/fileSystem.js',

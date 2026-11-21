@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useRef } from 'react';
-import { Animated, Image, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Image, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Pressable from './Pressable';
 import OutlinedTitle from './candy/OutlinedTitle';
@@ -11,8 +11,8 @@ import { CHEST_NAME } from '../playerXp';
 import { shownSize } from '../squad/data';
 import { fmtNum } from '../format';
 
-// The player level's pieces (PLAYER_XP.md): a level road prize's art, the
-// lobby's LV chip, and the LEVEL UP card App shows when the level rises.
+// The player level's pieces (PLAYER_XP.md): a level road prize's art and
+// the LEVEL UP card App shows when the level rises.
 
 // "1,200 coins", "50 gems", "Rare chest"
 export const prizeLabel = (r) => (!r ? '' : r.k === 'coins' ? `${fmtNum(r.n)} coins` : r.k === 'gems' ? `${fmtNum(r.n)} gems` : `${CHEST_NAME[shownSize(r.t)] || ''} chest`);
@@ -33,42 +33,12 @@ export const PrizeArt = memo(function PrizeArt({ r, group, i = 0, size = 44, dim
   return <Image source={r.k === 'gems' ? GEM[i % 6] : COIN[i % 6]} style={[{ width: size, height: size }, op]} fadeDuration={0} />;
 });
 
-// The LV chip: the level on a gold disc beside its XP bar, with a red count
-// of the road's prizes waiting. Opens the level road.
-export const LevelChip = memo(function LevelChip({ level, into, need, waiting = 0, onPress }) {
-  const pct = Math.max(4, Math.min(100, Math.round((into / Math.max(1, need)) * 100)));
-  return (
-    <Pressable onPress={onPress} hitSlop={6}>
-      <Ringed ring={GOLD_RING} lip={3} ringW={2} border={2.5} innerStyle={styles.chip}>
-        <LinearGradient colors={GOLD} locations={[0, 0.5, 1]} style={styles.disc}>
-          <Text style={styles.discText} numberOfLines={1} adjustsFontSizeToFit>
-            {level}
-          </Text>
-        </LinearGradient>
-        <View style={styles.chipCol}>
-          <Text style={styles.chipLabel}>LEVEL</Text>
-          <View style={styles.track}>
-            <LinearGradient colors={['#ffe08a', '#f0a21c']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.fill, { width: `${pct}%` }]} />
-          </View>
-        </View>
-      </Ringed>
-      {waiting ? (
-        <View style={styles.dot} pointerEvents="none">
-          <Text style={styles.dotText}>{waiting > 9 ? '9+' : waiting}</Text>
-        </View>
-      ) : null}
-    </Pressable>
-  );
-});
-
 // LEVEL UP: rays, the new level on a big gold disc, and what it brought: the
 // road's prize (`prize`; `more` other prizes waiting too), or nothing past
 // the road's end. COLLECT goes to the road to claim them; LATER keeps them there.
+// (REDESIGN_V8: the title and the disc on the left, the prize and the buttons on the right, on wood)
 export function LevelUpCard({ level, prize, more = 0, group, onCollect, onLater }) {
   const t = useRef(new Animated.Value(0)).current;
-  // landscape (REDESIGN_V8): the title and the disc on the left, the prize and the buttons on the right, on wood
-  const { width, height } = useWindowDimensions();
-  const wide = width > height;
   useEffect(() => {
     Animated.spring(t, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }).start();
   }, [t]);
@@ -119,19 +89,10 @@ export function LevelUpCard({ level, prize, more = 0, group, onCollect, onLater 
     <View style={StyleSheet.absoluteFill}>
       <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, { opacity: t }]} />
       <View style={styles.center} pointerEvents="box-none">
-        <Animated.View style={[styles.cardWrap, wide && styles.cardWrapWide, { opacity: t, transform: [{ scale }] }]}>
-          <Ringed ring="#6b4426" lip={6} colors={WOOD} radius={26} innerStyle={[styles.card, wide && styles.cardWide]}>
-            {wide ? (
-              <>
-                <View style={styles.wSide}>{head}</View>
-                <View style={styles.wSide}>{body}</View>
-              </>
-            ) : (
-              <>
-                {head}
-                {body}
-              </>
-            )}
+        <Animated.View style={[styles.cardWrap, { opacity: t, transform: [{ scale }] }]}>
+          <Ringed ring="#6b4426" lip={6} colors={WOOD} radius={26} innerStyle={styles.card}>
+            <View style={styles.wSide}>{head}</View>
+            <View style={styles.wSide}>{body}</View>
           </Ringed>
         </Animated.View>
       </View>
@@ -146,21 +107,10 @@ const DISC = 96;
 const RAYS = 300; // round the disc
 
 const styles = StyleSheet.create({
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 3, paddingRight: 9, paddingVertical: 3 },
-  disc: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#ffffff' },
-  discText: { fontFamily: F.display, fontSize: 11.5, color: '#7a3d00', includeFontPadding: false, paddingHorizontal: 1 },
-  chipCol: { gap: 2 },
-  chipLabel: { fontFamily: F.black, fontSize: 8.5, color: '#b86200', includeFontPadding: false, letterSpacing: 0.4 },
-  track: { width: 46, height: 7, borderRadius: 4, backgroundColor: '#f3e6d4', overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 4 },
-  dot: { position: 'absolute', top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: '#ff3d5a', borderWidth: 2, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
-  dotText: { fontFamily: F.black, fontSize: 9.5, color: '#ffffff', includeFontPadding: false },
   scrim: { backgroundColor: 'rgba(50,24,6,0.6)' },
   center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
-  cardWrap: { width: '100%', maxWidth: 340 },
-  cardWrapWide: { maxWidth: 580 },
-  card: { alignItems: 'center', paddingTop: 22, paddingBottom: 16, paddingHorizontal: 18, gap: 8, overflow: 'hidden' },
-  cardWide: { flexDirection: 'row', paddingTop: 18, paddingHorizontal: 22, gap: 20 },
+  cardWrap: { width: '100%', maxWidth: 580 },
+  card: { flexDirection: 'row', alignItems: 'center', paddingTop: 18, paddingBottom: 16, paddingHorizontal: 22, gap: 20, overflow: 'hidden' },
   wSide: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
   discAt: { width: DISC, height: DISC, marginVertical: 4 },
   rays: { position: 'absolute', left: (DISC - RAYS) / 2, top: (DISC - RAYS) / 2, width: RAYS, height: RAYS },

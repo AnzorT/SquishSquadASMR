@@ -343,7 +343,11 @@
     var YG = window.YardGames, Q = window.SquishSquad, T = window.SQ_THUMBS || {};
     var s = c && Q && Q.src ? Q.src(c.id) : '', src = T[s] || s;
     var wins = [].slice.call(p.querySelectorAll('.sq-ygc .win[data-poster]'));
-    wins.forEach(function (win, i) {
+    // PERF 2026-11-20: the page is on screen first (its cards, their frames), the posters go in right after its first
+    // frame, one per slice (app/perf.js SquishPerf.slices), as its fade-in starts: the tap no longer waits for all seven
+    // posters to be drawn
+    var poster = function (win, i) {
+      if (!win.isConnected) return false;
       var id = win.getAttribute('data-poster'), PO = YG && YG.POSTER && YG.POSTER[id];
       if (!PO) return;
       var art = '';
@@ -354,7 +358,9 @@
       if (lock) win.appendChild(lock);
       // the live character goes in one card at a time (each is a rig for ~1 s, then a still)
       if (YG.posterRig && c && c.key) setTimeout(function () { if (win.isConnected) try { YG.posterRig(win, c.key, {}); } catch (e) { console.warn('[yard card rig]', id, e); } }, 120 + i * 180);
-    });
+    };
+    if (window.SquishPerf && window.SquishPerf.slices) window.SquishPerf.slices(wins.map(function (win, i) { return function () { return poster(win, i); }; }), 4);
+    else wins.forEach(poster);
     var down = null, dragged = false, vel = 0, lastX = 0, lastT = 0, raf = 0;
     var scale = function () { return (gr.getBoundingClientRect().width / gr.offsetWidth) || 1; };
     gr.addEventListener('pointerdown', function (e) {

@@ -3,7 +3,6 @@ import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import OutlinedTitle from '../components/candy/OutlinedTitle';
 import { makePuzzle } from './engine';
 import { Overlay, Split } from './Overlays';
-import { useWide } from '../royal/GameFrame';
 import { PopIn, SlideIn } from './fx';
 import { BtnLabel, SdButton, XGlyph } from './ui';
 import Tile from './Tile';
@@ -12,7 +11,7 @@ import { headOf } from './roster';
 
 // How to play: a solved 5×5 drawn small, and the rules in five lines.
 
-function MiniBoard({ roster, size = 130 }) {
+function MiniBoard({ roster, size }) {
   const p = useMemo(() => makePuzzle({ n: 5, tier: 0, seed: 20261022 }), []);
   const cs = size / p.n;
   const sol = new Set(p.solution.map((c, r) => r * p.n + c));
@@ -43,8 +42,8 @@ const RULES = [
   ['⚡', 'BLITZ: board after board, each on a short clock, with 1 creature placed for you and no ✕. A mistake or the clock running out ends the run.'],
 ];
 
+// the title, the little board and GOT IT! on the left, the rules on the right
 export default function RulesCard({ visible, roster, onClose }) {
-  const wide = useWide();
   const title = (
     <PopIn key="title" trigger={visible} delay={40}>
       <OutlinedTitle text="HOW TO PLAY" size={26} fill="pink" />
@@ -52,43 +51,30 @@ export default function RulesCard({ visible, roster, onClose }) {
   );
   const board = (
     <PopIn key="board" trigger={visible} delay={140}>
-      <MiniBoard roster={roster} size={wide ? 150 : 130} />
+      <MiniBoard roster={roster} size={150} />
     </PopIn>
   );
   const rules = RULES.map(([k, text], i) => (
     <SlideIn key={k} trigger={visible} delay={200 + i * 70} dy={14} style={styles.rule}>
       <View style={styles.ruleBadge}>{k === '✕' ? <XGlyph size={11} color="#ffffff" /> : <Text style={styles.ruleKey}>{k}</Text>}</View>
-      <Text style={[styles.ruleText, wide && styles.ruleTextWide]}>{text}</Text>
+      <Text style={styles.ruleText}>{text}</Text>
     </SlideIn>
   ));
   const ok = (
-    <SdButton key="ok" kind="gold" onPress={onClose} sound="sd_select" faceStyle={{ paddingHorizontal: 30, paddingVertical: wide ? 9 : 11 }} style={{ marginTop: 4 }}>
+    <SdButton key="ok" kind="gold" onPress={onClose} sound="sd_select" faceStyle={{ paddingHorizontal: 30, paddingVertical: 9 }} style={{ marginTop: 4 }}>
       <BtnLabel kind="gold" size={18}>
         GOT IT!
       </BtnLabel>
     </SdButton>
   );
-  // landscape: the title, the little board and GOT IT! on the left, the rules on the right
-  if (wide) {
-    return (
-      <Overlay visible={visible}>
-        {title}
-        {board}
-        {ok}
-        <Split />
-        <ScrollView style={{ maxHeight: 340, alignSelf: 'stretch' }} contentContainerStyle={{ alignItems: 'center', gap: 6 }} showsVerticalScrollIndicator={false}>
-          {rules}
-        </ScrollView>
-      </Overlay>
-    );
-  }
   return (
     <Overlay visible={visible}>
-      <ScrollView style={{ maxHeight: 560, alignSelf: 'stretch' }} contentContainerStyle={{ alignItems: 'center', gap: 8 }} showsVerticalScrollIndicator={false}>
-        {title}
-        {board}
+      {title}
+      {board}
+      {ok}
+      <Split />
+      <ScrollView style={{ maxHeight: 340, alignSelf: 'stretch' }} contentContainerStyle={{ alignItems: 'center', gap: 6 }} showsVerticalScrollIndicator={false}>
         {rules}
-        {ok}
       </ScrollView>
     </Overlay>
   );
@@ -99,6 +85,5 @@ const styles = StyleSheet.create({
   rule: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, alignSelf: 'stretch', paddingHorizontal: 4 },
   ruleBadge: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#ff8a3d', borderWidth: 2, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   ruleKey: { fontFamily: F.display, fontSize: 12, color: '#ffffff', includeFontPadding: false },
-  ruleText: { flex: 1, fontFamily: F.heavy, fontSize: 13, color: INK, lineHeight: 18 },
-  ruleTextWide: { fontSize: 12, lineHeight: 16 },
+  ruleText: { flex: 1, fontFamily: F.heavy, fontSize: 12, color: INK, lineHeight: 16 },
 });

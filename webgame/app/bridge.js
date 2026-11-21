@@ -18,6 +18,9 @@
   var rawSet = Storage.prototype.setItem;
   var quiet = 0; // > 0 while this file writes, so its own writes aren't reported back to the app
   var asks = {}, askSeq = 0; // App.ask: the requests waiting for the app's answer
+  var parked = []; // 'screen' / 'page' messages that arrived while the page was asleep (PERF 2026-11-20)
+  // the real timers (app/perf.js): the house's save and the app's answers must not wait for the page to wake
+  var NT = (window.SquishSleep && window.SquishSleep.native) || { setTimeout: window.setTimeout.bind(window), clearTimeout: window.clearTimeout.bind(window) };
 
   function readJSON(k) { try { return JSON.parse(ls.getItem(k)); } catch (e) { return null; } }
   function write(k, v) { quiet++; try { rawSet.call(ls, k, typeof v === 'string' ? v : JSON.stringify(v)); } catch (e) { /* storage full */ } quiet--; }
@@ -43,6 +46,17 @@
     // the app calls this
     receive: function (msg) {
       if (!msg || !msg.type) return;
+      // PERF 2026-11-20: sleep / wake (app/perf.js SquishSleep): the app covers this page with one of its own screens
+      // ({ on: true }) and uncovers it ({ on: false }). While asleep, 'state' and 'config' are applied at once (data);
+      // 'screen' and 'page' (they start walks and page openings) wait for wake, so they play where they can be seen.
+      if (msg.type === 'sleep') {
+        var Z = window.SquishSleep, on = msg.on !== false;
+        if (Z) Z.set(on);
+        if (!on) { var q = parked; parked = []; q.forEach(function (m) { App.receive(m); }); }
+        App.emit('sleep', msg);
+        return;
+      }
+      if ((msg.type === 'screen' || msg.type === 'page') && window.SquishSleep && window.SquishSleep.asleep) { parked.push(msg); return; }
       if (msg.type === 'state') { App.state = Object.assign({}, App.state, msg.state); applyLive(msg.state || {}); }
       if (msg.type === 'config') App.config = msg.config || {};
       if (msg.type === 'screen') App.screen = msg.screen;
@@ -54,14 +68,19 @@
     back: function () {
       // the game intro: back skips it
       if (window.SquishMenu && window.SquishMenu.introBack && window.SquishMenu.introBack()) return true;
+      // the house: only when it is up (2026-11-21: it also waits in the background, ready and untouchable, while the menu
+      // is up: app/menu.js houseHold; then back is the menu's, not the house's)
+      var hs = document.querySelector('.mm-house'), up = !!hs && getComputedStyle(hs).pointerEvents !== 'none';
       // the house map (its orb is hidden there): back to the room, like the map's own Back
-      var mb = document.querySelector('[data-screen-label="House map"] [aria-label="Back to room"]');
+      var mb = up && document.querySelector('[data-screen-label="House map"] [aria-label="Back to room"]');
       if (mb) { mb.click(); return true; }
-      var hb = document.querySelector('.mm-hback');
+      var hb = up && document.querySelector('.mm-hback');
       if (hb) { hb.click(); return true; }
-      var xs = document.querySelectorAll('[data-x]');
+      // (nothing inside a house waiting in the background)
+      var mine = function (e) { return up || !hs || !hs.contains(e); };
+      var xs = [].filter.call(document.querySelectorAll('[data-x]'), mine);
       if (xs.length) { xs[xs.length - 1].click(); return true; }
-      var pk = document.querySelector('.mm-pick');
+      var pk = [].filter.call(document.querySelectorAll('.mm-pick'), mine)[0];
       if (pk) { pk.click(); return true; }
       App.send('backUnhandled');
       return false;
@@ -72,8 +91,8 @@
     ask: function (what, payload, timeoutMs) {
       var id = ++askSeq;
       return new Promise(function (resolve, reject) {
-        var t = setTimeout(function () { delete asks[id]; reject(new Error('timeout')); }, timeoutMs || 60000);
-        asks[id] = function (m) { clearTimeout(t); delete asks[id]; if (m.ok) resolve(m.result); else reject(new Error(m.error || 'failed')); };
+        var t = NT.setTimeout(function () { delete asks[id]; reject(new Error('timeout')); }, timeoutMs || 60000);
+        asks[id] = function (m) { NT.clearTimeout(t); delete asks[id]; if (m.ok) resolve(m.result); else reject(new Error(m.error || 'failed')); };
         App.send('ask', { id: id, what: what, payload: payload === undefined ? null : payload });
       });
     },
@@ -136,8 +155,8 @@
       if (lb && lb.sel != null && lb.sel !== lastSel) { lastSel = lb.sel; App.send('select', { id: lb.sel, key: App.keyOf(lb.sel) }); }
     } else if (k === HOUSE && seeded) {
       // the house saves on every change: tell the app once things settle
-      clearTimeout(houseT);
-      houseT = setTimeout(function () { App.send('house', { data: ls.getItem(HOUSE) }); }, 1500);
+      NT.clearTimeout(houseT);
+      houseT = NT.setTimeout(function () { App.send('house', { data: ls.getItem(HOUSE) }); }, 1500);
     }
   };
 

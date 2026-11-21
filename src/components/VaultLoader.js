@@ -8,13 +8,15 @@
 // The table and the map are pictures (webgame/tools/vault-art.mjs draws them once from the recording's stills); only
 // the dots, the coin and the zoom move, on the native driver. Laid out in the recording's frame (639 x 295), scaled
 // to fit the screen.
-import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Image, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Lettering } from '../royal';
 import { FONT } from '../royal/theme';
 import sfx from '../audio/sfx';
 import { selectedId } from '../squad/lobby';
+import { stepKeys, useKeyLoop } from './idleLoop';
+import { useAfterFirstFrame } from './Skeleton';
 import { FRAME, MAP, MAP_PAD, TRAIL, X } from './vaultArt';
 
 const TABLE = require('../../assets/royal/vault-table.jpg');
@@ -23,6 +25,19 @@ const GLOW = require('../../assets/royal/vault-glow.png');
 
 const MIN_MS = 1600; // on screen at least this long
 const CREEP_MS = 5200; // the trail's creep towards 90% of the way while the page loads
+// the longest it waits after its first frame for the table and the map to say they've loaded, before starting anyway
+const ART_WAIT_MS = 700;
+// The coin's hop (up 170 ms slowing, down 170 ms falling) and the candle's flicker (up 420 ms, down 560 ms): one
+// native loop each (idleLoop.js). A loop of a sequence was restarted from JS at every step, so with JS busy on the
+// chest smash behind it the coin froze mid-hop and the candle mid-flicker.
+const HOP = stepKeys(0, [
+  [1, 170, Easing.out(Easing.quad)],
+  [0, 170, Easing.in(Easing.quad)],
+]);
+const FLICK = stepKeys(0, [
+  [1, 420, Easing.inOut(Easing.sin)],
+  [0, 560, Easing.inOut(Easing.sin)],
+]);
 const TIPS = [
   'Each chest holds only pals of its own rarity',
   'Rarities: Common, Rare, Epic, Legendary, Rainbow',
@@ -64,34 +79,44 @@ function VaultLoader({ ready, uri, onDone }) {
   const prog = useRef(new Animated.Value(0)).current;
   const zoom = useRef(new Animated.Value(0)).current;
   const out = useRef(new Animated.Value(0)).current;
-  const hop = useRef(new Animated.Value(0)).current;
-  const flick = useRef(new Animated.Value(0)).current;
   const [tip, setTip] = useState(() => Math.floor(Math.random() * TIPS.length));
   const tipFade = useRef(new Animated.Value(1)).current;
-  const t0 = useRef(Date.now()).current;
+  const t0 = useRef(0);
   const leaving = useRef(false);
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
 
-  // in, the creep, the coin's hops, the candle
+  // On screen (`shown`): its first frame has painted and the table and the map are in (or ART_WAIT_MS after that
+  // frame, so a picture that never says it's loaded can't hold it up). Nothing runs on a clock before then: the creep,
+  // the hops, the candle, the tips and the MIN_MS count (so the "swoosh" too) all start from it (2026-11-20, the user:
+  // "the loading screens, I only hear the audio and when I see them they are half way done"). Only the 180 ms fade in
+  // goes at once: it's the tap's answer, and it covers the chest smash being built underneath.
+  const painted = useAfterFirstFrame();
+  const [art, setArt] = useState({ table: false, map: false, late: false });
+  const tableIn = useCallback(() => setArt((a) => (a.table ? a : { ...a, table: true })), []);
+  const mapIn = useCallback(() => setArt((a) => (a.map ? a : { ...a, map: true })), []);
+  useEffect(() => {
+    if (!painted) return undefined;
+    const t = setTimeout(() => setArt((a) => ((a.table && a.map) || a.late ? a : { ...a, late: true })), ART_WAIT_MS);
+    return () => clearTimeout(t);
+  }, [painted]);
+  const shown = painted && ((art.table && art.map) || art.late);
+  const hop = useKeyLoop(HOP.ms, { at: HOP.at, values: HOP.values, on: shown });
+  const flick = useKeyLoop(FLICK.ms, { at: FLICK.at, values: FLICK.values, on: shown });
+
+  // in
   useEffect(() => {
     Animated.timing(out, { toValue: 1, duration: 180, useNativeDriver: true }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // on screen: the creep and the tips (the tip's text has to change on JS, so they stay a timer: a fade out, the next
+  // tip, a fade in, every 2.8 s)
+  useEffect(() => {
+    if (!shown) return undefined;
+    t0.current = Date.now();
     const creep = Animated.timing(prog, { toValue: 0.9, duration: CREEP_MS, easing: Easing.out(Easing.cubic), useNativeDriver: true });
     creep.start();
-    const hops = Animated.loop(
-      Animated.sequence([
-        Animated.timing(hop, { toValue: 1, duration: 170, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(hop, { toValue: 0, duration: 170, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-      ]),
-    );
-    hops.start();
-    const candle = Animated.loop(
-      Animated.sequence([
-        Animated.timing(flick, { toValue: 1, duration: 420, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(flick, { toValue: 0, duration: 560, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    candle.start();
     const tips = setInterval(() => {
       Animated.timing(tipFade, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => {
         setTip((i) => (i + 1) % TIPS.length);
@@ -100,16 +125,14 @@ function VaultLoader({ ready, uri, onDone }) {
     }, 2800);
     return () => {
       creep.stop();
-      hops.stop();
-      candle.stop();
       clearInterval(tips);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [shown]);
 
   // ready (and on long enough): the coin runs to the X, the map zooms into it, the screen fades off the chest
   useEffect(() => {
-    if (!ready || leaving.current) return undefined;
+    if (!ready || !shown || leaving.current) return undefined;
     const go = () => {
       if (leaving.current) return;
       leaving.current = true;
@@ -122,7 +145,7 @@ function VaultLoader({ ready, uri, onDone }) {
         ]).start(() => doneRef.current && doneRef.current());
       });
     };
-    const wait = MIN_MS - (Date.now() - t0);
+    const wait = MIN_MS - (Date.now() - t0.current);
     if (wait <= 0) {
       go();
       return undefined;
@@ -130,7 +153,7 @@ function VaultLoader({ ready, uri, onDone }) {
     const t = setTimeout(go, wait);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready]);
+  }, [ready, shown]);
 
   // the map's box on the screen (its picture has MAP_PAD of torn edge round it) and the X in it
   const mw = (MAP.w + MAP_PAD * 2) * s;
@@ -183,7 +206,7 @@ function VaultLoader({ ready, uri, onDone }) {
     <Animated.View style={[StyleSheet.absoluteFill, styles.root, { opacity: out }]} pointerEvents="auto">
       {/* everything on the screen, zooming as one */}
       <Animated.View style={[StyleSheet.absoluteFill, { transform: sceneMove }]}>
-        <Image source={TABLE} resizeMode="cover" style={[StyleSheet.absoluteFill, styles.full]} fadeDuration={0} />
+        <Image source={TABLE} resizeMode="cover" style={[StyleSheet.absoluteFill, styles.full]} fadeDuration={0} onLoad={tableIn} />
         {/* the candle's light */}
         <Animated.Image
           source={GLOW}
@@ -192,7 +215,7 @@ function VaultLoader({ ready, uri, onDone }) {
         />
         {/* the map, its trail and the coin */}
         <View style={[styles.abs, { left: fx(MAP.x - MAP_PAD), top: fy(MAP.y - MAP_PAD), width: mw, height: mh }]}>
-          <Image source={MAP_ART} style={styles.full} resizeMode="stretch" fadeDuration={0} />
+          <Image source={MAP_ART} style={styles.full} resizeMode="stretch" fadeDuration={0} onLoad={mapIn} />
           {dots}
           <Animated.Image source={GLOW} fadeDuration={0} style={[styles.abs, { left: xX - glowSize / 2, top: xY - glowSize / 2, width: glowSize, height: glowSize, opacity: glowOp }]} />
           <Animated.View style={[styles.abs, { left: 0, top: 0, transform: coinMove }]}>

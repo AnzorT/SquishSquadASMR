@@ -43,6 +43,102 @@ export const PATCHES = [
   },
   {
     file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-20: the house stands still (creatures, clocks, fish…) while its Catalog book, its map or the level-up card covers the room (SquishPerf.freeze, set by app/menu.js): the creatures walking behind the open Catalog made every frame composite the house\'s ~22 MP of layers, 15-20 fps on the Galaxy A16; still, nothing changes and nothing is drawn',
+    find: "safe(n) { try { this.tick(n); } catch (e) { console.error('house tick ' + e.message); } }",
+    replace: "safe(n) { if (window.SquishPerf && window.SquishPerf.freeze) { this.last = n; return; } try { this.tick(n); } catch (e) { console.error('house tick ' + e.message); } }",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-20: from the map, the new room comes up under a cream veil (app/menu.js SquishVeil) that fades out once the room is drawn. The map closed straight onto the bare cream page and the WebView took 0.5-1.2 s to raster the room\'s big SVG on the Galaxy A16: a blank page, then the room popping in. Through a door (no map) nothing changes.',
+    find: 'this.setState({ ready: true, cur: room, map: false, sel: si >= 0 ? si : null, qa: false, party: false, edit: false, eSel: null, shop: false, det: null, coins: this.coinCount() }, () => this.mountVis());',
+    replace: 'if (this.state.map && window.SquishVeil) window.SquishVeil(); this.setState({ ready: true, cur: room, map: false, sel: si >= 0 ? si : null, qa: false, party: false, edit: false, eSel: null, shop: false, det: null, coins: this.coinCount() }, () => this.mountVis());',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-20: the rooms\' soft shading along their edges (a 22-unit stroke under a 6-unit Gaussian blur, ~25 px at the room\'s zoom on the phone) is six see-through strokes of growing width instead, the same falloff without a filter (compared side by side at 2.8x: no visible difference). The blur ran again for every tile the room\'s edges cross each time a room was drawn: about half the raster time of a room on the Galaxy A16, the cream pause between rooms.',
+    find: '<path d="{{ rs.edge }}" stroke="{{ P.edge }}" stroke-width="22" fill="none" opacity="0.13" filter="url(#hsAO)"></path>',
+    replace: '<g fill="none" stroke="{{ P.edge }}" stroke-linejoin="round"><path d="{{ rs.edge }}" stroke-width="38" opacity="0.018"></path><path d="{{ rs.edge }}" stroke-width="32" opacity="0.02"></path><path d="{{ rs.edge }}" stroke-width="26" opacity="0.022"></path><path d="{{ rs.edge }}" stroke-width="20" opacity="0.024"></path><path d="{{ rs.edge }}" stroke-width="14" opacity="0.024"></path><path d="{{ rs.edge }}" stroke-width="8" opacity="0.022"></path></g>',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-20: the rooms\' wall, floor, ceiling and fence textures are pictures (app/menu.js SquishTex: each SVG texture drawn once into a WebP and kept), not SVGs the WebView redraws for every tile of the room (120-400 ms a tile on the Galaxy A16: the cream pause between rooms and the stalls under Heading home)',
+    find: "  rnTex(id, slot) {\n    const r = this.byId.get(id); if (!r) return ''; const key = id + '|' + slot; this.texC = this.texC || {};",
+    replace: "  rnTex(id, slot) { const u0 = this.rnTex0(id, slot); return u0 && window.SquishTex ? window.SquishTex(u0, slot) : u0; }\n  rnTex0(id, slot) {\n    const r = this.byId.get(id); if (!r) return ''; const key = id + '|' + slot; this.texC = this.texC || {};",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-20: the map is shown as a picture of itself (app/menu.js SquishMapShown) as soon as it is in the page',
+    find: 'openMap(carry) { this.carry = carry || null; clearTimeout(this.mapGT); this.setState({ map: true, mapGo: null, mapHov: null, mapIn: false, edit: false, eSel: null, shop: false }, () => { clearTimeout(this.mapIT);',
+    replace: 'openMap(carry) { this.carry = carry || null; clearTimeout(this.mapGT); this.setState({ map: true, mapGo: null, mapHov: null, mapIn: false, edit: false, eSel: null, shop: false }, () => { if (window.SquishMapShown) window.SquishMapShown(); clearTimeout(this.mapIT);',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-20: picking a room on the map fades it to cream without first zooming 2.6x into the room. The zoom made the WebView raster the whole map again at 2.6x before its first step (0.7-0.9 s on the Galaxy A16): the map stood frozen after the tap, then cut to cream; the zoom itself was never seen.',
+    find: "mapT: gB ? 'scale(2.6)' : S.mapIn ? 'scale(1)' : 'scale(0.92)'",
+    replace: "mapT: S.mapIn || gB ? 'scale(1)' : 'scale(0.92)'",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-20: on a touch screen a room on the map doesn\'t light up when touched or picked (its glow, a 16 px stroke through a blur faded in over 0.2 s, and its label growing 1.12x: each repainted and rastered the map\'s tiles again, and every map tile replays the whole map picture with its blurs: ~0.3-0.6 s frozen right after the tap on the Galaxy A16, then the map fades to cream anyway). A mouse hovering over a room still lights it up.',
+    find: 'const hv = S.mapHov === rk || going === rk,',
+    replace: "const hv = !(window.matchMedia && matchMedia('(hover: none)').matches) && (S.mapHov === rk || going === rk),",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-20: the map\'s cream veil (it fades in when a room is picked) is its own layer from the start: made one when its fade began, the map\'s layers were rebuilt and ~20 of its tiles rastered again (~0.2 s on the Galaxy A16)',
+    find: '<div style="position:absolute; inset:0; background:#fff6e2; opacity:{{ mapFade }}; pointer-events:none; transition:opacity 0.3s ease-in 0.3s;"></div>',
+    replace: '<div style="position:absolute; inset:0; background:#fff6e2; opacity:{{ mapFade }}; pointer-events:none; transition:opacity 0.3s ease-in 0.3s; will-change:opacity;"></div>',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-21 (the user chose it: room first, creatures after): on the trip in the creatures are mounted after the house is shown, one at a time (app/menu.js SquishFill / fillEnd); mountVis(1) mounts the next one',
+    find: 'mountVis() { this.vis.forEach(c => { if (c.ctrl || !c.host.current) return;',
+    replace: 'mountVis(max) { if (!max && window.SquishFill && window.SquishFill.hold(this)) return; let sqN = 0; this.vis.forEach(c => { if (c.ctrl || !c.host.current) return; if (max && sqN >= max) return; sqN++;',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: '(the furniture layer, faded in after the bare room on the trip in)',
+    find: '<div style="position:absolute; inset:0; z-index:3; pointer-events:none;">',
+    replace: '<div class="sq-items" style="position:absolute; inset:0; z-index:3; pointer-events:none;">',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-20: no CSS filter on the room\'s creatures (a 22% drop shadow with a 1.5 px blur, +6% saturation, +3% contrast: barely visible). A filter over content that changes every frame makes the GPU draw each creature into an offscreen pass and filter it on every frame: with 4-5 creatures the Living Room needed ~15 ms of WebView drawing a frame on the Galaxy A16 (50-58 fps); without, ~13 ms and a flat 60. The creatures keep their own floor shadow.',
+    find: '<div ref="{{ c.host }}" style="position:absolute; inset:0; filter:drop-shadow(1.5px 2px 1.5px rgba(50,25,8,0.22)) saturate(1.06) contrast(1.03);"></div>',
+    replace: '<div ref="{{ c.host }}" style="position:absolute; inset:0;"></div>',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-20: frozen (SquishPerf.freeze), the house loop asks for no frames: an Android WebView that asks for a frame makes the phone composite the whole page again even when nothing changed (~75 ms under the open Catalog on the Galaxy A16); a cheap timer checks back instead',
+    find: 'const loop = () => { this.raf = requestAnimationFrame(loop); this.safe(performance.now()); };',
+    replace: 'const loop = () => { if (window.SquishPerf && window.SquishPerf.freeze) { this.raf = 0; this.last = performance.now(); clearTimeout(this.sqFz); this.sqFz = setTimeout(() => { if (!this.dead && !this.raf) loop(); }, 120); return; } this.raf = requestAnimationFrame(loop); this.safe(performance.now()); };',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-20: an item\'s picture (the Catalog\'s cards, the item sheet, the Renovate tray) is a still: its SVG carried the shared defs, some with SMIL <animate> (a screen\'s glow, a clock), and an animated SVG used as a background image is animated by the browser for as long as it shows: every frame the Catalog\'s cards were rastered again with their blurs and patterns (13-20 fps on the Galaxy A16, the GPU busy all the time, even with the page asleep). The room\'s own furniture keeps its animations.',
+    find: "    return (this.imgs[key] = 'data:image/svg+xml,' + encodeURIComponent(svg));",
+    replace: "    return (this.imgs[key] = 'data:image/svg+xml,' + encodeURIComponent(svg.replace(/<(animate|animateTransform|animateMotion|animateColor|set)\\b[^>]*\\/>/g, '').replace(/<(animate|animateTransform|animateMotion|animateColor)\\b[^>]*>[\\s\\S]*?<\\/\\1>/g, '')));",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-20: the Catalog\'s cards show each item as a still (SquishStill, app/perf.js): the item\'s picture is the room\'s, with its SMIL animations (a lamp\'s glow, a screen), and as a background image the browser re-rastered every animated card every frame with its blurs and patterns: the open Catalog drew at 13-20 fps on the Galaxy A16 with the GPU busy all the time',
+    find: "img: D && D.src ? D.src : '', tier:",
+    replace: "img: D && D.src ? (window.SquishStill ? window.SquishStill(D.src) : D.src) : '', tier:",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-20: the furniture in the room is drawn still too (SquishStill), and as a picture (SquishTex, app/menu.js: a 40-100 KB vector drawing redrawn for every tile it crosses became a bitmap fill): a few items sway or blink with SMIL inside their pictures, and each step re-rastered whole 1152 x 288 px tiles of the room around them, with its blurs and patterns, 30-60 ms each on the Galaxy A16 (the Kitchen at 9 fps). The creatures, the clocks, fish and screens the house moves itself keep moving.',
+    find: "hasSrc: !!(Dr && Dr.src), src: Dr ? (sF ? Dr.srcB : Dr.src || '') : '', srcF: sF,",
+    replace: "hasSrc: !!(Dr && Dr.src), src: (u => { u = window.SquishStill ? window.SquishStill(u) : u; return window.SquishTex ? window.SquishTex(u, 'item') : u; })(Dr ? (sF ? Dr.srcB : Dr.src || '') : ''), srcF: (u => { u = window.SquishStill ? window.SquishStill(u) : u; return window.SquishTex ? window.SquishTex(u, 'item') : u; })(sF),",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-20: the item sheet\'s picture, a still too (as the Catalog\'s cards)',
+    find: "return { on: true, img: D.src || '', imgH:",
+    replace: "return { on: true, img: (window.SquishStill ? window.SquishStill(D.src || '') : D.src || ''), imgH:",
+  },
+  {
+    file: 'Squad House v6.dc.html',
     why: 'house items: prices and unlock levels from Firebase',
     find: 'const rows = RD.edit(RD.parseCSV(await q.text()))',
     replace: 'const rows = (r => window.SquishConfig ? window.SquishConfig.applyItems(r) : r)(RD.edit(RD.parseCSV(await q.text())))',
@@ -398,8 +494,13 @@ export const PATCHES = [
   {
     file: 'rive-rig.js',
     why: 'creatures: every other frame when the phone cannot keep 60 (app/perf.js), none at all while hidden (sqHold); a creature\'s house moves are built before its first frame (SquishLazy, app/perf.js)',
-    find: "function loop(now) { raf = ALL.size ? requestAnimationFrame(loop) : 0; const dt = clamp((now - (last || now - 16)) / 1000, 0.001, 1 / 20); last = now; ALL.forEach(I => { try { tick(I, now, dt); }",
-    replace: "function loop(now) { raf = ALL.size ? requestAnimationFrame(loop) : 0; if (window.SquishPerf && window.SquishPerf.skipRig()) return; const dt = clamp((now - (last || now - 16)) / 1000, 0.001, 1 / 20); last = now; ALL.forEach(I => { if (I.sqHold) return; if (I.key && window.SquishLazy) window.SquishLazy.need(I.key); try { tick(I, now, dt); }",
+    find: "function loop(now) { raf = ALL.size ? requestAnimationFrame(loop) : 0; const dt = clamp((now - (last || now - 16)) / 1000, 0.001, 1 / 20); last = now; ALL.forEach(I => { try { tick(I, now, dt); } catch (e) { if (!I.err) { I.err = 1; console.error('RiveRig', e); } } }); }",
+    // PERF 2026-11-20: at step N each creature is drawn every Nth frame, but they take turns (creature j on the frames where
+    // (j + frame) % N == 0): every frame draws 1/N of them, instead of all of them on one frame and none on the next. On the
+    // Galaxy A16 the house's 4-5 creatures together took ~25 ms, so the frames that drew them missed the 16.7 ms vsync and
+    // the house ran at ~35 fps unevenly; half of them a frame fits, and the house draws 60 even frames. Each creature keeps
+    // its own dt (the time since it was last drawn).
+    replace: "function loop(now) { const SP = window.SquishPerf; if (SP && SP.freeze) { if (raf) cancelAnimationFrame(raf); raf = 0; last = now; clearTimeout(loop.fz); const back = () => { if (SP.freeze) { loop.fz = setTimeout(back, 120); return; } if (!raf && ALL.size) raf = requestAnimationFrame(loop); }; loop.fz = setTimeout(back, 120); return; } raf = ALL.size ? requestAnimationFrame(loop) : 0; const N = SP && SP.rigStride ? SP.rigStride() : 1, F = loop.f = ((loop.f || 0) + 1) % 997920; let j = 0; last = now; const c0 = performance.now(); ALL.forEach(I => { if (I.sqHold) return; if ((j++ + F) % N) return; if (I.key && window.SquishLazy) window.SquishLazy.need(I.key); const dt = clamp((now - (I.sqT || now - 16 * N)) / 1000, 0.001, 1 / 20); I.sqT = now; try { tick(I, now, dt); } catch (e) { if (!I.err) { I.err = 1; console.error('RiveRig', e); } } }); if (SP && SP.rigCost && j) SP.rigCost(performance.now() - c0, N); }",
   },
   // ---- memory (2026-11-14): every creature's house moves were built at page load (~230 MB); now on demand ----
   {
@@ -466,9 +567,9 @@ export const PATCHES = [
   // camera flies in through the door as before. These three let the trip, the house and the loader meet.
   {
     file: 'main-menu.js',
-    why: 'the trip home: the house starts loading as the creature reaches the door, under the Heading home screen; the fly-in waits for it',
+    why: 'the trip home: the house starts loading as the creature reaches the door, under the Heading home screen (PERF 2026-11-20: once that screen is on screen, HH.shown()); the fly-in waits for it',
     find: "      await tween(900, (e, t) => { world.style.transform = 'scale(' + (1 + 5.2 * e).toFixed(3) + ')'; veil.style.opacity = t > 0.45 ? Math.min(1, (t - 0.45) / 0.5).toFixed(3) : 0; }, easeIn);\n      veil.style.pointerEvents = 'auto'; inside = true; busy = false;\n      const r = frame.getBoundingClientRect();\n      if (opts.onHome) opts.onHome(room || 'living', r);",
-    replace: "      const HH = window.SquishMenu && window.SquishMenu.headingHome && opts.onHome ? window.SquishMenu.headingHome(frame, world, st) : null;\n      if (HH) { opts.onHome(room || 'living', frame.getBoundingClientRect()); if ((await HH.ready()) === 'cancel') { inside = true; busy = false; back(); return; } HH.zoom(); }\n      await tween(900, (e, t) => { world.style.transform = 'scale(' + (1 + 5.2 * e).toFixed(3) + ')'; veil.style.opacity = t > 0.45 ? Math.min(1, (t - 0.45) / 0.5).toFixed(3) : 0; }, easeIn);\n      veil.style.pointerEvents = 'auto'; inside = true; busy = false;\n      const r = frame.getBoundingClientRect();\n      if (HH) HH.end(); else if (opts.onHome) opts.onHome(room || 'living', r);",
+    replace: "      const HH = window.SquishMenu && window.SquishMenu.headingHome && opts.onHome ? window.SquishMenu.headingHome(frame, world, st) : null;\n      if (HH) { await HH.shown(); opts.onHome(room || 'living', frame.getBoundingClientRect()); if ((await HH.ready()) === 'cancel') { inside = true; busy = false; back(); return; } HH.zoom(); }\n      await tween(900, (e, t) => { world.style.transform = 'scale(' + (1 + 5.2 * e).toFixed(3) + ')'; veil.style.opacity = t > 0.45 ? Math.min(1, (t - 0.45) / 0.5).toFixed(3) : 0; }, easeIn);\n      veil.style.pointerEvents = 'auto'; inside = true; busy = false;\n      const r = frame.getBoundingClientRect();\n      if (HH) HH.end(); else if (opts.onHome) opts.onHome(room || 'living', r);",
   },
   {
     file: 'Main Menu.dc.html',
@@ -611,6 +712,116 @@ export const PATCHES = [
     why: '(and its card has no Place it for them)',
     find: 'hasPlace: !locked && (M.surf ? own && !useHere : this.freeCount(M.id) > 0),',
     replace: 'hasPlace: !locked && !(window.SquishApp && window.SquishApp.yardGameOf && window.SquishApp.yardGameOf(M.id, M)) && (M.surf ? own && !useHere : this.freeCount(M.id) > 0),',
+  },
+  // ---- PERF 2026-11-20 (the user: "performance is very poor … in the crib at the lower part there's something white that
+  // makes it look like we're not in full screen"). See webgame/README.md, "Performance, 2026-11-20". ----
+  {
+    file: 'main-menu.js',
+    why: 'the scene is drawn as a picture (app/menu.js picture()); the door opens and shuts in the live scene: live from the start of the trip home',
+    find: "      if (busy || inside || !geo) return; busy = true; closePage(); ov.querySelectorAll('.mm-pick').forEach(e => e.remove()); fade(false);",
+    replace: "      if (busy || inside || !geo) return; busy = true; closePage(); ov.querySelectorAll('.mm-pick').forEach(e => e.remove()); fade(false); if (window.SquishMenu && window.SquishMenu.live) window.SquishMenu.live(true);",
+  },
+  {
+    file: 'main-menu.js',
+    why: 'back from the house: the menu is drawn again at once (it was hidden under the house: SquishMenu.cover), live (the door is open)',
+    find: "veil.style.pointerEvents = 'none'; const I = ctrl && ctrl._I; if (I) { I.spinTw = null; I.spinOff = 0; }",
+    replace: "veil.style.pointerEvents = 'none'; const I = ctrl && ctrl._I; if (I) { I.spinTw = null; I.spinOff = 0; } if (window.SquishMenu && window.SquishMenu.cover) { window.SquishMenu.live(true); window.SquishMenu.cover(); }",
+  },
+  {
+    file: 'main-menu.js',
+    why: '… and the picture again once the door has shut behind the creature',
+    find: "      stage.classList.remove('walk'); doorOpen(0); stage.style.transform = ''; stage.style.opacity = '';",
+    replace: "      stage.classList.remove('walk'); doorOpen(0); stage.style.transform = ''; stage.style.opacity = ''; if (window.SquishMenu && window.SquishMenu.live) window.SquishMenu.live(false);",
+  },
+  {
+    file: 'main-menu.js',
+    why: 'a page closing: the menu under it is drawn again in the same frame (hidden while the page covered it: SquishMenu.cover)',
+    find: 'function closePage() {',
+    replace: 'function closePage() { if (window.SquishMenu && window.SquishMenu.uncover) window.SquishMenu.uncover();',
+  },
+  {
+    file: 'Main Menu.dc.html',
+    why: 'the house fills the screen on any shape of screen: its box is the screen at the design\'s scale (852 wide, taller on a taller screen; 393 tall, wider on a wider one), not 852 x 393 scaled to the width (it left a cream strip along the bottom: app/menu.js houseBox)',
+    find: "renderVals() { const r = this.state.r || { x: 0, y: 0, w: 852, h: 393, rr: '0' };",
+    replace: "renderVals() { const r = this.state.r || { x: 0, y: 0, w: 852, h: 393, rr: '0' }, HB = (window.SquishMenu && window.SquishMenu.houseBox && window.SquishMenu.houseBox(r.w, r.h)) || { k: r.w / 852, w: 852, h: 393 };",
+  },
+  {
+    file: 'Main Menu.dc.html',
+    why: '(its scale and size)',
+    find: 'hk: (r.w / 852).toFixed(4), hop: this.state.hop,',
+    replace: 'hk: HB.k.toFixed(4), hiw: HB.w.toFixed(2), hih: HB.h.toFixed(2), hop: this.state.hop,',
+  },
+  {
+    file: 'Main Menu.dc.html',
+    why: '(the box)',
+    find: '<div class="mm-house-in" ref="{{ houseRef }}" style="transform:scale({{ hk }});">',
+    replace: '<div class="mm-house-in" ref="{{ houseRef }}" style="transform:scale({{ hk }}); width:{{ hiw }}px; height:{{ hih }}px;">',
+  },
+  {
+    file: 'Main Menu.dc.html',
+    why: '(the house in it, the box\'s size)',
+    find: 'hint-size="852px,393px" style="position:absolute; left:0; top:0; width:852px; height:393px;"',
+    replace: 'hint-size="852px,393px" style="position:absolute; left:0; top:0; width:100%; height:100%;"',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'the house\'s frame is the box the menu gives it (app/menu.js houseBox); the room, the catalog and the map stay 852 x 393 in its middle, the HUD on its edges',
+    find: 'const BARE = !!this.props.bare, chrome = {',
+    replace: "const BARE = !!this.props.bare, HB = (BARE && window.SquishMenu && window.SquishMenu.houseBox && window.SquishMenu.houseBox()) || { w: 852, h: 393 }; this._box = { frW: HB.w, rmX: (HB.w - 852) / 2, rmY: (HB.h - 393) / 2 };\n    const chrome = { frW: HB.w.toFixed(2), frH: HB.h.toFixed(2), rmX: this._box.rmX.toFixed(2), rmY: this._box.rmY.toFixed(2), rmT: (50 + this._box.rmY).toFixed(2), rmB: (393 + this._box.rmY).toFixed(2),",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: '(the frame)',
+    find: 'margin:0 auto {{ pzM }}px; flex:none; width:852px; height:393px;',
+    replace: 'margin:0 auto {{ pzM }}px; flex:none; width:{{ frW }}px; height:{{ frH }}px;',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: '(the room, in the middle: on a taller screen more of its floor and ceiling shows, which the room\'s picture already draws)',
+    find: '<div style="position:absolute; left:0; top:50px; width:852px; height:393px; transform:scale({{ camK }}); transform-origin:426px 343px;',
+    replace: '<div style="position:absolute; left:{{ rmX }}px; top:{{ rmT }}px; width:852px; height:393px; transform:scale({{ camK }}); transform-origin:426px 343px;',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: '(the catalog book, in the middle; its dimmed backdrop fills the frame)',
+    find: '<div style="position:absolute; left:0; top:0; width:852px; height:393px; animation:hsPop 0.2s ease-out both;">',
+    replace: '<div style="position:absolute; left:{{ rmX }}px; top:{{ rmY }}px; width:852px; height:393px; animation:hsPop 0.2s ease-out both;">',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: '(the house map, in the middle; its sea fills the frame)',
+    find: '<div style="position:absolute; inset:0; transform-origin:{{ mapO }}; transform:{{ mapT }};',
+    replace: '<div style="position:absolute; left:{{ rmX }}px; top:{{ rmY }}px; width:852px; height:393px; transform-origin:{{ mapO }}; transform:{{ mapT }};',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: '(a tap in the room: the frame\'s point to the room\'s, with the room in the middle of the frame)',
+    find: 'const r = el.getBoundingClientRect(), k = 852 / r.width, K = this.camK || 1; return { x: 426 + ((e.clientX - r.left) * k - 426) / K, y: 343 + ((e.clientY - r.top) * k - 393) / K }; }',
+    replace: 'const r = el.getBoundingClientRect(), B = this._box || { frW: 852, rmX: 0, rmY: 0 }, k = B.frW / r.width, K = this.camK || 1; return { x: 426 + ((e.clientX - r.left) * k - B.rmX - 426) / K, y: 343 + ((e.clientY - r.top) * k - B.rmY - 393) / K }; }',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'the house, once gone, is let go (window.__sh held the whole unmounted house and its rooms in memory for the rest of the session)',
+    find: 'componentWillUnmount() { window.removeEventListener(\'resize\', this.onPz); this.dead = 1;',
+    replace: 'componentWillUnmount() { window.removeEventListener(\'resize\', this.onPz); this.dead = 1; if (window.__sh === this) window.__sh = null;',
+  },
+  {
+    file: 'main-menu.js',
+    why: 'the camera\'s flight in through the door: the GPU plays it (app/menu.js zoom: the same curve and veil), so the house starting up under it can\'t freeze it',
+    find: "await tween(900, (e, t) => { world.style.transform = 'scale(' + (1 + 5.2 * e).toFixed(3) + ')'; veil.style.opacity = t > 0.45 ? Math.min(1, (t - 0.45) / 0.5).toFixed(3) : 0; }, easeIn);",
+    replace: "await ((window.SquishMenu && window.SquishMenu.zoom && window.SquishMenu.zoom(world, veil, true)) || tween(900, (e, t) => { world.style.transform = 'scale(' + (1 + 5.2 * e).toFixed(3) + ')'; veil.style.opacity = t > 0.45 ? Math.min(1, (t - 0.45) / 0.5).toFixed(3) : 0; }, easeIn));",
+  },
+  {
+    file: 'main-menu.js',
+    why: '… and back out of it (the house is taken down meanwhile)',
+    find: "await tween(850, (e, t) => { world.style.transform = 'scale(' + (1 + 5.2 * (1 - e)).toFixed(3) + ')'; veil.style.opacity = Math.max(0, 1 - t / 0.55).toFixed(3); }, easeOut);",
+    replace: "await ((window.SquishMenu && window.SquishMenu.zoom && window.SquishMenu.zoom(world, veil, false)) || tween(850, (e, t) => { world.style.transform = 'scale(' + (1 + 5.2 * (1 - e)).toFixed(3) + ')'; veil.style.opacity = Math.max(0, 1 - t / 0.55).toFixed(3); }, easeOut));",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: '(the map\'s sea round the map: its gradient carried on, top colour above it and bottom colour below, not one flat colour that showed as a seam at its sides on a wide screen)',
+    find: '<div data-screen-label="House map" style="position:absolute; inset:0; z-index:1000; overflow:hidden; background:{{ mx.seaBg }};">',
+    replace: '<div data-screen-label="House map" style="position:absolute; inset:0; z-index:1000; overflow:hidden; background:{{ mx.seaBg }}; background:linear-gradient(180deg, {{ mx.sea0 }} {{ rmY }}px, {{ mx.sea1 }} {{ rmB }}px);">',
   },
 ];
 
