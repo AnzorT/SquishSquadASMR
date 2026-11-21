@@ -6,9 +6,9 @@
 //   - honey wood planks on the wall over a darker panelled wainscot, a beam along the top with warm string lights;
 //   - a round brass vault door standing open behind the chest, its opening glowing with gold;
 //   - a berry-red rug with a gold border where the chest stands, on warm floorboards;
-//   - two brass wall lanterns (their glow flickers in CSS on the page), old chests, a coin sack, a gem jar and coin
-//     piles in the corners.
-// The page puts its group-colour banners and the lantern flicker on top (CSS), and the chest on the rug.
+//   - old chests, a coin sack, a gem jar and coin piles in the corners (two wall lanterns and the page's two banners
+//     were taken out 2026-11-21).
+// The page puts the chest on the rug.
 //
 // The treasure is the app's own art (the user, 2026-11-16: "change the chests in the vault into our chests, from the
 // selected squad only; replace the coins and gems with the ones in the app; more coins, chests and gems"): the
@@ -171,18 +171,8 @@ rug += `<ellipse cx="${RUG.x}" cy="${RUG.y}" rx="${RUG.rx + 6}" ry="${RUG.ry + 5
   + `<ellipse cx="${RUG.x}" cy="${RUG.y}" rx="${RUG.rx - 26}" ry="${RUG.ry - 12}" fill="none" stroke="#ffd36a" stroke-width="2.2" stroke-dasharray="10 7" opacity=".85"/>`
   + `<ellipse cx="${RUG.x}" cy="${RUG.y - 2}" rx="${RUG.rx * 0.55}" ry="${RUG.ry * 0.42}" fill="#ffe2a0" opacity=".16"/>`;
 
-// ---- the wall lanterns ----
-const lantern = (x, y) => `<g transform="translate(${x} ${y}) scale(1.4)">`
-  + `<circle r="74" fill="url(#lampGlow)"/>`
-  + `<path d="M-30 -36 H-4 Q4 -36 4 -28 V-22" stroke="${OL}" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M-30 -36 H-4 Q4 -36 4 -28 V-22" stroke="#c9a04a" stroke-width="3" fill="none" stroke-linecap="round"/>`
-  + `<rect x="-36" y="-46" width="10" height="20" rx="3" fill="#8a5328" stroke="${OL}" stroke-width="2"/>`
-  + `<path d="M-10 -22 H18 L14 -14 H-6Z" fill="url(#brass)" stroke="${OL}" stroke-width="2.2" transform="translate(-0 0)"/>`
-  + `<rect x="-6" y="-14" width="20" height="30" rx="4" fill="#ffe9a8" stroke="${OL}" stroke-width="2.4"/>`
-  + `<rect x="-6" y="-14" width="20" height="30" rx="4" fill="url(#lampGlass)"/>`
-  + `<path d="M4 -14 V16" stroke="${OL}" stroke-width="1.6" opacity=".6"/>`
-  + `<path d="M4 -6 C8 -1 8 3 4 7 C0 3 0 -1 4 -6Z" fill="#ff9a3a"/><path d="M4 -2 C6 1 6 3 4 5 C2 3 2 1 4 -2Z" fill="#fff6c8"/>`
-  + `<path d="M-9 16 H17 L13 23 H-5Z" fill="url(#brass)" stroke="${OL}" stroke-width="2.2"/></g>`;
-const lanterns = lantern(258, 214) + lantern(742, 214);
+// (The two brass wall lanterns at x 258 / 742 were taken out 2026-11-21, the user: "take out the 2 lamps and the two
+// flags"; the page's banners went with them.)
 
 // ---- the treasure: the app's coins and gems, and the group's chests ----
 // Where the page's twinkles can pop (the user: "add the shiny flicker that pops on gold and gems, and on the legendary
@@ -268,7 +258,7 @@ function jar(x, y) {
 
 // One corner's treasure, the left one as drawn (the right one is the same mirrored, with other chests): back to front
 // so each chest stands in its heap and the next heap buries its foot. (The HUD covers the top middle, the hint the
-// bottom middle from x ~296 to ~688, the banners hang at x 115 / 885 down to y ~178, the lanterns at x 258 / 742.)
+// bottom middle from x ~296 to ~688.)
 function corner(m, t) {
   const X = (x) => (m ? W - x : x), R = (r) => (m ? -r : r);
   const H_ = (cx, y0, w, h, o) => heap(X(cx), y0, w, h, o);
@@ -328,15 +318,13 @@ return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserve
   <clipPath id="openClip"><circle cx="${DX}" cy="${DY}" r="${IR}"/></clipPath>
   <radialGradient id="doorHalo"><stop offset=".45" stop-color="#ffe2a0" stop-opacity=".42"/><stop offset="1" stop-color="#ffe2a0" stop-opacity="0"/></radialGradient>
   <radialGradient id="bulbGlow"><stop offset="0" stop-color="#fff1b0" stop-opacity=".7"/><stop offset="1" stop-color="#ffcf6a" stop-opacity="0"/></radialGradient>
-  <radialGradient id="lampGlow"><stop offset="0" stop-color="#fff0c0" stop-opacity=".75"/><stop offset=".45" stop-color="#ffcf6a" stop-opacity=".25"/><stop offset="1" stop-color="#ffcf6a" stop-opacity="0"/></radialGradient>
-  <radialGradient id="lampGlass" cx=".5" cy=".55" r=".6"><stop offset="0" stop-color="#ffffff" stop-opacity=".6"/><stop offset="1" stop-color="#ffb84a" stop-opacity=".35"/></radialGradient>
   <linearGradient id="floorG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c88a50"/><stop offset=".5" stop-color="#d9a066"/><stop offset="1" stop-color="#c58750"/></linearGradient>
   <radialGradient id="rugG" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#e2566a"/><stop offset=".7" stop-color="#c23a50"/><stop offset="1" stop-color="#9e2840"/></radialGradient>
   <radialGradient id="warm" cx=".5" cy=".55" r=".6"><stop offset="0" stop-color="#fff0c8" stop-opacity=".16"/><stop offset="1" stop-color="#fff0c8" stop-opacity="0"/></radialGradient>
   <radialGradient id="vig" cx=".5" cy=".5" r=".72"><stop offset=".6" stop-color="#3a1a06" stop-opacity="0"/><stop offset="1" stop-color="#3a1a06" stop-opacity=".5"/></radialGradient>
 </defs>
 <rect x="-200" y="-100" width="${W + 400}" height="${H + 200}" fill="#c88a50"/>
-${wall}${door.replace('@@INSIDE@@', inside)}${lanterns}${floor}${rug}${beam}${lights}${corners}
+${wall}${door.replace('@@INSIDE@@', inside)}${floor}${rug}${beam}${lights}${corners}
 <rect x="-200" y="-100" width="${W + 400}" height="${H + 200}" fill="url(#warm)"/>
 <rect x="-200" y="-100" width="${W + 400}" height="${H + 200}" fill="url(#vig)"/>
 </svg>`;

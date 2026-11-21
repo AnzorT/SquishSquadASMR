@@ -30,16 +30,12 @@
   /* REDESIGN_V9 (2026-11-16): the chest stands in the squad's treasure vault (tools/chest/vault-room.mjs ->
      vault-room.jpg), where "To the treasure vault" flies in. Redrawn the same day after the user: "the vault is not
      looking great, it should be in the same warm and cozy Squish Squad app": honey wood, an open brass vault door behind
-     the chest, a red rug it stands on, string lights and lanterns. The lanterns' glow flickers and two banners wear the
-     chest's group's colour, on top here. #vault is the picture's own box (it covers the screen from the bottom middle,
-     as the picture was drawn), so its banners and glows sit on the picture on any phone shape.
+     the chest, a red rug it stands on, string lights. #vault is the picture's own box (it covers the screen from the
+     bottom middle, as the picture was drawn), so the twinkles sit on the picture on any phone shape.
      The treasure in it is the app's coins and gems and the opened chest's group's own chests (the user, 2026-11-16), so
      there's a picture per group, vault/<group>.webp, put up by start() (roomFor). */
   #floor { display: none; }
   #vault { position: absolute; left: 50%; bottom: 0; width: max(100vw, 216.67vh); height: max(100vh, 46.15vw); transform: translateX(-50%); background: #c88a50 0 0 / 100% 100% no-repeat; pointer-events: none; }
-  #vault .lamp { position: absolute; top: 46.8%; width: 12%; aspect-ratio: 1; margin: -6% 0 0 -6%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255,226,140,0.55), rgba(255,180,80,0.2) 55%, rgba(255,180,80,0)); animation: vFlick 1.6s ease-in-out infinite; }
-  #vault .lamp.l { left: 26.3%; }
-  #vault .lamp.r { left: 74.9%; animation-delay: -0.7s; }
   /* The shine on the treasure (the user, 2026-11-16: "add the shiny flicker that pops on gold and gems, and on the
      legendary and rainbow chests"): the menu crest's twinkle (a cream four-point star that pops, turns and fades),
      with a glow, on spots tools/chest/vault-room.mjs saved (vault/spots.js): coin tops, gems, and the group's
@@ -49,14 +45,8 @@
   #vault .tw.rb { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cdefs%3E%3CradialGradient id='g'%3E%3Cstop offset='0' stop-color='%23fffdf0' stop-opacity='.95'/%3E%3Cstop offset='.32' stop-color='%23ffb8e6' stop-opacity='.75'/%3E%3Cstop offset='1' stop-color='%239fd8ff' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='20' cy='20' r='20' fill='url%28%23g%29'/%3E%3Cpath d='M20 1 Q21.8 18.2 39 20 Q21.8 21.8 20 39 Q18.2 21.8 1 20 Q18.2 18.2 20 1Z' fill='%23fffdf0'/%3E%3C/svg%3E"); }
   #vault .tw.on { animation: vTw var(--d, .9s) ease-in-out; }
   @keyframes vTw { 0%,100% { opacity: 0; transform: translate(-50%, -50%) scale(.3) rotate(0); } 45% { opacity: 1; transform: translate(-50%, -50%) scale(1.15) rotate(45deg); } 70% { opacity: 0; transform: translate(-50%, -50%) scale(.4) rotate(90deg); } }
-  @keyframes vFlick { 0%,100% { opacity: 0.7; transform: scale(1); } 30% { opacity: 1; transform: scale(1.08); } 55% { opacity: 0.8; transform: scale(0.95); } 80% { opacity: 0.95; transform: scale(1.04); } }
-  /* a cloth banner on a wooden rod, hung from the beam: a brown outline round the group's colour, a gold band low down */
-  #vault .ban { position: absolute; top: 3.6%; width: 5.6%; height: 35%; margin-left: -2.8%; }
-  #vault .ban.l { left: 11.5%; }
-  #vault .ban.r { left: 88.5%; }
-  #vault .ban i { position: absolute; left: 0; right: 0; top: 5px; bottom: 0; background: #5b3418; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 85%, 0 100%); }
-  #vault .ban i::after { content: ''; position: absolute; left: 2.5px; right: 2.5px; top: 0; bottom: 4px; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 85%, 0 100%); background: linear-gradient(180deg, rgba(0,0,0,0) 68%, #f2c24a 68%, #f2c24a 74%, rgba(0,0,0,0) 74%), linear-gradient(90deg, rgba(90,40,10,0.2), rgba(255,255,255,0.22) 42%, rgba(90,40,10,0.24)), var(--ban, #e6caff); }
-  #vault .ban b { position: absolute; left: -20%; right: -20%; top: 0; height: 8px; border-radius: 5px; background: linear-gradient(180deg, #c98a4c, #8a5328); box-shadow: 0 0 0 2px #5b3418; }
+  /* (the two wall lanterns' flicker and the two group-colour banners were taken out 2026-11-21, the user: "take out
+     the 2 lamps and the two flags") */
   #floor { position: absolute; left: 0; right: 0; bottom: 0; height: 27%; box-shadow: inset 0 4px 0 rgba(255,240,220,0.55); }
   #cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; }
   #top { position: absolute; left: 0; right: 0; top: 0; padding: calc(var(--inset-top, 24px) + 28px) 16px 0; display: flex; flex-direction: column; align-items: center; gap: 7px; pointer-events: none; }
@@ -311,7 +301,7 @@
 <body>
 <div id="stage">
   <div id="bg"></div>
-  <div id="vault"><i class="lamp l"></i><i class="lamp r"></i><span class="ban l"><i></i><b></b></span><span class="ban r"><i></i><b></b></span></div>
+  <div id="vault"></div>
   <div id="floor"></div>
   <canvas id="cv"></canvas>
   <div id="top">
@@ -397,8 +387,6 @@
   function paint() {
     if (!st) return;
     const T = TN[st.tier] || TN[2], G = GROUPS[st.gk] || GROUPS.ocean;
-    // the vault room's banners in the group's colour
-    $('vault').style.setProperty('--ban', (G.bg.match(/#[0-9a-f]{6}/i) || ['#e6caff'])[0]);
     $('tierLabel').textContent = G.n.toUpperCase() + ' · ' + T.n.toUpperCase();
     $('tierLabel').style.color = T.ink;
     if ($('name').textContent !== st.name) { $('name').textContent = st.name; $('name').dataset.t = st.name; }
@@ -1232,7 +1220,9 @@
   // units: TALL) reaches the HUD's bottom, so every chest is about 1.7x bigger and still grows when it upgrades. The
   // canvas uses chestPerf.cap() (the screen's resolution, see the top), not the engine's 2x. Portrait keeps the engine's
   // sizing. LW/LH are chest-models.js's layer box (const LW = 300, LH = 290).
-  const LW = 300, LH = 290, TALL = 225, FOOT = 50;
+  // BIG (2026-11-21, the user: "make the chest 50% bigger than what it is now"): landscape's fit times 1.5, the foot
+  // still on the rug, so the tallest chests (Legendary, Rainbow) now reach up behind the name plate and HP bar.
+  const LW = 300, LH = 290, TALL = 225, FOOT = 50, BIG = 1.5;
   function fitStage(proto) {
     proto.resize = function () {
       const r = this.cv.getBoundingClientRect();
@@ -1244,7 +1234,7 @@
       if (this.w > this.h) {
         const hud = $('top').getBoundingClientRect().bottom, top = hud > 0 ? hud + 4 : (this.o.insetTop || 0) + 104;
         this.gy = this.h - (this.o.insetBottom || 0) - FOOT;
-        this.s = Math.max(0.6, Math.min(this.w / 290, (this.gy - top) / TALL));
+        this.s = Math.max(0.6, Math.min(this.w / 290, (BIG * (this.gy - top)) / TALL));
       } else {
         this.gy = this.h * (this.o.ground || 0.8);
         this.s = Math.max(0.6, Math.min(this.w / 290, (this.gy - (this.o.top || 120)) / 238));
