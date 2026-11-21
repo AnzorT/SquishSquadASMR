@@ -73,9 +73,15 @@ export const PATCHES = [
   },
   {
     file: 'Squad House v6.dc.html',
-    why: 'PERF 2026-11-20: picking a room on the map fades it to cream without first zooming 2.6x into the room. The zoom made the WebView raster the whole map again at 2.6x before its first step (0.7-0.9 s on the Galaxy A16): the map stood frozen after the tap, then cut to cream; the zoom itself was never seen.',
+    why: 'PERF 2026-11-20: picking a room on the map fades it to cream without first zooming 2.6x into the room. The zoom made the WebView raster the whole map again at 2.6x before its first step (0.7-0.9 s on the Galaxy A16): the map stood frozen after the tap, then cut to cream; the zoom itself was never seen. 2026-11-21 (the user wanted the zoom back): it zooms again when mapPick says so (this.sqZoom, next patch: only while the map shows its picture, made its own layer first), so it only scales a picture on the GPU',
     find: "mapT: gB ? 'scale(2.6)' : S.mapIn ? 'scale(1)' : 'scale(0.92)'",
-    replace: "mapT: S.mapIn || gB ? 'scale(1)' : 'scale(0.92)'",
+    replace: "mapT: gB && this.sqZoom ? 'scale(2.6)' : S.mapIn || gB ? 'scale(1)' : 'scale(0.92)'",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: '2026-11-21 (the user wanted the map\'s zoom back, without fps trouble): picking a room asks app/menu.js SquishMapZoom whether the map shows its picture (the SVG hidden under it); if so the zooming box has been made its own layer (will-change: transform) and the zoom starts two frames later, once that layer is drawn at 1x, so the zoom only scales it and nothing is drawn again. Otherwise (the first opening of a new map state, its picture not made yet) it fades to cream as before, no zoom.',
+    find: 'mapPick(rk) { if (this.state.mapGo) return; if (!this.isOpen(rk) || rk === this.state.cur) { this.pickRoom(rk); return; } this.setState({ mapGo: rk, mapHov: rk }); clearTimeout(this.mapGT); this.mapGT = setTimeout(() => this.pickRoom(rk), 650); }',
+    replace: 'mapPick(rk) { if (this.state.mapGo || this.sqPick) return; if (!this.isOpen(rk) || rk === this.state.cur) { this.pickRoom(rk); return; } this.sqZoom = !!(window.SquishMapZoom && window.SquishMapZoom()); const sqGo = () => { this.sqPick = false; this.setState({ mapGo: rk, mapHov: rk }); clearTimeout(this.mapGT); this.mapGT = setTimeout(() => this.pickRoom(rk), 650); }; if (this.sqZoom) { this.sqPick = true; requestAnimationFrame(() => requestAnimationFrame(sqGo)); } else sqGo(); }',
   },
   {
     file: 'Squad House v6.dc.html',
@@ -823,7 +829,64 @@ export const PATCHES = [
     find: '<div data-screen-label="House map" style="position:absolute; inset:0; z-index:1000; overflow:hidden; background:{{ mx.seaBg }};">',
     replace: '<div data-screen-label="House map" style="position:absolute; inset:0; z-index:1000; overflow:hidden; background:{{ mx.seaBg }}; background:linear-gradient(180deg, {{ mx.sea0 }} {{ rmY }}px, {{ mx.sea1 }} {{ rmB }}px);">',
   },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-21 (the user: "the dance room has 1 fps all the time"): the Dance Room\'s glass-dome sky (glassSky, an SVG picture of 22 KB behind the glass panes) had 4 clouds drifting by SMIL (80-110 s loops). An animated SVG shown as an image is drawn again by the browser every frame, and with it the room\'s whole 796 x 308 layer: ~0.7 s a frame on the Galaxy A16, 2.5 fps (3 s traced at 4x CPU: the layer painted 136 times, 4.2 s of raster). The sky is shown still (SquishStill, app/perf.js: its clouds move relative to their place, so they stay where they are); the room then draws only when something in it moves.',
+    find: "gls: cur === 'dance' ? this.glassSky() : ''",
+    replace: "gls: cur === 'dance' ? (window.SquishStill ? window.SquishStill(this.glassSky()) : this.glassSky()) : ''",
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-21 (the user: "the dance room has 1 fps all the time"; measured on the Galaxy A16 over CDP by hiding one part at a time): the Dance Room\'s floor is a CSS 3D surface (3000 x 1200, rotateX 60deg, rnFlat) tiled with the floor\'s own SVG (a renovated floor: 15 KB, 25 SMIL animations, 3 filters). An animated SVG background is drawn again by the browser every frame, the whole tilted floor with it: ~0.3 s a frame, 3.5 fps; the floor hidden, 54.5. Each tile layer is now a still (SquishStill) and then a picture (SquishTex \'item\': drawn once into a WebP at 1,400 px, about its size on the phone, so its filters are never run again): the floor still 40.7 fps live on the phone before the picture step.',
+    // (and 2026-11-21, the user wanted the light-up floors' colours back: flatFx, the floor's animation as a few moments
+    // switched on in turn over it, no fade, app/menu.js SquishDisco; while those pictures aren't made, the floor is the
+    // still one)
+    find: `if (!FR) return { flatOn: false, flatBg: 'none' };
+    return { flatOn: true, flatBg: FR.layers.map(l => "url('" + esc(l.url) + "') " + l.x + 'px ' + l.y + 'px / ' + l.w + 'px ' + l.h + 'px ' + (l.rep ? 'repeat' : 'no-repeat')).join(', ') + ', ' + (FR.bg || '#08080a') }; }`,
+    replace: `if (!FR) return { flatOn: false, flatBg: 'none', flatFx: [] };
+    const sqS = u => { u = window.SquishStill ? window.SquishStill(u) : u; return window.SquishTex ? window.SquishTex(u, 'item') : u; }, sqD = window.SquishDisco ? window.SquishDisco(f, FR.layers) : null, sqBg = (pick, bare) => FR.layers.map((l, i) => "url('" + esc(pick(l, i)) + "') " + l.x + 'px ' + l.y + 'px / ' + l.w + 'px ' + l.h + 'px ' + (l.rep ? 'repeat' : 'no-repeat')).join(', ') + (bare ? '' : ', ' + (FR.bg || '#08080a'));
+    return { flatOn: true, flatBg: sqBg((l, i) => sqD && sqD.frames[i] ? sqD.frames[i][0] : sqS(l.url)), flatFx: sqD ? sqD.anims.map((anim, j) => ({ bg: sqBg((l, i) => sqD.frames[i] ? sqD.frames[i][j + 1] : sqS(l.url), true), anim })) : [] }; }`,
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: '2026-11-21 (the light-up dance floors\' colours, app/menu.js SquishDisco): over the 3D floor, one copy of it per moment of its animation (rt.flatFx: its picture and its CSS opacity animation), so the floor\'s lights change by the GPU switching finished layers on and off (no fade)',
+    find: '<div style="position:absolute; left:-854px; top:-550px; width:3000px; height:1200px; transform-origin:50% 100%; transform:rotateX(60deg); background:{{ rt.flatBg }};"></div>',
+    replace: '<div style="position:absolute; left:-854px; top:-550px; width:3000px; height:1200px; transform-origin:50% 100%; transform:rotateX(60deg); background:{{ rt.flatBg }};"></div><sc-for list="{{ rt.flatFx }}" as="q" hint-placeholder-count="0"><div class="sq-disco" style="position:absolute; left:-854px; top:-550px; width:3000px; height:1200px; transform-origin:50% 100%; transform:rotateX(60deg); background:{{ q.bg }}; animation:{{ q.anim }};"></div></sc-for>',
+  },
+  // PERF 2026-11-21 (while finding the Dance Room's 1-3 fps): the round room's curved trims (where the wall meets the
+  // ceiling and the floor, and the round ceiling's rim) were strokes as wide as the room under a Gaussian blur (hsBlur2),
+  // run again over their whole region whenever the room's tiles are drawn. Measured on the phone they were NOT the
+  // Dance Room's problem (that was its animated floor, above), but as the flat rooms' edge shading (2026-11-20, above)
+  // each is now a few see-through strokes of growing width: the same soft line (compared side by side), no filter
+  // (softStroke, below), so drawing the room costs a little less.
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-21: the Dance Room\'s trim where the wall meets the ceiling, without its blur filter (softStroke)',
+    find: '<path d="M-174 270 A600 300 0 0 1 1026 270" fill="none" stroke="#000000" stroke-opacity="0.45" stroke-width="8" filter="url(#hsBlur2)" transform="translate(0 3)"></path>',
+    replace: softStroke('M-174 270 A600 300 0 0 1 1026 270', '#000000', 0.45, 8, 'translate(0 3)'),
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-21: the Dance Room\'s trim where the wall meets the floor, without its blur filter (softStroke)',
+    find: '<path d="M-174 400 A600 300 0 0 1 1026 400" fill="none" stroke="#000000" stroke-opacity="0.45" stroke-width="8" filter="url(#hsBlur2)" transform="translate(0 -2)"></path>',
+    replace: softStroke('M-174 400 A600 300 0 0 1 1026 400', '#000000', 0.45, 8, 'translate(0 -2)'),
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: 'PERF 2026-11-21: the Dance Room\'s round ceiling rim (a ceiling picture instead of the glass dome), without its blur filter (softStroke)',
+    find: '<path d="M-174 270 A600 300 0 0 1 1026 270" fill="none" stroke="#2a1608" stroke-opacity="0.25" stroke-width="12" filter="url(#hsBlur2)"></path>',
+    replace: softStroke('M-174 270 A600 300 0 0 1 1026 270', '#2a1608', 0.25, 12, ''),
+  },
 ];
+
+// A stroke under a small Gaussian blur (stdDeviation ~1.6), drawn instead as five see-through strokes of growing width
+// (2 units apart): together as dark as the original in the middle, fading out over ~6 units each side; no filter, so
+// nothing has to be blurred again when the tiles under it are redrawn. (A function declaration: used in PATCHES above.)
+function softStroke(d, color, op, w, tr) {
+  const a = (1 - Math.pow(1 - op, 1 / 5)).toFixed(3);
+  return '<g fill="none" stroke="' + color + '"' + (tr ? ' transform="' + tr + '"' : '') + '>'
+    + [6, 4, 2, 0, -2].map(k => '<path d="' + d + '" stroke-width="' + Math.max(1, w + k) + '" stroke-opacity="' + a + '"></path>').join('') + '</g>';
+}
 
 export function applyPatches(rel, text) {
   for (const p of PATCHES) {

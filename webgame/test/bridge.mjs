@@ -146,7 +146,8 @@ const arrows = await page.evaluate(() => { const L = document.querySelector('.sq
 check(arrows.gapL >= 0 && arrows.gapL < 16 && arrows.gapR >= 0 && arrows.gapR < 16, 'the game card spans from the left arrow to the right arrow', arrows);
 const lay = await page.evaluate(() => { const c = document.querySelector('.sq-slot.c .sq-gc'), r = e => c.querySelector(e).getBoundingClientRect(), C = c.getBoundingClientRect(), t = r('.ttl'), w = r('.win'), go = r('.go'), ds = r('.info'); return { titleAbove: t.bottom <= w.top + 1, fullWidth: w.width >= C.width - 30, clipAbove: w.bottom <= Math.min(go.top, ds.top) + 1, live: !!document.querySelector('.sq-gc .live') }; });
 check(lay.titleAbove && lay.fullWidth && lay.clipAbove && !lay.live, 'a game card: its name, then its clip across the card, then the text, level and PLAY (no LIVE tag)', lay);
-const cards = await page.evaluate(() => [...document.querySelectorAll('.sq-slot')].map(e => e.querySelector('.ttl svg').getAttribute('aria-label') + ':' + e.querySelector('.best').textContent));
+// (the four mini-games' cards have their name in their poster, not a title row: 2026-11-21)
+const cards = await page.evaluate(() => [...document.querySelectorAll('.sq-slot')].map(e => (e.querySelector('.ttl svg') ? e.querySelector('.ttl svg').getAttribute('aria-label') : e.querySelector('.win img').alt) + ':' + e.querySelector('.best').textContent));
 check(JSON.stringify(cards.map(c => c.split(':')[0])) === JSON.stringify(['Squish Time', 'Squishdoku', 'Squish Sort', 'Squish Stack', 'Squish Hop']) && cards[1].includes('Level 37 / 600'), 'PLAY walks to the Game Park: Squish Time, Squishdoku (Level 37 / 600), Sort, Stack, Hop', cards);
 // Squish Time (in the middle first) asks the app for the squish screen, with the menu's creature, from the park
 await page.evaluate(() => { window.__sent.length = 0; });
@@ -162,9 +163,9 @@ await page.click('.sq-slot.c .go', { force: true });
 await page.waitForTimeout(700);
 const sdk = await page.evaluate(() => window.__sent.find(m => m.type === 'play'));
 check(sdk && sdk.payload.mode === 'squishdoku', 'PLAY on Squishdoku asks the app for Squishdoku', sdk);
-// (Playwright's open-source Chromium has no H.264: there the clip's first frame stays up instead; the phone's WebView plays it)
-const clip = await page.evaluate(() => { const v = document.querySelector('.sq-slot.c video'); return { h264: document.createElement('video').canPlayType('video/mp4; codecs="avc1.42E01E"'), src: v && v.getAttribute('src'), poster: !!document.querySelector('.sq-slot.c img[data-fb]') }; });
-check(clip.h264 ? clip.src === 'app/previews/squishdoku.mp4' : clip.poster, clip.h264 ? 'the game in the middle plays its clip' : 'the game in the middle shows its clip\'s first frame (no H.264 in this browser)', clip);
+// (since 2026-11-21 the four mini-games show a still poster, with no clip: the park decodes no video for them)
+const clip = await page.evaluate(() => { const s = document.querySelector('.sq-slot.c'), im = s.querySelector('.win img'); return { video: !!document.querySelector('.sq-slot video'), poster: im && im.getAttribute('src'), title: !!s.querySelector('.ttl') }; });
+check(!clip.video && clip.poster === 'app/art/park/squishdoku.jpg' && !clip.title, 'Squishdoku shows its poster (its name drawn in, no title row) and no video plays', clip);
 // back walks home
 await page.click('.sq-pk [data-x]', { force: true });
 await page.waitForFunction(() => !document.querySelector('.sq-pk') && !document.querySelector('.sq-parkL') && !document.querySelector('.mm-hud.mm-gone'), null, { timeout: 15000 });

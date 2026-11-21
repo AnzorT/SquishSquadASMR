@@ -63,7 +63,11 @@ const clean = s => s.split('?')[0].split('#')[0].replace(/^\.\//, '');
 // time, for every creature: the GPU thread 89% busy in a room with four creatures on the Galaxy A16 (63% without; 54-58
 // fps -> 60). At a creature's size on a phone the grain can't be seen (compared side by side at 2.8x). The group keeps
 // its contents; only the filter goes. (export: also run on android/app/src/main/assets/rig, the games' rig pages' copy)
-export const noGrain = s => s.replace(/<g filter="url\(#ft\)">/g, '<g>');
+// It becomes filter="none", NOT a bare <g> (2026-11-21, the user: every creature but Mittens had lost its face): the rigs
+// find the body by that group's filter attribute (rive-generic.js, plush-motion.js, plush-rig25.js: g[filter] and
+// closest('g[filter]')); without it nothing was "body", no head was found, and the eyes and mouth had nowhere to go.
+// "none" keeps the attribute for them and draws no filter at all (rig-look.js skips it when it adds its outline).
+export const noGrain = s => s.replace(/<g filter="url\(#ft\)">/g, '<g filter="none">');
 
 function pageDeps(text) {
   const deps = new Set();

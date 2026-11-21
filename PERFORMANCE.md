@@ -412,6 +412,44 @@ cost was the WebView's GPU thread rastering big vector art (every app frame wait
 - **No grain on the creatures** (webgame/build.mjs `noGrain`, and the games' rig pages' copy): every creature's art had
   an feTurbulence noise filter (22% multiply), computed again every frame a creature moves. Living Room: GPU thread 89% →
   53% busy, 54-58 → 60 fps. Not visible at a creature's size on a phone (compared side by side).
+  **2026-11-21 fix:** the first version made the group a bare `<g>`, and every creature but Mittens lost its face: the
+  rigs find the body by that group's filter attribute (`g[filter]`, `closest('g[filter]')` in rive-generic.js,
+  plush-motion.js, plush-rig25.js), so nothing was body, no head was found and the eyes and mouth had nowhere to go
+  (Mittens has her own rig). Now the group is `<g filter="none">`: still found, nothing drawn; rig-look.js skips "none"
+  when it adds the outline. A16, release + dev mode: Living Room 58.0 fps (p95 16.9 ms) without faces → 59.8 / 57.8
+  (p95 16.8) with them; menu 58.7.
+- **The Dance Room at 1-3 fps (2026-11-21, the user: "1 fps all the time")**: two animated SVGs shown as pictures. A
+  browser draws an animated SVG image again every frame, and the layer it is in with it; neither shows in
+  `getAnimations()` or a page-level SMIL count, and the room_probe-style desktop runs missed the second because the
+  default floor isn't the renovated one. Found on the A16 over CDP (a measuring build) by hiding one part at a time
+  and reading SurfaceFlinger: the room 3.8 fps, floor hidden 54.5, anything else hidden no change.
+  1. Its **floor** (`rnFlat`: a CSS 3D surface, 3000 x 1200 rotated 60deg, tiled with the renovated floor's 15 KB SVG
+     with 25 SMIL animations and 3 filters): each tile layer is now `SquishStill` then `SquishTex('item')` (a WebP drawn
+     once). 3.5 → 57.8 fps (p95 16.9 ms).
+  2. Its **glass-dome sky** (`glassSky`, 4 clouds drifting by SMIL over 80-110 s): `SquishStill`. 2.5 → 3.5 fps alone.
+  3. The round room's three blurred trims became see-through strokes (`softStroke`): no measurable change, kept.
+  4. **The light-up floors' colours came back (the user asked, "without sacrificing the fps too much")**: the 6 floors
+     drawn as the 3D floor (CLB-045, -065, -085, -114, then -005 and -025 at the user's pick; app/menu.js `SquishDisco`) show their animation as 4 moments of its loop
+     (its longest animation up to 6 s): each tile paused at that moment (`svgAt`: the SVG's SMIL values written into a
+     still copy) and drawn once into a WebP (kept in IndexedDB like the room textures), the floor showing moment 0 and
+     3 copies of its 3D surface over it showing the others, switched on in turn by CSS opacity animations
+     (`sqDisco4_*`, step-end: no fade, the user didn't want one): the GPU shows finished layers, nothing is drawn again.
+     **Black flicker** (the user saw it): at opacity 0 the WebView neither draws a copy nor keeps its tiles, so the copy
+     was drawn at the moment it came on and showed its dark background colour meanwhile (recorded: the floor's brightness
+     122 → 44 at each switch). Now the copies have no colour of their own and each is already there at 1% during the slot
+     before its own (drawn, invisible): recorded on the A16, no dark frame and each switch one clean frame, every 1.4 s.
+     At most the floor, the copy on show and the next one are drawn. (Versions: faded with all three held, 45-54 fps;
+     faded with each gone once covered, 58.3 / 58.5 fps p95 16.8 ms with CLB-114, the still floor 57.8; the final one
+     measured with the phone hot after hours of tests, thermal status 1: 51.7 fps, the still floor 39-58 in that state.)
+     Off in lite mode (`sq-lite-all`, the house isn't inside `.mm-frame`), paused while the house stands still under the
+     Catalog / map / level-up (`sq-hfz`).
+  The Backyard and the Yard Games list measured idle / 60 fps the same day (sunny weather, no creatures there).
+- **The map's zoom into a room is back (2026-11-21, the user asked for it)**: only while the map shows its picture. At the
+  tap, app/menu.js `SquishMapZoom` makes the zooming box its own layer (`will-change: transform`), the house's
+  `mapPick` (patches.mjs) starts the 2.6x zoom two frames later, and the zoom only scales that layer on the GPU (a little
+  soft towards the end, under the cream). Recorded on the A16: the zoom and the cream fade run at 17 ms a frame with no
+  hitch (the fade alone had a 233 ms one); the room is then drawn under the cream as before (~0.7 s for the Kitchen).
+  Without the picture (the first opening of a new map state) it still fades with no zoom.
 - **Heading home**: its day picture is a JPEG (was an SVG image of the whole scene drawn at several scales); with the
   room work above its worst frames went from 0.6-1.1 s to 0.18-0.3 s.
 - **The win card** (Trio.js): its characters' WebView is made once the card has settled (650 ms), not mid-spring; the

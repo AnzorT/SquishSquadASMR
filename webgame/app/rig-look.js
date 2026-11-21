@@ -67,8 +67,10 @@
     var f = filterFor(g);
     f.__m.setAttribute('radius', L.w);
     f.__c.setAttribute('flood-color', L.col);
-    // the rig's own filter on that group (its fabric grain) stays, first
+    // the rig's own filter on that group (its fabric grain) stays, first ("none": the art's grain taken off by the build,
+    // webgame/build.mjs noGrain; "none url(#…)" would be invalid and drop the line too)
     var own = g.getAttribute('filter');
+    if (own === 'none') own = '';
     g.style.filter = (own ? own + ' ' : '') + 'url(#' + f.id + ')';
     return true;
   }

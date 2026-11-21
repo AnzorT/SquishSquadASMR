@@ -79,7 +79,9 @@ making it redraw less:
 - **No filter on the room's creatures**, and **no "fabric grain" noise filter** on creature art (invisible at phone
   size; it was recomputed every frame).
 - **Room first, creatures after** on the trip in: the bare room appears, furniture fades in, creatures arrive one by one.
-- Map → room: no zoom, no glow on touch screens, a cream veil while the room is drawn.
+- Map → room: no glow on touch screens, a cream veil while the room is drawn. (The zoom into the room came back on
+  21 November, as a cheap zoom of the map's picture; see PERFORMANCE.md.)
+- (21 November: the grain removal had also removed every creature's face except Mittens'; fixed, see PERFORMANCE.md.)
 - Characters' first open: off-screen card groups aren't drawn, smaller card pictures (`webgame/tools/small-cards.py`),
   the hidden creature under the loader isn't drawn.
 - The house fills any screen shape (the white strip).

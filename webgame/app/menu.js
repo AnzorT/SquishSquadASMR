@@ -6,7 +6,8 @@
 //    the Level Pass: every level, its prize and what it unlocks (rooms, the yard games, the house's next look)
 //  - PLAY: the creature turns, walks left and the camera follows it to the Game Park, a new part of the map left of the
 //    house (drawn with the scene's own sky, grass, trees and weather). There the games line up in a carousel like the
-//    app's Achievements screen; the one in the middle plays a 5 s clip of the real game (app/previews/<id>.mp4)
+//    app's Achievements screen; Squish Time's card plays a 5 s clip (app/previews/squish.mp4), the four mini-games'
+//    show a still poster each (app/art/park/<id>.jpg, since 2026-11-21)
 //  - CHARACTERS: a full screen to look at every character (its live rig) and swap the one standing in front of the house
 // main-menu.js hands this file its insides (opts._x, patched in) and calls SquishMenu.crest / .play / .levels /
 // .characters / .mounted / .inPark; main-menu-scene.js calls SquishMenu.parkArt for the park's picture.
@@ -202,6 +203,8 @@ svg.sq-baked *{pointer-events:painted;}
 .sq-gc .win > *{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;}
 .sq-gc .win::after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 -10px 16px rgba(0,0,0,.22),inset 0 2px 0 rgba(255,255,255,.25);pointer-events:none;}
 .sq-gc .ttl{flex:none;display:flex;justify-content:center;line-height:0;margin:-3px 0 -2px;}
+/* a mini-game's poster (its name is in the picture): when the window is wider than the picture, the top (the name) stays */
+.sq-gc.po .win > img{object-position:50% 12%;}
 .sq-gc .info{flex:none;display:flex;align-items:center;gap:12px;}
 .sq-gc .info .txt{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;}
 .sq-gc .info .ds{font:700 12px/1.3 Nunito,sans-serif;color:#fff;text-shadow:0 1px 2px rgba(30,0,60,.55);max-width:100%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
@@ -668,6 +671,7 @@ ${bulbRun()}
     // (the frame-rate guard isn't judged for a moment after: the room's creatures start up again)
     if (P.freeze && !fr && P.quiet) P.quiet(1500);
     P.freeze = fr;
+    document.documentElement.classList.toggle('sq-hfz', fr);   // (2026-11-21: the disco floor's fades pause too, SquishDisco)
   }, 120);
   // PERF 2026-11-20: going to a room from the house map fades through cream (the map's own veil fades in), and the new
   // room is drawn under this cream veil, which fades out once frames reach the screen in time again (the room's tiles
@@ -735,6 +739,109 @@ ${bulbRun()}
     return url;
   };
   const fnv = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36) + '.' + s.length; };
+  // 2026-11-21 (the user: the light-up dance floors' colours back, "without sacrificing the fps too much"): the Dance
+  // Room's floors that light up (DISCO) lost their animation that morning (their tile's SMIL made the browser draw the
+  // whole tilted floor again every frame: 3 fps; webgame/patches.mjs rnFlat). Their animation is now shown as DK moments
+  // of its loop: each tile is paused at that moment (svgAt: the animated values written into a still copy), drawn once
+  // into a picture (kept like the room textures: IndexedDB 'tex', key disco:<tile hash>:<k>/<DK>), and the house stacks
+  // copies of its 3D floor over the floor, one per moment, switched on in turn (no fade) by CSS opacity animations
+  // (sqDisco*): the GPU only shows finished layers, nothing is drawn again. Not in lite mode (the frame-rate guard's step 3: sq-lite-all),
+  // paused while the house stands still under the Catalog, the map or a level-up (sq-hfz). The other floors (the
+  // cardboard mat's dust, the checkerboard's drifting spots) stay still.
+  // (+ CLB-005 and CLB-025, the user picked them the same day: the cardboard mat's tape and dust, the checkerboard's
+  //  gliding party lights)
+  const DISCO = { 'CLB-005': 1, 'CLB-025': 1, 'CLB-045': 1, 'CLB-065': 1, 'CLB-085': 1, 'CLB-114': 1 }, DK = 4;
+  const DMEMO = new Map(), DSEEN = new Set(), DQ = []; let dBusy = false, dCss = false;
+  const svgOfUrl = url => { let s = url.slice(url.indexOf(',') + 1); try { s = decodeURIComponent(s); } catch (e) { /* plain */ } return s; };
+  // a tile's loop: its longest animation up to 6 s (longer ones are slow drifts; a moment of them is enough). A tile
+  // whose animations are all slower (the checkerboard's party lights, 9-20 s) is caught over its slowest one, up to
+  // 20 s, so the moments differ; it is still played in at most 6 s (loopOf -> [moments over P s, shown over D s])
+  const loopOf = s => { let P = 0, all = 0; for (const m of s.matchAll(/\bdur="([\d.]+)s"/g)) { const d = +m[1]; if (d > P && d <= 6) P = d; if (d > all) all = d; } if (!P) P = Math.min(all, 20) || 4; return [P, Math.min(P, 6)]; };
+  // the SVG as it looks t seconds into its animations, as a still SVG (null if it can't be done)
+  function svgAt(svgText, t) {
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;left:-9999px;top:0;width:8px;height:8px;overflow:hidden;visibility:hidden;pointer-events:none;';
+    host.innerHTML = svgText; document.body.appendChild(host);
+    try {
+      const svg = host.querySelector('svg'); if (!svg || !svg.setCurrentTime) return null;
+      svg.pauseAnimations(); svg.setCurrentTime(t);
+      const anims = [...svg.querySelectorAll('animate, animateTransform, animateMotion, animateColor, set')], writes = [];
+      anims.forEach(a => {
+        const el = a.targetElement, n = a.getAttribute('attributeName'); if (!el) return;
+        // (the animated transform list is read-only, consolidate() throws: its items' matrices multiplied instead)
+        if (a.tagName === 'animateTransform') { const L = el.transform && el.transform.animVal; let m = new DOMMatrix(); for (let i = 0; L && i < L.numberOfItems; i++) m = m.multiply(DOMMatrix.fromMatrix(L.getItem(i).matrix)); writes.push([el, 'transform', L && L.numberOfItems ? 'matrix(' + [m.a, m.b, m.c, m.d, m.e, m.f].map(v => +v.toFixed(4)).join(' ') + ')' : null]); return; }
+        if (!n) return;
+        const p = el[n], av = p && p.animVal;   // geometry (cx, r, offset...): the animated DOM value
+        if (av != null && typeof av === 'object' && 'value' in av) { writes.push([el, n, String(av.value)]); return; }
+        if (typeof av === 'number' || typeof av === 'string') { writes.push([el, n, String(av)]); return; }
+        // presentation attributes (opacity, fill, d...): the computed style carries the animated value
+        let v = getComputedStyle(el).getPropertyValue(n); if (n === 'd') v = v.replace(/^path\(\s*["']?/, '').replace(/["']?\s*\)$/, '');
+        if (v) writes.push([el, n, v]);
+      });
+      writes.forEach(([el, n, v]) => { if (v == null) el.removeAttribute(n); else el.setAttribute(n, v); });
+      anims.forEach(a => a.remove());
+      return new XMLSerializer().serializeToString(svg);
+    } catch (e) { return null; } finally { host.remove(); }
+  }
+  function discoJob() {
+    if (dBusy || !DQ.length) return;
+    dBusy = true;
+    const { key, svgText, t } = DQ.shift();
+    const done = () => { dBusy = false; setTimeout(discoJob, 60); };
+    const go = () => {
+      const svg = svgAt(svgText, t), m = svg && svg.match(VBOX), vw = m ? +m[1] : 0, vh = m ? +m[2] : 0;
+      if (!svg || !(vw > 0 && vh > 0)) { done(); return; }
+      const s = 1400 / Math.max(vw, vh);   // (as SquishTex 'item': about the tile's size on the phone)
+      bitmapOf(svg, vw * s, vh * s, 1, 'image/webp').then(u => {
+        TEXC.set(key, u); fetch(u).then(r => r.blob()).then(b => idbPut(key, b, 'tex', 80)).catch(() => {});
+        clearTimeout(texRedraw); texRedraw = setTimeout(() => { const sh = window.__sh; if (sh && !sh.dead && sh.forceUpdate) sh.forceUpdate(); }, 60);
+        done();
+      }).catch(done);
+    };
+    // (made while frames flow: each is ~0.1-0.3 s of the page's main thread on the Galaxy A16)
+    const P = window.SquishPerf; if (P && P.steady) P.steady(go, 2500, 4); else setTimeout(go, 200);
+  }
+  function discoCss() {
+    if (dCss) return; dCss = true;
+    const slot = 100 / DK, p = x => +x.toFixed(2) + '%';
+    let css = '.sq-disco{opacity:0;will-change:opacity;pointer-events:none;}.sq-lite-all .sq-disco{display:none;}.sq-hfz .sq-disco{animation-play-state:paused;}';
+    // layer j is shown during its slot only, switched on and off at once (no fade: the user, "i don't want it like
+    // that"; the animations run step-end, so each keyframe's value holds until the next); after the last slot the
+    // floor's own moment 0 is back. During the slot BEFORE its own, a layer is already there at 1% (invisible): at 0 the
+    // WebView doesn't draw it and drops its tiles, so it had to draw it at the moment it came on and showed its dark
+    // colour meanwhile (the user: "black flickers on the floors when they change"; the copies have no colour of their own
+    // now either). Drawn a slot early it switches in one frame (recorded on the Galaxy A16). At most the floor, the
+    // copy on show and the next one are drawn.
+    for (let j = 1; j < DK; j++) {
+      const a = j * slot, top = j === DK - 1;
+      css += '@keyframes sqDisco' + DK + '_' + j + '{0%{opacity:' + (j === 1 ? 0.01 : 0) + '}' + (j > 1 ? p(a - slot) + '{opacity:0.01}' : '') + p(a) + '{opacity:1}' + (top ? '100%{opacity:1}' : p(a + slot) + ',100%{opacity:0}') + '}';
+    }
+    const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
+  }
+  // f: the floor item; layers: its 3D floor's tile layers (rnDraw(..).floorRoom.layers). Returns null (the floor stays
+  // still) or { frames: per layer, null or its DK pictures, anims: the DK - 1 layers' CSS animations }.
+  window.SquishDisco = function (f, layers) {
+    if (!DISCO[f] || !layers || !layers.length || document.documentElement.classList.contains('sq-lite-all')) return null;
+    let ready = true, P = 0;
+    const frames = layers.map((l, i) => {
+      const src = l.url; if (typeof src !== 'string' || src.indexOf('data:image/svg') !== 0) return null;
+      const mk = f + ':' + i + ':' + src.length;
+      let d = DMEMO.get(mk);
+      if (!d) { const s = svgOfUrl(src), anim = /<(animate|animateTransform|set)\b/.test(s), lp = anim ? loopOf(s) : [0, 0]; d = { anim, h: anim ? fnv(src) : '', P: lp[0], D: lp[1], s: anim ? s : '' }; DMEMO.set(mk, d); }
+      if (!d.anim) return null;
+      P = Math.max(P, d.D);
+      return Array.from({ length: DK }, (x, k) => {
+        const key = 'disco:' + d.h + ':' + k + '/' + DK, hit = TEXC.get(key);
+        if (hit) return hit;
+        ready = false;
+        if (!DSEEN.has(key)) { DSEEN.add(key); texLoaded.then(() => { if (TEXC.has(key)) { const sh = window.__sh; if (sh && !sh.dead && sh.forceUpdate) sh.forceUpdate(); return; } DQ.push({ key, svgText: d.s, t: k * d.P / DK }); discoJob(); }); }
+        return null;
+      });
+    });
+    if (!ready || !frames.some(Boolean)) return null;
+    discoCss();
+    return { frames, anims: Array.from({ length: DK - 1 }, (x, j) => 'sqDisco' + DK + '_' + (j + 1) + ' ' + P + 's step-end infinite') };
+  };
   // the map's last picture, read and decoded at start (sq.mapKey: the key it was made for), so the first opening after a
   // launch shows it in its first frame instead of waiting for IndexedDB while the SVG starts drawing
   try {
@@ -768,6 +875,20 @@ ${bulbRun()}
       if (P && P.steady) P.steady(make, 3000, 6); else setTimeout(make, 800);
     });
   };
+  // 2026-11-21 (the user wanted the map's zoom back, without fps trouble): picking a room zooms the map 2.6x into it
+  // again, as the design did, but only while the map shows its picture (above: the SVG under it is visibility:hidden,
+  // so none of it is drawn). The zooming box is made its own layer here (will-change: transform); the house's mapPick
+  // (webgame/patches.mjs) starts the zoom two frames later, once that layer is drawn at 1x, and the zoom then only
+  // scales it on the GPU: nothing is drawn again (it goes a little soft towards 2.6x, under the cream that fades in).
+  // The SVG zoom of 2026-11-20 rastered the whole map again at 2.6x first: 0.7-0.9 s frozen on the Galaxy A16. Without
+  // the picture (the first opening of a new map state) the map fades to cream with no zoom. The box is the map's own
+  // and goes when the map closes, its will-change with it.
+  window.SquishMapZoom = function () {
+    const m = document.querySelector('[data-screen-label="House map"]'), svg = m && m.querySelector(':scope > div > svg');
+    if (!svg || !svg.classList.contains('sq-baked')) return false;
+    svg.parentElement.style.willChange = 'transform';
+    return true;
+  };
   window.SquishVeil = function () {
     const host = document.querySelector('.mm-house'); if (!host) return;
     let v = host.querySelector(':scope > .sq-veil');
@@ -787,7 +908,7 @@ ${bulbRun()}
     ['.sq-crest', '.mm-card.sq-solo'].forEach((q, i) => { const c = document.querySelector(q); if (!c || c.closest('.sq-away')) return; setTimeout(() => { c.classList.remove('fl'); requestAnimationFrame(() => requestAnimationFrame(() => c.classList.add('fl'))); }, i * 1300); });
   }, 5200);
   // still too slow with the creatures at 20 fps (app/perf.js step 3): no weather layer (the picture keeps its rainy look)
-  setInterval(() => { const f = M._x && M._x.frame; if (f && window.SquishPerf) f.classList.toggle('sq-lite', window.SquishPerf.step >= 3); }, 1000);
+  setInterval(() => { const f = M._x && M._x.frame; if (f && window.SquishPerf) f.classList.toggle('sq-lite', window.SquishPerf.step >= 3); if (window.SquishPerf) document.documentElement.classList.toggle('sq-lite-all', window.SquishPerf.step >= 3); }, 1000);   // (sq-lite-all: the house isn't inside the frame; its disco floor goes off too)
 
   // ---------- the trophy button (REDESIGN_V8): next to the gear, opens Achievements ----------
   M.trophy = function () {
@@ -1074,7 +1195,11 @@ ${bulbRun()}
   const LASTG = 'squishsquad.park.v1';
   // a game's clip: app/previews/<id>.mp4 + its first frame <id>.jpg (tools/previews/make.mjs)
   // (Squish Time's clip is Frybo being squished: another creature plays its own squish on the card instead)
-  const PREVIEWS = { squish: 1, squishdoku: 1, sort: 1, stack: 1, hop: 1 }, SQUISH_CLIP_KEY = 'frybo';
+  const PREVIEWS = { squish: 1 }, SQUISH_CLIP_KEY = 'frybo';
+  // the four mini-games' cards are one still picture each (the user, 2026-11-21: their Gemini posters instead of the
+  // clips, so the park stops decoding video): app/art/park/<id>.jpg, 1376 x 768, the game's name drawn in, so the card
+  // has no title row. Full-size originals: Desktop "Squish games - Gemini art/Game Park cards (originals)".
+  const POSTERS = { squishdoku: 1, sort: 1, stack: 1, hop: 1 };
   // each game's line on its card (the games' own words)
   const DESC = { squishdoku: 'One creature in every row, column and patch. No two may touch!', sort: 'Remember who sits where. The doors shut, it shakes… sort them back!',
     stack: 'Move them one at a time to match the goal. Big never sits on small!', hop: 'Hop from cushion to cushion. Clear them all, then hop onto the ★.' };
@@ -1088,12 +1213,12 @@ ${bulbRun()}
     // the card fills the gap between the two arrows (each 40 wide, 10 / 12 in from the sides, ~8 clear of the card)
     const pgW = W / k, carL = Math.round(Math.max(200, pgW * 0.29)), CW = Math.max(300, Math.round(pgW - carL - 118));
     const card = (g, i) => {
-      const op = x.open(g), col = g.color || '#ff8a3d', pv = PREVIEWS[g.id] && !(g.id === 'squish' && (!c || c.key !== SQUISH_CLIP_KEY));
+      const op = x.open(g), col = g.color || '#ff8a3d', pv = PREVIEWS[g.id] && !(g.id === 'squish' && (!c || c.key !== SQUISH_CLIP_KEY)), po = POSTERS[g.id];
       const best = g.id === 'squish' ? 'Playing as ' + (c ? c.name : '') : g.best != null ? g.best : 'New!';
       const desc = g.id === 'squish' ? 'Squeeze, poke and stretch ' + (c ? c.name : 'your character') + '. Every squish pays coins!' : (DESC[g.id] || '');
-      return '<div class="sq-slot" data-i="' + i + '" style="width:' + CW + 'px;margin-left:' + (-CW / 2) + 'px"><div class="sq-gc mm-p' + (op ? '' : ' lock') + '" style="--gc:' + col + ';--gcl:' + shade(col, 0.35) + ';--gcd:' + shade(col, -0.42) + ';transition-delay:' + (0.05 + Math.abs(i - cur) * 0.07).toFixed(2) + 's">'
-        + '<div class="ttl">' + ft(g.name, 'white', 22) + '</div>'
-        + '<div class="win">' + (pv ? '<img alt="" src="app/previews/' + g.id + '.jpg" data-fb="' + i + '">' : g.id === 'squish' ? squishCard(c, Q) : (g.icon || '')) + (op ? '' : '<div class="lockv">' + LOCK(44) + '</div>') + '</div>'
+      return '<div class="sq-slot" data-i="' + i + '" style="width:' + CW + 'px;margin-left:' + (-CW / 2) + 'px"><div class="sq-gc mm-p' + (op ? '' : ' lock') + (po ? ' po' : '') + '" style="--gc:' + col + ';--gcl:' + shade(col, 0.35) + ';--gcd:' + shade(col, -0.42) + ';transition-delay:' + (0.05 + Math.abs(i - cur) * 0.07).toFixed(2) + 's">'
+        + (po ? '' : '<div class="ttl">' + ft(g.name, 'white', 22) + '</div>')
+        + '<div class="win">' + (po ? '<img alt="' + esc(g.name) + '" src="app/art/park/' + g.id + '.jpg" decoding="async" data-fb="' + i + '">' : pv ? '<img alt="" src="app/previews/' + g.id + '.jpg" data-fb="' + i + '">' : g.id === 'squish' ? squishCard(c, Q) : (g.icon || '')) + (op ? '' : '<div class="lockv">' + LOCK(44) + '</div>') + '</div>'
         + '<div class="info"><div class="txt">' + (desc ? '<div class="ds">' + esc(desc) + '</div>' : '') + '<div class="best">' + esc(best) + '</div></div>'
         + '<button class="go mm-p tip v-gold" data-go="' + i + '">' + ft(op ? 'PLAY' : 'LOCKED', 'whiteB', 22) + '</button></div></div></div>';
     };
