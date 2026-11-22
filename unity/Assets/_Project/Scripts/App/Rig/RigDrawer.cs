@@ -18,6 +18,10 @@ namespace PlushCrush.App.Rig
     {
         const int PFanNonzero = 0, PFanUnion = 1, PCover = 2, PClipSet = 3, PClipPopDecr = 4, PClearLow = 5, PComposite = 6, PStraight = 7, PBlur = 8;
 
+        /// <summary>A colour matrix laid on the finished drawing (rows: r, g, b from the straight colour), as a CSS
+        /// filter on the creature's box; null: none.</summary>
+        public Matrix4x4? ColorMatrix;
+
         /// <summary>The drawing, straight alpha, for a UI background.</summary>
         public RenderTexture Output { get; private set; }
         public int Width { get; private set; }
@@ -42,7 +46,8 @@ namespace PlushCrush.App.Rig
             IdGOff = Shader.PropertyToID("_GOff"), IdGN = Shader.PropertyToID("_GN"), IdLayer = Shader.PropertyToID("_Layer"), IdOpacity = Shader.PropertyToID("_Opacity"),
             IdFabric = Shader.PropertyToID("_Fabric"), IdGrain = Shader.PropertyToID("_Grain"), IdGrainRect = Shader.PropertyToID("_GrainRect"), IdRef = Shader.PropertyToID("_Ref"),
             IdXf0 = Shader.PropertyToID("_Xf0"), IdXf1 = Shader.PropertyToID("_Xf1"), IdGInv0 = Shader.PropertyToID("_GInv0"), IdGInv1 = Shader.PropertyToID("_GInv1"),
-            IdMask = Shader.PropertyToID("_Mask"), IdUseMask = Shader.PropertyToID("_UseMask"), IdBlurDir = Shader.PropertyToID("_BlurDir");
+            IdMask = Shader.PropertyToID("_Mask"), IdUseMask = Shader.PropertyToID("_UseMask"), IdBlurDir = Shader.PropertyToID("_BlurDir"),
+            IdUseCM = Shader.PropertyToID("_UseCM"), IdCM0 = Shader.PropertyToID("_CM0"), IdCM1 = Shader.PropertyToID("_CM1"), IdCM2 = Shader.PropertyToID("_CM2");
         static readonly int[] IdGCol = { Shader.PropertyToID("_GCol0"), Shader.PropertyToID("_GCol1"), Shader.PropertyToID("_GCol2"), Shader.PropertyToID("_GCol3") };
 
         public RigDrawer(Shader shader, Texture grain)
@@ -217,7 +222,11 @@ namespace PlushCrush.App.Rig
             _cmd.SetRenderTarget(Output);
             _cmd.ClearRenderTarget(false, true, Color.clear);
             _cmd.SetGlobalTexture(IdLayer, main);
-            _p.Clear(); Quad(PStraight, 0, FullBox);
+            _p.Clear();
+            var cm = ColorMatrix;
+            _p.SetFloat(IdUseCM, cm.HasValue ? 1 : 0);
+            if (cm.HasValue) { var m = cm.Value; _p.SetVector(IdCM0, m.GetRow(0)); _p.SetVector(IdCM1, m.GetRow(1)); _p.SetVector(IdCM2, m.GetRow(2)); }
+            Quad(PStraight, 0, FullBox);
             Graphics.ExecuteCommandBuffer(_cmd);
         }
 

@@ -132,10 +132,18 @@ Shader "Hidden/PlushCrush/RigFill"
         return acc / sum;
     }
 
+    // a CSS filter chain on the whole creature (brightness, saturate, sepia: menu.js light() at night) as one colour
+    // matrix on the straight colour, in sRGB as Chrome runs filter functions; identity when off
+    float _UseCM;
+    float4 _CM0, _CM1, _CM2;
+
     float4 fragStraight(v2f i) : SV_Target
     {
         float4 c = tex2D(_Layer, i.pos.xy * _TargetSize.zw);
-        return c.a > 0 ? float4(c.rgb / c.a, c.a) : float4(0, 0, 0, 0);
+        if (c.a <= 0) return float4(0, 0, 0, 0);
+        float3 s = c.rgb / c.a;
+        if (_UseCM > 0.5) s = saturate(float3(dot(_CM0.xyz, s), dot(_CM1.xyz, s), dot(_CM2.xyz, s)));
+        return float4(s, c.a);
     }
     ENDHLSL
 

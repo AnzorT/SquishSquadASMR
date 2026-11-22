@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Checks the Unity port of the game intro's timeline (unity/Assets/_Project/Scripts/App/MainMenu/IntroScript.cs)
+       against a recording of the real intro (record-intro.mjs): IntroScript.cs is compiled here exactly as Unity has it,
+       stepped at the page's frames with the same taps, and every value it gives compared with what intro.js wrote. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../unity/Assets/_Project/Scripts/App/MainMenu/IntroScript.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="../../../unity/Assets/_Project/Scripts/App/MainMenu/IntroSound.cs" />
+  </ItemGroup>
+</Project>

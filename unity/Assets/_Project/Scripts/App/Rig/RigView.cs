@@ -143,21 +143,37 @@ namespace PlushCrush.App.Rig
         }
 
         static double Now() => Time.realtimeSinceStartupAsDouble * 1000.0;
+        /// <summary>The rig's clock (ms), for touches and moves.</summary>
+        public static double Clock => Now();
 
-        /// <summary>The drawing's texture: on whole screen pixels, X0..X1 x Y0..Y1 rig units round the box.</summary>
+        /// <summary>A CSS filter on the creature (menu.js light(): the night's brightness / saturate / sepia) as a colour
+        /// matrix; null: none.</summary>
+        public Matrix4x4? ColorFilter { get => _filter; set { _filter = value; if (_drawer != null) _drawer.ColorMatrix = value; } }
+        Matrix4x4? _filter;
+
+        /// <summary>The drawing's texture: on whole screen pixels, X0..X1 x Y0..Y1 rig units round the box. Measured
+        /// without the transforms of the boxes it's in (a camera move, the intro's grow-out-of-the-box): the drawing is
+        /// made for the box at rest, and a transform moves and scales it like any picture.</summary>
         void Place()
         {
-            var r = worldBound;
+            var r = LayoutRect(this);
             if (!(r.width > 1)) return;
             float k = r.width / 100f * PixelsPerUnit;                  // screen pixels per rig unit
             float bx = r.x * PixelsPerUnit, by = r.y * PixelsPerUnit;  // the box's corner on screen, pixels
             int px0 = Mathf.FloorToInt(bx + X0 * k), py0 = Mathf.FloorToInt(by + Y0 * k), px1 = Mathf.CeilToInt(bx + X1 * k), py1 = Mathf.CeilToInt(by + Y1 * k);
             _img.style.left = (px0 - bx) / PixelsPerUnit; _img.style.top = (py0 - by) / PixelsPerUnit;
             _img.style.width = (px1 - px0) / PixelsPerUnit; _img.style.height = (py1 - py0) / PixelsPerUnit;
-            if (_drawer == null) _drawer = new RigDrawer(RigLibrary.Shader, RigLibrary.Grain);
+            if (_drawer == null) _drawer = new RigDrawer(RigLibrary.Shader, RigLibrary.Grain) { ColorMatrix = _filter };
             _drawer.Resize(px1 - px0, py1 - py0, k, bx - px0, by - py0);
             _display.PxPerUnit = k;
             _img.style.backgroundImage = new StyleBackground(Background.FromRenderTexture(_drawer.Output));
+        }
+
+        static Rect LayoutRect(VisualElement e)
+        {
+            var p = Vector2.zero;
+            for (var v = e; v != null; v = v.hierarchy.parent) p += v.layout.position;
+            return new Rect(p, e.layout.size);
         }
 
         /// <summary>One frame: the rig's tick (dt as the game's loop: 1 ms .. 50 ms), its outlines, the drawing.</summary>

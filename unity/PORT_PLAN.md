@@ -74,6 +74,7 @@ Game Park carousel), Level Pass, Squad House v6 (8 rooms with animated creatures
 | 1 | Main Menu, still: scene at level 1 + HUD, checked 1:1 against `menu.jpg` | **Written** (2026-11-22), waiting for its first run in Unity |
 | 2 | Main Menu, alive: every state, HUD motion, weather, PLAY → Game Park, Level Pass | **Written** except the creature rig (see below); Level Pass written by a helper (2026-11-22) |
 | 2b | The creature rig (rive-rig.js + rive-generic.js) | Being ported to C#: see `RIG_PORT.md` |
+| 2c | The game intro on the menu (app/intro.js) | **Written** (2026-11-22), timeline and sounds checked against the game; see "Game intro" |
 | 3 | Characters, Shop, Settings, Achievements, Level road | |
 | 4 | Squish Time (3D) | |
 | 5 | Squad House (8 rooms) | |
@@ -215,6 +216,72 @@ Known differences:
 - **Other screen shapes**: the carousel keeps its place from the right edge (the page's carL formula), but the cards
   keep the A15's width (the page widens them with the screen); the dim stretches.
 
+## Game intro (written 2026-11-22, waiting for its first run in Unity)
+
+The designer's "Squish wakes the house" (`webgame/app/intro.js`, started by menu.js `startIntro`): night and today's
+weather on the menu's own house, the box drops and wobbles, Mittens pops out, three squishes light three rooms, the
+house glows, dawn, the squad peeks out and waves, the SQUISH SQUAD logo drops in, TAP TO START. The app's first menu of
+a launch plays it (`MenuState.Intro`, the start data's `intro`: `AppRoot` asks, as App.js does, once a launch); Skip
+and the phone's back end it.
+
+- **Timeline** (`Scripts/App/MainMenu/IntroScript.cs`, no Unity in it): intro.js's async show as a coroutine stepped by
+  a clock, with its waits, tweens, easings (easeIO, backOut, bounceOut...), rounding (r1, toFixed) and numbers as they
+  are; timers run at their own time and tweens and loops from the next frame, as on the page. What it does to the page
+  comes out as state (camera, box, flaps, rooms' holes / halos / panes, night, moon, dawn, morning, Mittens' transform
+  and night light, peeks, letters, caption...) and events (sounds, Mittens' moves, bursts, puffs, sparks, the app's
+  phases `start` / `awake` / `done`). **Checked** against the real intro by `tools/unity-port/intro-check`: the page
+  driven frame by frame on its fake clock with the reference run's taps (`record-intro.mjs`), IntroScript compiled as
+  Unity has it and stepped at the same frames: 1,619 frames, 90,839 values, no differences (2 near ties in a rounded
+  last digit); the moves the same, each in its frame.
+- **Drawing** (`MenuIntro.cs`, `IntroParts.cs`, `IntroLayout.cs`): the pictures `tools/unity-port/export-intro.mjs`
+  takes from the game (`Resources/Screens/Intro`, 19 MB for the three weathers) put where `intro.json` says, on the
+  A15's pixel grid; the night's veil a gradient mesh (its colours at its stops); the dawn's `mix-blend-mode: multiply`
+  a vertex tint on the house's pictures (a multiply at opacity d is a tint of 1 - d + d x colour: exact); the box's
+  flaps, the rings, sparkles, puffs and sparks, and intro.js's own rain / snow drawn with Painter2D from intro.js's
+  numbers; the box's face, the captions, Skip, TAP TO START, the letters, the peeking creatures (clipped by their
+  window) as pictures with intro.js's transforms; CSS transitions (caption .45 s / pop .3 s, the black 1.4 s, TAP TO
+  START .6 s) and animations (rings, pulse) by `CssTransition` / `CssAnimation`.
+- **Blend modes baked**: the window halos (`screen`) and warm panes (`soft-light`) can't blend in UI Toolkit. Each
+  room's halo picture holds the colour screen-blending gives over the house it lies on, with the halo's own alpha
+  (solved from the browser's own drawing: the house with and without that halo, and the halo alone); laid on with
+  normal blending at the halo's opacity it is exactly what the page shows over that house, for any opacity. Panes the
+  same, over the house and the halos. The house under them changes in the dawn: pictures made at five points of it
+  (night with every room lit, t = .25, .45, .65, morning), the two either side crossfaded. The veil's holes (the lit
+  windows) are the night's house cut to the windows, at the hole's opacity over the veil: exact.
+- **Mittens** is the menu's live rig (`LiveCreature`: his moves; the night's light, menu.js `light()`, as a colour
+  matrix in the rig's shader, `CssFilter`, matched to Chrome's sRGB filter functions; his touch, `RigTouch`: the rig's
+  own handlers (hold 170 ms = squeeze, drag = spin, finger = gaze), then the intro's (the squeeze starts at once).
+  When the player's creature isn't Mittens he has his own spot for the intro, and the player's comes back at the end.
+- **Sounds** (`IntroSynth.cs`, `IntroSound.cs`): each WebAudio graph intro.js builds (tone, sweep, chime) worked out
+  sample by sample into an AudioClip (made ahead, one a frame). **Checked** against Chrome rendering the same voices
+  in an OfflineAudioContext (`intro-check/sound-check.mjs`): 34 sounds, 42-124 dB signal / difference, largest sample
+  difference 0.001 (including Chrome's quirk of reading 440 Hz in an oscillator's first render quantum).
+- **Self-check** (export-intro.mjs: the pieces put back by MenuIntro's rules, in Node, against the browser's frames
+  without what Unity draws itself: rain, Mittens, rings, sparkles, flaps; 20 frames, three weathers): at rest (the box,
+  Mittens out, every room lit, the peeks) 0.10 – 0.72% of the pixels differ by more than 2/255 and 0.000 – 0.009%
+  clearly (> 40/255); a room lighting up 0.96%, 0.053%; the dawn 0.70 – 1.60%, 0.000%; a caption caught mid-pop, the
+  logo with TAP TO START mid-pulse 0.74 – 2.64%, 0.13 – 0.15% (pictures scaled where the browser redraws the text); the
+  camera's drift (scale 1.08) 10.8%, 0.005% (the same: resampled, not redrawn). Frames in
+  `webgame/test/out/unity-intro-check/`.
+- **References**: `Reference/game/intro-<weather>-<ms>-<moment>.jpg` (13 rainy moments, 3 snowy, 4 sunny, a skip), the
+  real intro on the page's fake clock with its CSS transitions held to it, and the reference run's taps (`intro.json`
+  `script`). **PlushCrush > Intro > Reference moments...** plays that run in Unity held at each moment (Mittens, the
+  rain and the sparkles keep moving: compare the house, the box, the captions, the logo). **PlushCrush > Intro > Play**
+  (and per weather, the reference run, Skip) for the rest.
+
+Known differences:
+- Halos and panes between the dawn's points and while a room lights up (500 ms): their pictures were made over the
+  house at rest (measured: at most 0.05% of the screen clearly off).
+- The end: the intro's layers fade as groups in the page (an opacity under 1 also isolates the back layer: its halos
+  and panes show as plain colours, which Unity does too); UI Toolkit multiplies each piece's opacity instead (0.7 s).
+  If skipped at night the lit windows show the intro's open windows while the veil fades, where the page shows the
+  menu's own scene through the veil's holes.
+- Peeks are clipped without anti-aliasing (UI Toolkit's stencil clip); scaled pictures (camera, caption pop, pulse,
+  letters' squash, the box) are resampled where the browser redraws vectors and text.
+- setTimeout(fn, 0) is taken as 1 ms, as the page's recorded timers run it.
+- Not wired yet: the app's music (`IntroPhase` "awake") and what App.js holds until "done" (daily spin, streak, level-up
+  card): those screens aren't ported. Bursts and the peek order use Unity's random (Math.random in the page).
+
 ## What needs you
 
 - [ ] **Open the project** in Unity 6000.3 (with the Android module) and send a screenshot of the first screen
@@ -233,4 +300,7 @@ node tools/unity-port/export-menu.mjs                   # Main Menu pieces + lay
 node tools/unity-port/export-level-pass.mjs             # Level Pass pieces + layout.json + its reference screenshots
 
 node tools/unity-port/export-game-park.mjs creatures    # Game Park overlay -> Resources/Screens/GamePark (+ Art/Generated)
+node tools/unity-port/export-intro.mjs                  # the game intro -> Resources/Screens/Intro, Reference/game/intro-*.jpg
+node tools/unity-port/intro-check/record-intro.mjs      # its timeline check (then: cd tools/unity-port/intro-check &&
+                                                        #   dotnet run -c Release -- out/trace-rainy.json)
 ```
