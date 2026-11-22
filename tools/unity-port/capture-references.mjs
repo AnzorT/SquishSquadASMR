@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { GAMES, SETTLED_CSS } from './export-game-park.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
@@ -40,7 +41,27 @@ const STATES = {
   'L27-sunny-tutti': { level: 27, weather: 'sunny', sel: 'tutti', owned: ['mittens', 'tutti'], coins: 125000, gems: 3, xp: { level: 27, into: 230, need: 280, per: 10 }, road: road(30, 0) },
 };
 
-// [name, page, real ms to load, game ms to run, then [label, action, game ms] steps each shot after, start data]
+// The Game Park overlay settled (opened the instant way, with export-game-park.mjs's stand-in games and creature,
+// every transition finished, sqCen over; sqSqz and sqLines held at their first frame like every animation here).
+// alone: only the overlay, over flat grey (#7f7f7f): PlushCrush > Game Park > Show alone... draws the same.
+const PARK_GREY = '#7f7f7f';
+const park = ({ cur = 0, locked = false, alone = false } = {}) => async page => {
+  await page.addStyleTag({ content: SETTLED_CSS });
+  await page.evaluate(({ games, locked }) => {
+    const A = window.SquishApp;
+    A.state.games = games.map(g => Object.assign({}, g, locked ? { open: false } : {}));
+    try { localStorage.removeItem('squishsquad.park.v1'); } catch (e) { /* none */ }
+    A.screen = 'park'; A._parkDone = false;
+    window.SquishMenu.mounted(window.SquishMenu._x);
+  }, { games: GAMES, locked });
+  await run(page, 1500);
+  await page.evaluate(i => document.querySelectorAll('.sq-pos i')[i].click(), cur);
+  if (alone) await page.addStyleTag({ content: `html,body{background:${PARK_GREY} !important} *{visibility:hidden !important}`
+    + ` .sq-pk,.sq-pk *{visibility:visible !important} .sq-pk{background:${PARK_GREY} !important}` });
+};
+
+// [name, page, real ms to load, game ms to run, then [label, action, game ms] steps each shot after,
+//  { init: the app's start data, prepare: set-up before the first shot }]
 const CASES = [
   ['menu', 'App.dc.html', 8000, 9000, [
     ['park', click('.mm-play'), 6000],
@@ -48,7 +69,11 @@ const CASES = [
   // The Level Pass (tap .mm-crest) needs the app's player data: export-level-pass.mjs writes its references
   // (level-pass*.jpg) with a stand-in player.
   ...ROOMS.map(room => [`house-${room}`, `App.dc.html?screen=house&room=${room}`, 30000, 6000, []]),
-  ...Object.keys(STATES).map(k => [`menu-${k}`, 'App.dc.html', 8000, 9000, [], { state: STATES[k] }]),
+  ...Object.keys(STATES).map(k => [`menu-${k}`, 'App.dc.html', 8000, 9000, [], { init: { state: STATES[k] } }]),
+  ['park-overlay', 'App.dc.html', 8000, 9000, [], { prepare: park() }],
+  ['park-overlay-alone', 'App.dc.html', 8000, 9000, [], { prepare: park({ alone: true }) }],
+  ['park-overlay-alone-stack', 'App.dc.html', 8000, 9000, [], { prepare: park({ cur: 3, alone: true }) }],
+  ['park-overlay-alone-locked', 'App.dc.html', 8000, 9000, [], { prepare: park({ cur: 1, locked: true, alone: true }) }],
 ];
 
 if (!fs.existsSync(path.join(BUILT, 'App.dc.html'))) {
@@ -75,7 +100,8 @@ async function shoot(page, name) {
 }
 
 let failed = 0;
-for (const [name, url, realMs, gameMs, steps, init] of CASES) {
+for (const [name, url, realMs, gameMs, steps, opt = {}] of CASES) {
+  const { init, prepare } = opt;
   if (only.length && !only.some(o => name === o || name.startsWith(o + '-'))) continue;
   const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: SCALE, hasTouch: true });
   const page = await ctx.newPage();
@@ -95,6 +121,7 @@ for (const [name, url, realMs, gameMs, steps, init] of CASES) {
   await page.goto(pathToFileURL(path.join(BUILT, file)).href + (query ? '?' + query : ''));
   await page.waitForTimeout(realMs); // scripts, art and fonts load (no game time passes: the clock is paused)
   await run(page, gameMs);
+  if (prepare) { try { await prepare(page); } catch (e) { errs.push(`set-up: ${e.message.split('\n')[0]}`); } }
   await shoot(page, name);
   for (const [label, act, ms] of steps) {
     try { await act(page); await run(page, ms); await shoot(page, `${name}-${label}`); }

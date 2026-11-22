@@ -169,6 +169,51 @@ Known differences:
 - Levels past 50 and titles not exported fall back to Unity text with an outline.
 - 21 MB of pictures in Resources (chests 7.8 MB): to move to Addressables with the rest of the art.
 
+## Game Park overlay (phase 2, written 2026-11-22, waiting for its first run in Unity)
+
+The games carousel shown in the park after PLAY (menu.js `showGames`): the dim, the header (back orb + "Game Park"),
+the rays and halo, a card per game, the arrows, the dots, the locked toast. Not the walk to the park, the park's picture
+or the creature: the menu screen lays the overlay over itself once the walk is done.
+
+- **Exporter**: `tools/unity-port/export-game-park.mjs` opens the park the instant way (no walk) with stand-in games
+  (Squish Time + the app's four, as `src/game/player.js` sends them; Mittens), every transition finished, and shoots
+  every card while it's the centre one → `Resources/Screens/GamePark/` (55 pictures, ~20 MB, the dim alone 3 MB:
+  Chrome dithers its gradients) + `layout.json`. Per card: its frame (Squish Time's title drawn in), its window picture
+  (a poster; Squish Time's pink background; Frybo's clip's first frame, the clip copied next to it), the window's inner
+  shading, PLAY / LOCKED. Variants UI Toolkit can't make: `brightness(1.35)` twins of everything (sqCen, the centre
+  card's flash), `saturate(.7)` buttons (the cards that aren't the centre one), locked windows
+  (`saturate(.2) brightness(.7)`) and the lock. With `creatures`, every creature's Squish Time picture →
+  `Art/Generated/Resources/ParkCreatures` (not in git; `creatures.json` says where each goes).
+- **Unity**: `Scripts/App/MainMenu/GameParkOverlay.cs` (a VisualElement: `new GameParkOverlay(games, creatureKey,
+  creatureName)`; events `Back`, `Play(id)`, `CreatureMove(name)`, `Sound(name)`; `AllowedMoves` for the rig's
+  filter; `HandleBack()` for the phone's back button), `GameParkLayout.cs`, and `Motion/CssTransition.cs` (CSS
+  transitions with the browser's rules, reversing included). Every timing and curve is menu.js's own (listed at the top
+  of GameParkOverlay.cs). Check it with **PlushCrush > Game Park > Show alone...** against
+  `Reference/game/park-overlay-alone*.jpg` (Freeze animations on); `park-overlay.jpg` is the whole park page.
+- **Self-check** (each card centred, and a locked one, put back together in the browser and compared with the real
+  overlay over the same park): 0.73 – 0.80% of the screen's pixels differ by more than 2/255,
+  0.17 – 0.22% clearly (> 40/255), almost all of those the words (drawn by the browser in the check, as Unity will
+  draw them: their exact sub-pixel place differs). Leaving the words out: 0.19 – 0.25%, 0.002 – 0.007% clearly: the
+  browser's gradient dithering (±3/255 on the rims, rays and orbs) and the window's top edge row
+  (`webgame/test/out/unity-park-check/`).
+- **Words** Unity draws itself (each game's line, the progress chip, the toast): same font, size, colour, letter
+  spacing and shadow; the browser's line breaks for the stand-in lines, broken the same greedy way by Unity for other
+  creatures' names (two lines, then …). Nunito and Fredoka have no ★ (Squish Hop's line, a chip's stars): it's the
+  browser's own picture of it, set in the row.
+
+Known differences:
+- **Fades**: CSS fades a card as one picture, UI Toolkit multiplies each piece's opacity, so while a card fades
+  (.35 – .45 s) its overlapping pieces show slightly through each other. The frame is cut away under the window and the
+  button to keep this small.
+- **sqCen**: the brightened twins crossfade out, which is the same as `brightness()` except where 1.35× clips; Frybo's
+  clip itself isn't brightened.
+- **Dots**: 18-wide pills 9-sliced to their width; while one changes (.3 s) its colour is a crossfade of the two
+  pictures (the same at rest, slightly different halfway); put on whole A15 pixels.
+- **The squishing creature** is clipped by the window with UI Toolkit's rounded clip (not anti-aliased). Its picture
+  is the design's thumbnail: the app's border looks (`state.looks`) aren't exported.
+- **Other screen shapes**: the carousel keeps its place from the right edge (the page's carL formula), but the cards
+  keep the A15's width (the page widens them with the screen); the dim stretches.
+
 ## What needs you
 
 - [ ] **Open the project** in Unity 6000.3 (with the Android module) and send a screenshot of the first screen
@@ -185,4 +230,6 @@ node tools/unity-port/capture-references.mjs            # reference screenshots 
 node tools/unity-port/export-art.mjs                    # creature art -> Assets/_Project/Art/Generated (not in git)
 node tools/unity-port/export-menu.mjs                   # Main Menu pieces + layout.json -> Resources/Screens/MainMenu
 node tools/unity-port/export-level-pass.mjs             # Level Pass pieces + layout.json + its reference screenshots
+
+node tools/unity-port/export-game-park.mjs creatures    # Game Park overlay -> Resources/Screens/GamePark (+ Art/Generated)
 ```

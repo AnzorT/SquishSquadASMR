@@ -27,6 +27,13 @@ namespace PlushCrush.App.MainMenu
         /// <summary>sunny, rainy or snowy; null = by the month, as main-menu-scene.js autoSeason() does.
         /// (The React Native app can also set it from Firestore config/weather: wired with Firebase.)</summary>
         public string Season;
+        /// <summary>The Game Park's games after Squish Time (src/game/player.js menuGames: id, name, progress line,
+        /// open). Stand-in until the app's data is wired: the four mini games, each open, no progress yet.</summary>
+        public List<GameParkGame> Games = new List<GameParkGame>
+        {
+            new GameParkGame("squishdoku", "Squishdoku"), new GameParkGame("sort", "Squish Sort"),
+            new GameParkGame("stack", "Squish Stack"), new GameParkGame("hop", "Squish Hop"),
+        };
 
         public string SeasonNow()
         {
@@ -294,12 +301,31 @@ namespace PlushCrush.App.MainMenu
             _world.Insert(at, _park);
         }
 
-        // the games carousel over the park (GameParkOverlay): wired in when it's ported
-        void ShowGames() { }
-        void HideGames() { }
+        // the games carousel over the park (GameParkOverlay, menu.js showGames)
+        GameParkOverlay _games;
+
+        void ShowGames(bool instant = false)
+        {
+            var list = new List<GameParkGame> { GameParkGame.SquishTime() };
+            if (_state.Games != null) list.AddRange(_state.Games);
+            var name = MenuLayout.Names.Find(_state.CreatureKey);
+            _games = new GameParkOverlay(list, _state.CreatureKey, name != null ? name.name : _state.CreatureKey, instant);
+            _games.Back += () => { _games = null; LeavePark(); };
+            _games.CreatureMove += move => _creature.Play(move);
+            _games.Play += id => App.Toast(id == "squish" ? "Squish Time comes with the 3D squish toy" : "The mini games come in phase 6");
+            View.Add(_games);
+        }
+
+        void HideGames()
+        {
+            if (_games == null) return;
+            _games.Hide();
+            _games = null;
+        }
 
         public override bool OnBack()
         {
+            if (_games != null) return _games.HandleBack();
             if (_walk != null) { LeavePark(); return true; }
             return false;
         }
