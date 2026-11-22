@@ -109,11 +109,7 @@ await page.evaluate(({ key, FPS, SCRIPT, DRAWN, HOST, SHOT }) => {
   for (const n of ['append', 'prepend']) hook(Element.prototype, n, (t, a) => [t].concat(a.map(x => x && x.parentNode)));
   hook(Element.prototype, 'remove', t => [t.parentNode]);
 
-  // names: the generic rig's own (I.E, I.pg), the art's shapes by their place in I.items ('it.<i>'), anything else
-  // setup() keeps on I by its path there ('bun.pl.3.el', 'tubes.0', 'faceG'), defs by their id (the mount's suffix
-  // dropped: '#g', '#bkn'), the rest by their place in a named parent ('#g/stop.1', 'art/g.2/path.0'). Taken once,
-  // after setup() and before the first render (render() moves things round; the names stay with the elements).
-  // names, setup()'s data, the element tree (generic-page.mjs: rgLib)
+  // the elements' names, setup()'s data, the element tree (generic-page.mjs: rgLib)
   const { names, ENGINE, nameAll, nameOf, ser, tree } = window.__rgLib(host);
 
   // the parents' children as last reported (the trace has a parent's list whenever it changes)

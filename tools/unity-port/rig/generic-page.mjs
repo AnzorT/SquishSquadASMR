@@ -72,8 +72,10 @@ export function rgLib() {
       (I.items || []).forEach((q, i) => walk(q, 'it.' + i));
       const svg = host.querySelector('svg'); names.set(svg, 'svg');
       const sfx = '_g' + I.u;
-      svg.querySelectorAll('[id]').forEach(e => { if (!names.has(e)) names.set(e, '#' + e.id.split(sfx).join('').split(I.u).join('')); });
-      const sub = (e, at) => [...e.children].forEach((c, i) => { let n = names.get(c); if (!n) { n = at + '/' + c.tagName + '.' + i; names.set(c, n); } sub(c, n); });
+      // (two ids can meet once the suffix is dropped, as Maki's 'mkt' + the art's 'mkt': the later one gets '~2')
+      const used = new Set(names.values()), uniq = n => { let m = n, k = 2; while (used.has(m)) m = n + '~' + k++; used.add(m); return m; };
+      svg.querySelectorAll('[id]').forEach(e => { if (!names.has(e)) names.set(e, uniq('#' + e.id.split(sfx).join('').split(I.u).join(''))); });
+      const sub = (e, at) => [...e.children].forEach((c, i) => { let n = names.get(c); if (!n) { n = uniq(at + '/' + c.tagName + '.' + i); names.set(c, n); } sub(c, n); });
       sub(svg, 'svg');
       const dup = new Map(); names.forEach((n, e) => { if (dup.has(n)) throw new Error('two elements named ' + n); dup.set(n, e); });
     };
