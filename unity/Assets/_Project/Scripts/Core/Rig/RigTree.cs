@@ -265,7 +265,7 @@ namespace PlushCrush.Core.Rig
                 throw new NotSupportedException("RigTree: paint " + v + " not ported yet");
             }
             if (RigColor.TryParse(v, out var c)) return new RigPaint { Color = c };
-            throw new NotSupportedException("RigTree: colour '" + v + "' not understood");
+            return inherit;   // an invalid value ('undefined': the game wrote a missing colour) is ignored, as the browser does
         }
 
         static void Cascade(RigTree T, RigNode n, RigNode p)
