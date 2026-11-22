@@ -31,8 +31,9 @@ namespace PlushCrush.Core.Rig
         public readonly List<RigCmd> Cmds = new List<RigCmd>(128);
         /// <summary>Pixels per rig unit where it will be shown (curves are cut finer than Tolerance pixels).</summary>
         public float PxPerUnit = 4.75f, Tolerance = 0.1f;
-        /// <summary>The move's own effect (stars, strokes), drawn over the creature as the game's fx layer is.</summary>
-        public RigFx Fx;
+        /// <summary>The fx layer (particles, then the move's own effect), drawn over the creature as the game's is.</summary>
+        public RigFx Fx { get => _fx; set { _fx = value; if (value != null) value.Haze = _haze; } }
+        RigFx _fx; readonly RigGradient _haze;
 
         readonly RigTree _t; readonly RigRender _r;
         readonly List<RigCmd> _cmdPool = new List<RigCmd>(128);
@@ -59,6 +60,7 @@ namespace PlushCrush.Core.Rig
             foreach (var n in new[] { "snoutJ", "snout", "snoutN", "snoutH" }) if (tree.ByName.TryGetValue(n, out var s) && s.Parent == _head) _snout.Add(s);
             for (int i = 0; tree.ByName.TryGetValue("lumps." + i, out var l); i++) _lumps.Add(l);
             if (_pgBody != null && _lumps.Count > 0) _bodyOrder = new List<RigNode>(_pgBody.C);
+            foreach (var kv in tree.Gradients) if (kv.Key.StartsWith("phz", StringComparison.Ordinal)) _haze = kv.Value;   // the dust particles' gradient
         }
 
         /// <summary>Follows the game's DOM moves that depend on the order of frames (the lumps). Call every frame the rig
@@ -85,17 +87,77 @@ namespace PlushCrush.Core.Rig
             foreach (var g in _t.Gradients.Values) g.Refresh();
             if (_t.Shadow != null) Walk(_t.Shadow, 1, RigXf.Identity);
             if (_t.Root != null) Walk(_t.Root, 1, RigXf.Identity);
-            if (Fx != null)
-                foreach (var s in Fx.Shapes)
-                {
-                    if (!(s.Opacity > 0) || s.D.Empty) continue;
-                    RigTess.Flatten(s.D, Tolerance / PxPerUnit, _c);
-                    var m = Mesh();
-                    if (s.Stroke) RigTess.Stroke(_c, s.Width, s.Cap, "miter", 4, PxPerUnit, m); else RigTess.Fill(_c, m);
-                    if (m.Empty) continue;
-                    var c = Cmd(RigCmdKind.Draw); c.Mesh = m; c.Paint = s.Paint; c.Alpha = s.Opacity; c.Name = "fx";
-                    c.GX0 = _c.MinX; c.GY0 = _c.MinY; c.GX1 = _c.MaxX; c.GY1 = _c.MaxY;
-                }
+            if (_fx != null) for (int i = 0; i < _fx.Shapes.Count;) i = FxItem(_fx.Shapes, i, 1, RigXf.Identity);
+        }
+
+        // ---- the fx layer: its elements walked as the tree's are (opacity, transforms, a layer for a group's opacity) ----
+
+        int FxItem(List<RigFxShape> L, int i, float alpha, RigXf xf)
+        {
+            var s = L[i];
+            int next = s.Kind == RigFxKind.Group ? s.End + 1 : i + 1;
+            float op = double.IsNaN(s.Opacity) ? 1 : (float)s.Opacity;
+            if (s.Kind == RigFxKind.End || !(op > 0)) return next;
+            if (s.NXf > 0) xf = xf.Then(s.Xf);
+            bool layer = op < 1 && FxPaints(L, i, 0) > 1;
+            if (!layer) alpha *= op;
+            float[] b = null;
+            if (layer)
+            {
+                var c = Cmd(RigCmdKind.PushLayer); c.Opacity = op; c.Name = "fx";
+                if (_boxes.Count <= _depth) _boxes.Add(new float[4]);
+                b = _boxes[_depth++]; b[0] = b[1] = float.MaxValue; b[2] = b[3] = float.MinValue;
+            }
+            if (s.Kind == RigFxKind.Group) for (int k = i + 1; k < s.End;) k = FxItem(L, k, layer ? 1 : alpha, xf);
+            else FxShape(s, layer ? 1 : alpha, xf);
+            if (layer)
+            {
+                _depth--;
+                var c = Cmd(RigCmdKind.PopLayer); c.Opacity = op * alpha; c.Name = "fx";
+                if (b[0] > b[2]) { c.RX0 = c.RY0 = 0; c.RX1 = c.RY1 = 0; }
+                else { c.RX0 = b[0] - 1; c.RY0 = b[1] - 1; c.RX1 = b[2] + 1; c.RY1 = b[3] + 1; }
+                if (_depth > 0) { var pb = _boxes[_depth - 1]; pb[0] = Math.Min(pb[0], c.RX0); pb[1] = Math.Min(pb[1], c.RY0); pb[2] = Math.Max(pb[2], c.RX1); pb[3] = Math.Max(pb[3], c.RY1); }
+            }
+            return next;
+        }
+
+        /// <summary>How many paints an fx element would draw, up to two.</summary>
+        static int FxPaints(List<RigFxShape> L, int i, int have)
+        {
+            var s = L[i];
+            if (have > 1 || s.Kind == RigFxKind.End || !(double.IsNaN(s.Opacity) || s.Opacity > 0)) return have;
+            if (s.Kind == RigFxKind.Group) { for (int k = i + 1; k < s.End && have < 2; k = L[k].Kind == RigFxKind.Group ? L[k].End + 1 : k + 1) have = FxPaints(L, k, have); return have; }
+            if (s.Kind == RigFxKind.Path ? s.D == null || s.D.Empty : !(s.Rx > 0) || !(s.Ry > 0)) return have;
+            if (!s.FillP.IsNone) have++;
+            if (!s.StrokeP.IsNone && !(s.Width <= 0)) have++;
+            return have;
+        }
+
+        void FxShape(RigFxShape s, float alpha, RigXf xf)
+        {
+            float k = (float)Math.Sqrt(Math.Abs(xf.A * xf.D - xf.B * xf.C)), px = PxPerUnit * (k > 0 ? k : 1);   // its pixels per unit
+            if (s.Kind == RigFxKind.Path) { if (s.D == null) return; RigTess.Flatten(s.D, Tolerance / px, _c); }
+            else RigTess.Ellipse((float)s.Cx, (float)s.Cy, (float)s.Rx, (float)s.Ry, px, _c);
+            if (_c.Empty) return;
+            if (!s.FillP.IsNone)
+            {
+                var m = Mesh(); RigTess.Fill(_c, m);
+                if (!m.Empty) FxDraw(m, s.FillP, alpha, xf);
+            }
+            float w = double.IsNaN(s.Width) ? 1 : (float)s.Width;
+            if (!s.StrokeP.IsNone && w > 0)
+            {
+                var m = Mesh(); RigTess.Stroke(_c, w, s.Cap ?? "butt", "miter", 4, px, m);
+                if (!m.Empty) FxDraw(m, s.StrokeP, alpha, xf);
+            }
+        }
+
+        void FxDraw(RigMesh m, RigPaint p, float alpha, RigXf xf)
+        {
+            if (p.Grad != null && !p.Grad.UserSpace && (_c.MaxX - _c.MinX <= 0 || _c.MaxY - _c.MinY <= 0)) return;
+            var c = Cmd(RigCmdKind.Draw); c.Mesh = m; c.Paint = p; c.Alpha = alpha; c.Name = "fx"; c.Xf = xf;
+            c.GX0 = _c.MinX; c.GY0 = _c.MinY; c.GX1 = _c.MaxX; c.GY1 = _c.MaxY;
+            Grow(xf, m.MinX, m.MinY, m.MaxX, m.MaxY);
         }
 
         RigCmd Cmd(RigCmdKind k)

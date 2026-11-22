@@ -1,5 +1,5 @@
 // The creature rig's pose engine: webgame/rive-rig.js tick() and its helpers (setState, poseAt, kv, EZ, Fol, fire,
-// blinkC), ported line for line so a creature moves exactly as in the game. It builds each frame's pose (~50 numbers:
+// blinkC; the particles' emit and motion are RigParticles.cs), ported line for line so a creature moves exactly as in the game. It builds each frame's pose (~50 numbers:
 // squash, lean, bend, spin, gaze, blink, arms, ears…) from layers: the move (with the idle underneath and a cross-fade
 // from the last move), the gaze (glances, or the finger), blinks, the squeeze, one-shot reactions, a let-go spring back
 // from a spin, the follow-through springs (ears, tail, head), the spin's body mechanics, the soft body.
@@ -107,7 +107,7 @@ namespace PlushCrush.Core.Rig
     public sealed class RigStretch { public double S, C, N; }
 
     /// <summary>One creature's rig (the page's I), ticked every frame.</summary>
-    public sealed class RigEngine
+    public sealed partial class RigEngine
     {
         public readonly RigData Data;
         public readonly string Key;
@@ -123,6 +123,7 @@ namespace PlushCrush.Core.Rig
         double _bt0, _bd = 280;
         public readonly List<string> Queue = new List<string>();
         int _evC = -1; HashSet<int> _evF = new HashSet<int>();
+        readonly List<double> _emL = new List<double>();   // I.emL: when each emit window of the move last fired
         public readonly List<RigShot> Shots = new List<RigShot>();
         public RigPose LastP;
         public Dictionary<string, double> Ext;
@@ -225,7 +226,7 @@ namespace PlushCrush.Core.Rig
             CurName = name; CurT0 = now; _bt0 = now;
             var st = Data.State(name);
             _bd = st.Blend != 0 ? st.Blend : 280;
-            _evC = -1; _evF = new HashSet<int>();
+            _evC = -1; _evF = new HashSet<int>(); _emL.Clear();
             if (st.Tap != null) { var tp = FromM != null ? FromM(st.Tap[0], st.Tap[1]) : (x: st.Tap[0], y: st.Tap[1]); Shots.Add(new RigShot { S = DENT, T0 = now, X = tp.x, Y = tp.y }); }
             OnState?.Invoke(name);
         }
@@ -239,7 +240,7 @@ namespace PlushCrush.Core.Rig
         {
             if (e.Name == "blink" || e.Name == "blink2") { _blinkT = now; _dbl = e.Name == "blink2"; _blinkAt = now + 2600; }
             else if (e.Name == "poke") Shots.Add(new RigShot { S = Poke(e.X < 50 ? 1 : -1), T0 = now, X = e.X, Y = e.Y });
-            // 'emit' (particles) is the drawing's
+            else if (e.Name == "emit") Emit(e.Emit.Pre, e.Emit.W, e.Emit.N);
         }
 
         // ---------------- touch (the page's pointer handlers) ----------------
@@ -250,7 +251,12 @@ namespace PlushCrush.Core.Rig
         {
             if (!Down) return;
             if (Drag) SpinTw = new SpinTween { From = SpinOff, To = RigMath.Round(SpinOff / 360) * 360, T0 = now, D = 650 };
-            else if (Press) { Press = false; Shots.Add(new RigShot { S = (Key != null && Data.Rel.TryGetValue(Key, out var r)) ? r : Data.Release, T0 = now }); }
+            else if (Press)
+            {
+                Press = false; var RS = (Key != null && Data.Rel.TryGetValue(Key, out var r)) ? r : Data.Release;
+                Shots.Add(new RigShot { S = RS, T0 = now });
+                if (RS.Em != null) foreach (var m in RS.Em) Emit(m.Pre, m.W, m.N);   // its own let-go particles
+            }
             // (a quick tap: nothing — in the game the poke branch is inside a // comment, rive-rig.js:1373)
             Down = false; Drag = false;
         }
@@ -277,6 +283,15 @@ namespace PlushCrush.Core.Rig
                 }
             }
             else if (CurName != "idle") _fidAt = 0;
+            if (st.Emit != null)
+            {
+                double tl = st.Loop != 0 ? t % st.Loop : t;
+                for (int i = 0; i < st.Emit.Count; i++)
+                {
+                    var m = st.Emit[i];
+                    if (tl >= m.T0 && tl <= m.T1 && now - EmL(i) >= m.Every) { while (_emL.Count <= i) _emL.Add(0); _emL[i] = now; Emit(m.Pre, m.W, m.N); }
+                }
+            }
             if (st.Ev != null)
             {
                 int c = st.Loop != 0 ? (int)Math.Floor(t / st.Loop) : 0; double tl = st.Loop != 0 ? t % st.Loop : t;
@@ -410,8 +425,11 @@ namespace PlushCrush.Core.Rig
             double sk = P["sk"], dv = P["dv"];
             if (Truthy(sk) || Truthy(dv)) P["lift"] -= (Truthy(sk) ? sk : 0) + (Truthy(dv) ? dv : 0) * 30;
             St = st;
+            StepParts(dt);   // drawParts' motion (the game moves them after render, which draws nothing random)
             return P;
         }
+
+        double EmL(int i) { double v = i < _emL.Count ? _emL[i] : 0; return v != 0 && !double.IsNaN(v) ? v : 0; }   // (I.emL[i] || 0)
 
         List<string> FidgetList()
         {

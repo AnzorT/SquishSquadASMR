@@ -2,7 +2,8 @@
 // every pose channel and the drawing's extra outputs (exit code 1 on any difference beyond 1e-7); with the creature's
 // geometry, also draws each frame with RigRender and compares every attribute the game wrote to its drawing and the
 // parts' stacking order (path numbers: the game rounds to hundredths, so a value a hair from a half can round the other
-// way - those are counted apart; anything further off is a difference).
+// way - those are counted apart; anything further off is a difference), and the fx layer (particles and the move's
+// effect, RigFx) with the markup the game wrote there.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -51,8 +52,9 @@ static class Program
         var shots = trace.TryGetValue("shots", out var so) && so is Dictionary<string, object> sd ? sd : null;
         var shotFrames = shots != null ? new HashSet<int>(((List<object>)shots["frames"]).Select(o => (int)(double)o)) : new HashSet<int>();
         Shots shooter = shots != null && Rd != null && Environment.GetEnvironmentVariable("RIG_NOSHOTS") != "1" ? Shots.Make(shots, geo, Rd, Path.GetDirectoryName(Path.GetFullPath(args[1])), key, Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[2])), "fabric.png")) : null;
-        if (Rd != null) R.FromM = Rd.FromM;
-        var dc = new DrawCheck();
+        if (Rd != null) { R.FromM = Rd.FromM; R.W = Rd.W; }
+        var dc = new DrawCheck(); var fc = new FxCheck(); var fxm = new RigFx();
+        bool fxRec = trace.TryGetValue("fxLayer", out var fl) && fl is bool fb && fb;   // the frames carry the fx layer's markup (older traces don't)
         int dbgFrame = Environment.GetEnvironmentVariable("HULL_FRAME") is string hf ? int.Parse(hf) : -1, curF = 0;
         if (Rd != null && dbgFrame >= 0) Rd.EarPointsHook = (ear, pts) =>
         {
@@ -74,7 +76,18 @@ static class Program
             {
                 if (w.StartsWith("play:")) R.Play(w.Substring(5), now);
                 else if (w == "press") { if (R.CurName != "idle") R.SetState("idle", now); R.Down = true; R.Drag = false; R.Press = true; R.PressT = now; }
-                else if (w == "release") { R.Press = false; R.Shots.Add(new RigShot { S = data.Rel.TryGetValue(key, out var rs) ? rs : data.Release, T0 = now }); R.Down = false; }
+                else if (w == "release")
+                {
+                    R.Press = false; var RS = data.Rel.TryGetValue(key, out var rs) ? rs : data.Release; R.Shots.Add(new RigShot { S = RS, T0 = now });
+                    if (RS.Em != null) foreach (var m in RS.Em) R.Emit(m.Pre, m.W, m.N);
+                    R.Down = false;
+                }
+                else if (w.StartsWith("emit:"))
+                {   // emit:<preset>:<a part, or x,y>[:<n>]
+                    var a = w.Split(':');
+                    var wh = a[2].Contains(",") ? new RigWhere { At = true, X = double.Parse(a[2].Split(',')[0], System.Globalization.CultureInfo.InvariantCulture), Y = double.Parse(a[2].Split(',')[1], System.Globalization.CultureInfo.InvariantCulture) } : new RigWhere { Name = a[2] };
+                    R.Emit(a[1], wh, a.Length > 3 ? double.Parse(a[3], System.Globalization.CultureInfo.InvariantCulture) : 0);
+                }
                 else if (w.StartsWith("drag:")) { if (!R.Drag) { R.Down = true; R.Drag = true; R.SpinTw = null; R.Spin0 = R.SpinOff; } R.SpinOff = R.Spin0 + double.Parse(w.Substring(5)) / 169 * 360; }
                 else if (w == "dragEnd") { R.SpinTw = new RigEngine.SpinTween { From = R.SpinOff, To = RigMath.Round(R.SpinOff / 360) * 360, T0 = now, D = 650 }; R.Down = false; R.Drag = false; }
             }
@@ -101,16 +114,18 @@ static class Program
             if ((ms == null) != (R.Ms == null)) { if (bad++ < 12) Console.WriteLine($"frame {f}: stretch {(R.Ms == null ? "missing in mine" : "only in mine")}"); }
             else if (ms != null) { Cmp("ms.s", R.Ms.S, ms["s"]); Cmp("ms.c", R.Ms.C, ms["c"]); Cmp("ms.n", R.Ms.N, ms["n"]); }
             bool hasDraw = fr.TryGetValue("draw", out var dw) && dw is Dictionary<string, object>;
-            // frame 0 is drawn too (the game's mount runs a frame; pools write everything on their first frame), not compared
-            if (Rd != null && (f == 0 || hasDraw || shotFrames.Contains(f))) Rd.Render(P, R, now);
+            // every frame is drawn, as in the game (the particles start where the parts were drawn); frame 0 (the game's mount
+            // runs a frame; pools write everything on their first frame) isn't compared
+            if (Rd != null) Rd.Render(P, R, now);
             if (Rd != null && f > 0 && hasDraw) dc.Frame(f, R.CurName, Rd, (Dictionary<string, object>)dw, fr.TryGetValue("order", out var od) ? od as string : null);
-            if (shooter != null && Rd != null && f > 0 && (hasDraw || shotFrames.Contains(f))) shooter.Track();
+            if (Rd != null && hasDraw && fxRec) { fxm.Build(R, now, Rd.TopW); fc.Frame(f, R.CurName, fxm, R.Parts, fr.TryGetValue("fx", out var fo) ? fo as string : null); }
+            if (shooter != null && f > 0) shooter.Track();
             if (shooter != null && shotFrames.Contains(f)) shooter.Frame(f, R, Rd, now);
         }
-        if (Rd != null) dc.Report();
+        if (Rd != null) { dc.Report(); if (fxRec) fc.Report(); else Console.WriteLine("particles (fx layer): not recorded in this trace (re-run record-rig.mjs)"); }
         if (Rd != null && Environment.GetEnvironmentVariable("RIG_PERF") == "1") Perf(data, key, geo, t0, fps);
         shooter?.Report();
-        if (Rd != null && dc.Bad > 0) bad += dc.Bad;
+        if (Rd != null) bad += dc.Bad + fc.Bad;
         Console.WriteLine($"{frames.Count} frames, {bad} differences beyond 1e-7; largest: {worst:E2} at {worstAt}");
         return bad > 0 ? 1 : 0;
     }
@@ -282,6 +297,127 @@ sealed class DrawCheck
     }
 }
 
+/// <summary>Compares the fx layer (RigFx: particles, then the move's effect) with the markup the game wrote to it.</summary>
+sealed class FxCheck
+{
+    public int Bad, Frames, Els, Exact, Flips; public double WorstFlip;
+    readonly SortedDictionary<string, int> _tags = new SortedDictionary<string, int>(), _kinds = new SortedDictionary<string, int>();
+    readonly SortedSet<int> _badAt = new SortedSet<int>();
+    int _shown, _f;
+    void Say(string m) { Bad++; _badAt.Add(_f); if (_shown++ < 20) Console.WriteLine(m); }
+
+    sealed class El { public string Tag; public readonly Dictionary<string, string> A = new Dictionary<string, string>(); }
+
+    /// <summary>The markup as elements in order ('/g' closes a group); text is left out.</summary>
+    static List<El> Parse(string s)
+    {
+        var o = new List<El>(); int i = 0;
+        while (s != null && (i = s.IndexOf('<', i)) >= 0)
+        {
+            int e = s.IndexOf('>', i);
+            if (s[i + 1] == '/') { if (s.Substring(i + 2, e - i - 2).Trim() == "g") o.Add(new El { Tag = "/g" }); i = e + 1; continue; }
+            int j = i + 1; while (j < s.Length && !char.IsWhiteSpace(s[j]) && s[j] != '>' && s[j] != '/') j++;
+            var el = new El { Tag = s.Substring(i + 1, j - i - 1) };
+            while (true)
+            {
+                while (j < s.Length && char.IsWhiteSpace(s[j])) j++;
+                if (s[j] == '>' || s[j] == '/') break;
+                int eq = s.IndexOf('=', j); string k = s.Substring(j, eq - j).Trim();
+                char q = s[eq + 1]; int end = s.IndexOf(q, eq + 2);
+                el.A[k] = System.Net.WebUtility.HtmlDecode(s.Substring(eq + 2, end - eq - 2)); j = end + 1;
+            }
+            bool self = s[j] == '/';
+            o.Add(el); i = s.IndexOf('>', j) + 1;
+            if (self && el.Tag == "g") o.Add(new El { Tag = "/g" });
+        }
+        return o;
+    }
+
+    static string J(double v) => RigGeometry.Js(v);
+
+    /// <summary>RigFx's shapes as the elements and attributes the game writes.</summary>
+    static List<El> Mine(RigFx fx)
+    {
+        var o = new List<El>();
+        foreach (var s in fx.Shapes)
+        {
+            if (s.Kind == RigFxKind.End) { o.Add(new El { Tag = "/g" }); continue; }
+            var e = new El { Tag = s.Kind == RigFxKind.Group ? "g" : s.Kind == RigFxKind.Path ? "path" : s.Kind == RigFxKind.Circle ? "circle" : "ellipse" };
+            if (s.Kind == RigFxKind.Path) e.A["d"] = s.D.ToString();
+            if (s.Kind == RigFxKind.Circle) { e.A["cx"] = J(s.Cx); e.A["cy"] = J(s.Cy); e.A["r"] = J(s.Rx); }
+            if (s.Kind == RigFxKind.Ellipse) { e.A["cx"] = J(s.Cx); e.A["cy"] = J(s.Cy); e.A["rx"] = J(s.Rx); e.A["ry"] = J(s.Ry); }
+            if (s.NXf > 0)
+            {
+                var t = new List<string>();
+                for (int i = 0, v = 0; i < s.NXf; i++)
+                    switch (s.XfOp[i])
+                    {
+                        case 't': t.Add($"translate({J(s.XfV[v])} {J(s.XfV[v + 1])})"); v += 2; break;
+                        case 'r': t.Add($"rotate({J(s.XfV[v])})"); v++; break;
+                        case 's': t.Add($"scale({J(s.XfV[v])})"); v++; break;
+                        case 'S': t.Add($"scale({J(s.XfV[v])} {J(s.XfV[v + 1])})"); v += 2; break;
+                    }
+                e.A["transform"] = string.Join(" ", t);
+            }
+            if (s.Fill != null) e.A["fill"] = s.Fill;
+            if (s.Stroke != null) e.A["stroke"] = s.Stroke;
+            if (!double.IsNaN(s.Width)) e.A["stroke-width"] = J(s.Width);
+            if (s.Cap != null) e.A["stroke-linecap"] = s.Cap;
+            if (!double.IsNaN(s.Opacity)) e.A["opacity"] = J(s.Opacity);
+            o.Add(e);
+        }
+        return o;
+    }
+
+    public void Frame(int f, string state, RigFx fx, List<RigPart> parts, string markup)
+    {
+        _f = f;
+        foreach (var p in parts) _kinds[p.Kind ?? "?"] = _kinds.TryGetValue(p.Kind ?? "?", out var n) ? n + 1 : 1;
+        var G = Parse(markup); var M = Mine(fx);
+        if (G.Count == 0 && M.Count == 0) return;
+        Frames++;
+        for (int i = 0; i < Math.Max(G.Count, M.Count); i++)
+        {
+            if (i >= G.Count) { Say($"frame {f} ({state}) fx #{i}: mine draws a {M[i].Tag} the game doesn't ({M.Count} elements, the game {G.Count})"); return; }
+            if (i >= M.Count) { Say($"frame {f} ({state}) fx #{i}: the game draws a {G[i].Tag} mine doesn't ({M.Count} elements, the game {G.Count}): {Show(G[i])}"); return; }
+            var g = G[i]; var m = M[i];
+            if (g.Tag != m.Tag) { Say($"frame {f} ({state}) fx #{i}: the game draws a {g.Tag} ({Show(g)}), mine a {m.Tag} ({Show(m)})"); return; }
+            Els++; _tags[g.Tag] = _tags.TryGetValue(g.Tag, out var tn) ? tn + 1 : 1;
+            foreach (var kv in g.A)
+            {
+                if (!m.A.TryGetValue(kv.Key, out var mv)) { Say($"frame {f} ({state}) fx #{i} {g.Tag}.{kv.Key}: the game wrote '{kv.Value}', mine didn't"); continue; }
+                Cmp(f, state, $"fx #{i} {g.Tag}.{kv.Key}", mv, kv.Value);
+            }
+            foreach (var kv in m.A) if (!g.A.ContainsKey(kv.Key)) Say($"frame {f} ({state}) fx #{i} {m.Tag}.{kv.Key}: mine wrote '{kv.Value}', the game didn't");
+        }
+    }
+
+    static string Show(El e) => e.Tag + " " + string.Join(" ", e.A.Select(kv => kv.Key + "=" + kv.Value));
+
+    void Cmp(int f, string state, string what, string mine, string theirs)
+    {
+        if (mine == theirs) { Exact++; return; }
+        if (mine.StartsWith("url(#phz") && theirs.StartsWith("url(#phz")) { Exact++; return; }   // (the mount's uid suffix)
+        var A = RigGeometry.Tokens(mine); var B = RigGeometry.Tokens(theirs);
+        bool num(string t) => !char.IsLetter(t[0]);
+        if (A.Count != B.Count) { Say($"frame {f} ({state}) {what}: mine '{mine}', the game '{theirs}'"); return; }
+        for (int i = 0; i < A.Count; i++)
+        {
+            if (!num(A[i]) || !num(B[i])) { if (A[i] != B[i]) { Say($"frame {f} ({state}) {what}: mine '{mine}', the game '{theirs}'"); return; } continue; }
+            double a = double.Parse(A[i], System.Globalization.CultureInfo.InvariantCulture), b = double.Parse(B[i], System.Globalization.CultureInfo.InvariantCulture), d = Math.Abs(a - b);
+            if (d < 1e-9) Exact++;
+            else if (d <= 0.0101) { Flips++; if (d > WorstFlip) WorstFlip = d; }
+            else { Say($"frame {f} ({state}) {what}: mine '{mine}', the game '{theirs}'"); return; }
+        }
+    }
+
+    public void Report()
+    {
+        if (_badAt.Count > 0) Console.WriteLine($"  fx: {_badAt.Count} frames ({string.Join(" ", _badAt.Take(30))}{(_badAt.Count > 30 ? " …" : "")})");
+        Console.WriteLine($"particles (fx layer): {Frames} frames drawn, {Els} elements ({string.Join(", ", _tags.Select(kv => kv.Key + " " + kv.Value))}); particle-frames by kind: {(_kinds.Count == 0 ? "none" : string.Join(", ", _kinds.Select(kv => kv.Key + " " + kv.Value)))}; numbers exact {Exact}, a rounding step off {Flips} (largest {WorstFlip:F4}); {Bad} differences");
+    }
+}
+
 /// <summary>Draws the screenshot frames with RigDisplay + RigRaster and compares them with Chrome's.</summary>
 sealed class Shots
 {
@@ -312,7 +448,7 @@ sealed class Shots
 
     public void Frame(int f, RigEngine E, RigRender R, double now)
     {
-        _fx.Build(E.CurName, now - E.CurT0, R.TopW);
+        _fx.Build(E, now, R.TopW);
         _d.Build();
         var mine = _r.Play(_d.Cmds);
         string mp = Path.Combine(_dir, $"mine-{_key}-{f}.png"); RigRaster.SavePng(mp, mine, _w, _h);

@@ -4,10 +4,12 @@
 //
 // How: a test copy of the built game where rive-rig.js is changed in three test-only ways (the app's files untouched):
 //   - its tick() is reachable (window.RiveRig.__tick) and its own frame loop is off, so frames come exactly when asked;
-//   - the random numbers tick() draws come from window.__rr(), a seeded generator the C# side has too;
+//   - the random numbers tick() and the particles (emit, drawParts) draw come from window.__rr(), a seeded generator
+//     the C# side has too;
 //   - every frame's final pose (what tick() hands render()) is reported to window.__rigP.
 // The real menu page is loaded (every move file, the remote-config filter, as in the app), a rig is mounted for a
-// creature, and driven: 60 frames a second, with scripted moves and touches. Output: rig/trace-<key>.json.
+// creature, and driven: 60 frames a second, with scripted moves, touches and particles. Output: rig/trace-<key>.json
+// (per frame: the pose, the drawing's attribute writes, and the fx layer's markup: particles and the move's effect).
 //
 //   node webgame/build.mjs --out webgame/test/out/webgame
 //   node tools/unity-port/rig/record-rig.mjs [mittens] [--seconds 40]
@@ -33,6 +35,10 @@ const must = (s, what) => { if (!src.includes(s)) throw new Error('rive-rig.js c
 const a = src.indexOf('  function tick(I, now, dt) {'), b = src.indexOf('  function whipFx(I, P) {');
 if (a < 0 || b < a) throw new Error('rive-rig.js changed: tick()');
 src = src.slice(0, a) + src.slice(a, b).replace(/Math\.random\(\)/g, 'window.__rr()') + src.slice(b);
+// the particles' random numbers too (emit and drawParts)
+const pa = src.indexOf('  function emit(I, name, w, n) {'), pb = src.indexOf('  function wPrep(I) {');
+if (pa < 0 || pb < pa || !src.slice(pa, pb).includes('function drawParts(I, dt) {')) throw new Error('rive-rig.js changed: emit / drawParts');
+src = src.slice(0, pa) + src.slice(pa, pb).replace(/Math\.random\(\)/g, 'window.__rr()') + src.slice(pb);
 must('    I.propZ = st.propZ;', 'the render call');
 src = src.replace('    I.propZ = st.propZ;', '    if (window.__rigP) window.__rigP(I, P, now, dt);\n    I.propZ = st.propZ;');
 must('  const kick = () => {', 'kick');
@@ -68,17 +74,22 @@ const data = await page.evaluate(() => {
   const R = window.RiveRig, fns = [];
   const clean = (o, at) => JSON.parse(JSON.stringify(o, (k, v) => { if (typeof v === 'function') { fns.push(at + '.' + k); return undefined; } return v; }));
   return { STATES: clean(R.STATES, 'STATES'), REST: R.REST, FIDGETS: R.FIDGETS, FIDK: clean(R.FIDK || {}, 'FIDK'), PRESS: clean(R.PRESS || {}, 'PRESS'),
-    REL: clean(R.REL || {}, 'REL'), RELEASE: clean(R.__RELEASE, 'RELEASE'), SOFT: [...R.SOFT], HYAW: [...R.HYAW], functions: fns,
+    REL: clean(R.REL || {}, 'REL'), RELEASE: clean(R.__RELEASE, 'RELEASE'), SOFT: [...R.SOFT], HYAW: [...R.HYAW], PRE: clean(R.PRE || {}, 'PRE'), functions: fns,
     config: window.SquishConfig ? { has: true } : null };
 });
 fs.mkdirSync(OUT_DATA, { recursive: true });
 fs.writeFileSync(path.join(OUT_DATA, 'rig-states.json'), JSON.stringify(data));
-console.log(`rig data: ${Object.keys(data.STATES).length} states, ${data.FIDGETS.length} fidgets, ${data.functions.length} functions left out`);
+console.log(`rig data: ${Object.keys(data.STATES).length} states, ${data.FIDGETS.length} fidgets, ${Object.keys(data.PRE).length} particle presets, ${data.functions.length} functions left out`);
 
 // ---- drive a rig: 60 frames a second, scripted moves and touches ----
 const FPS = 60, N = SECONDS * FPS;
-// [frame, what]: moves by name, a hold (press) and its release, a sideways drag (spin) and its release
-const SCRIPT = [[600, 'play:hop'], [1100, 'play:look'], [1600, 'press'], [1750, 'release'], [1900, 'play:happy'], [2300, 'drag:40'], [2330, 'drag:120'], [2360, 'dragEnd']];
+// [frame, what]: moves by name, a hold (press) and its release, a sideways drag (spin) and its release, and particles
+// (emit:<preset>:<where: a part, or x,y>[:<n>], as a move's 'emit' event): every kind, alive for the shots at 700 and 1700
+const SCRIPT = [[600, 'play:hop'], [640, 'emit:duck:sideR'], [650, 'emit:note:head'], [655, 'emit:dustbath:body'], [660, 'emit:bubble:mouth'],
+  [665, 'emit:stink:tail'], [670, 'emit:gust:sideL'], [675, 'emit:featherY:head'], [680, 'emit:spark:body'], [685, 'emit:heart:head:2'],
+  [690, 'emit:crumb:mouth'], [692, 'emit:seed:mouth'], [694, 'emit:steam:head'], [696, 'emit:drop:30,40'], [698, 'emit:bigbubble:head'],
+  [1100, 'play:look'], [1200, 'emit:dust:belly:150'], [1600, 'press'], [1660, 'emit:splash:footL'], [1670, 'emit:tear:eyeL'], [1680, 'emit:sneeze:nose'],
+  [1690, 'emit:sprinkle:head'], [1695, 'emit:gush:mouth'], [1750, 'release'], [1900, 'play:happy'], [2300, 'drag:40'], [2330, 'drag:120'], [2360, 'dragEnd']];
 const DRAWN = +(args.includes('--draw-frames') ? args[args.indexOf('--draw-frames') + 1] : 600); // frames whose drawing is kept
 await page.evaluate(({ key, N, FPS, SCRIPT, DRAWN, HOST, SHOT }) => {
   const host = document.createElement('div'); host.id = 'rigHost'; host.style.cssText = `position:fixed;left:${HOST.x}px;top:${HOST.y}px;width:${HOST.s}px;height:${HOST.s}px;z-index:2147483647;`; document.body.appendChild(host);
@@ -117,7 +128,9 @@ await page.evaluate(({ key, N, FPS, SCRIPT, DRAWN, HOST, SHOT }) => {
   nameAll(I);
   const sc = new Map(SCRIPT.map(([f, w]) => [f, w]));
   const keep = I => ({ rr: draws, order: I.order, hs: I.hs, ed: I.ed, ld: I.ld, spTw: I.spTw, spF: I.spF, ms: I.ms, dent: I.dent, state: I.cur.name, spinOff: I.spinOff });
-  frames.push({ f: 0, now: 0, P: cur, ...keep(I), draw: drawn() });
+  // the fx layer's markup (particles, the move's effect), when there is any
+  const fxm = () => I.fxG.innerHTML || undefined;
+  frames.push({ f: 0, now: 0, P: cur, ...keep(I), draw: drawn(), fx: fxm() });
   // the creature's rig as mounted (data for the C# renderer: its definition D, the geometry mount() precomputes from it
   // (I.RG: parsed outlines, ear sections, fur rings…), a few derived numbers, and the drawing's element tree)
   // the drawing's element tree as data: each element's tag, its name in the rig (when it has one), its attributes
@@ -136,15 +149,16 @@ await page.evaluate(({ key, N, FPS, SCRIPT, DRAWN, HOST, SHOT }) => {
     if (w) {
       if (w.startsWith('play:')) c.play(w.slice(5));
       else if (w === 'press') { if (I.cur.name !== 'idle') c.play('idle'); I.down = { cx: 100, x: 50, y: 60 }; I.drag = false; I.press = true; I.pressT = now; }
-      else if (w === 'release') { I.press = false; const RS = (I.key && window.RiveRig.REL[I.key]) || window.RiveRig.__RELEASE; I.shots.push({ S: RS, t0: now }); I.down = null; }
+      else if (w === 'release') { I.press = false; const RS = (I.key && window.RiveRig.REL[I.key]) || window.RiveRig.__RELEASE; I.shots.push({ S: RS, t0: now }); (RS.em || []).forEach(m => window.RiveRig.emit(I, m[0], m[1], m[2])); I.down = null; }
+      else if (w.startsWith('emit:')) { const [, nm, wh, n] = w.split(':'); window.RiveRig.emit(I, nm, wh.includes(',') ? wh.split(',').map(Number) : wh, n ? +n : undefined); }
       else if (w.startsWith('drag:')) { if (!I.drag) { I.down = { cx: 100, x: 50, y: 60 }; I.drag = true; I.spinTw = null; I.spin0 = I.spinOff; } I.spinOff = I.spin0 + (+w.slice(5)) / 169 * 360; }
       else if (w === 'dragEnd') { I.spinTw = { from: I.spinOff, to: Math.round(I.spinOff / 360) * 360, t0: now, d: 650 }; I.down = null; I.drag = false; }
     }
     cur = null;
     window.RiveRig.__tick(I, now, dt);
-    frames.push({ f, now: now - t0, P: cur, ...keep(I), draw: f <= DRAWN ? drawn() : (writes.clear(), undefined) });
+    frames.push({ f, now: now - t0, P: cur, ...keep(I), draw: f <= DRAWN ? drawn() : (writes.clear(), undefined), fx: f <= DRAWN ? fxm() : undefined });
   } f--; };
-  window.__R = { step, done: () => ({ key, t0, fps: FPS, script: SCRIPT, geo, frames }) };
+  window.__R = { step, done: () => ({ key, t0, fps: FPS, script: SCRIPT, fxLayer: true, geo, frames }) };   // fxLayer: frames carry the fx markup
 }, { key, N, FPS, SCRIPT, DRAWN, HOST, SHOT: SHOTS.length > 0 });
 fs.mkdirSync(OUT_TRACE, { recursive: true });
 for (const s of SHOTS) {

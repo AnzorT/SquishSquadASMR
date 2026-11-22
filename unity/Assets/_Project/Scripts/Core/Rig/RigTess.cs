@@ -57,17 +57,21 @@ namespace PlushCrush.Core.Rig
 
     public static class RigTess
     {
-        /// <summary>Flattens a path. tol: the largest distance (rig units) the polyline may stray from the curve.</summary>
+        /// <summary>Flattens a path (M L Q T C Z, and their relative forms). tol: the largest distance (rig units) the
+        /// polyline may stray from the curve.</summary>
         public static void Flatten(RigPath p, float tol, RigContours o)
         {
             o.Clear();
-            float cx = 0, cy = 0, sx = 0, sy = 0; bool open = false;
+            float cx = 0, cy = 0, sx = 0, sy = 0, qx = 0, qy = 0; bool open = false, lastQ = false;
             for (int i = 0; i < p.Cmd.Count; i++)
             {
                 char c = p.Cmd[i]; int a = p.At[i]; var V = p.V;
+                bool rel = c >= 'a' && c <= 'z'; float ox = rel ? cx : 0, oy = rel ? cy : 0;
+                if (rel) c = (char)(c - 32);
+                bool wasQ = lastQ; lastQ = false;
                 if (c == 'M')
                 {
-                    cx = sx = (float)V[a]; cy = sy = (float)V[a + 1];
+                    cx = sx = ox + (float)V[a]; cy = sy = oy + (float)V[a + 1];
                     o.Begin(); o.Pt(cx, cy, true); open = true;
                     continue;
                 }
@@ -78,18 +82,20 @@ namespace PlushCrush.Core.Rig
                     continue;
                 }
                 if (!open) { o.Begin(); o.Pt(cx, cy, true); open = true; }   // drawing on after a Z starts at the subpath's start
-                if (c == 'L') { cx = (float)V[a]; cy = (float)V[a + 1]; o.Pt(cx, cy, true); }
-                else if (c == 'Q')
+                if (c == 'L') { cx = ox + (float)V[a]; cy = oy + (float)V[a + 1]; o.Pt(cx, cy, true); }
+                else if (c == 'Q' || c == 'T')
                 {
-                    float x1 = (float)V[a], y1 = (float)V[a + 1], x2 = (float)V[a + 2], y2 = (float)V[a + 3];
+                    float x1, y1, x2, y2;
+                    if (c == 'Q') { x1 = ox + (float)V[a]; y1 = oy + (float)V[a + 1]; x2 = ox + (float)V[a + 2]; y2 = oy + (float)V[a + 3]; }
+                    else { x1 = wasQ ? 2 * cx - qx : cx; y1 = wasQ ? 2 * cy - qy : cy; x2 = ox + (float)V[a]; y2 = oy + (float)V[a + 1]; }   // T: the last control point mirrored
                     float ddx = cx - 2 * x1 + x2, ddy = cy - 2 * y1 + y2, M = (float)Math.Sqrt(ddx * ddx + ddy * ddy);
                     int n = Math.Max(1, Math.Min(256, (int)Math.Ceiling(Math.Sqrt(0.25 * M / tol))));
                     for (int k = 1; k <= n; k++) { float t = (float)k / n, m = 1 - t; o.Pt(m * m * cx + 2 * m * t * x1 + t * t * x2, m * m * cy + 2 * m * t * y1 + t * t * y2, k == n); }
-                    cx = x2; cy = y2;
+                    cx = x2; cy = y2; qx = x1; qy = y1; lastQ = true;
                 }
                 else if (c == 'C')
                 {
-                    float x1 = (float)V[a], y1 = (float)V[a + 1], x2 = (float)V[a + 2], y2 = (float)V[a + 3], x3 = (float)V[a + 4], y3 = (float)V[a + 5];
+                    float x1 = ox + (float)V[a], y1 = oy + (float)V[a + 1], x2 = ox + (float)V[a + 2], y2 = oy + (float)V[a + 3], x3 = ox + (float)V[a + 4], y3 = oy + (float)V[a + 5];
                     float ax = cx - 2 * x1 + x2, ay = cy - 2 * y1 + y2, bx = x1 - 2 * x2 + x3, by = y1 - 2 * y2 + y3;
                     float M = (float)Math.Sqrt(Math.Max(ax * ax + ay * ay, bx * bx + by * by));
                     int n = Math.Max(1, Math.Min(256, (int)Math.Ceiling(Math.Sqrt(0.75 * M / tol))));   // Wang's formula
