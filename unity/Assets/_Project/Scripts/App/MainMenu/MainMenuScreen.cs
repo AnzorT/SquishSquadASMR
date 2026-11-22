@@ -12,7 +12,7 @@ using UnityEngine.UIElements;
 namespace PlushCrush.App.MainMenu
 {
     /// <summary>What the menu shows. Stands in for the player's data until Firebase is wired in.</summary>
-    public sealed class MenuState
+    public sealed partial class MenuState
     {
         public string CreatureKey = "mittens";
         public int Level = 1;
@@ -34,7 +34,7 @@ namespace PlushCrush.App.MainMenu
         }
     }
 
-    public sealed class MainMenuScreen : AppScreen
+    public sealed partial class MainMenuScreen : AppScreen
     {
         readonly MenuState _state;
         MenuLayout _layout;
@@ -264,6 +264,7 @@ namespace PlushCrush.App.MainMenu
 
         void Tapped(string what)
         {
+            if (what == "crest") { OpenLevelPass(); return; } // MainMenuScreen.LevelPass.cs
             // Phase 2 wires these to the real screens as they're ported.
             App.Toast(what switch
             {
@@ -273,7 +274,6 @@ namespace PlushCrush.App.MainMenu
                 "tab-shop" or "pill-coins" or "pill-gems" => "The Shop comes in phase 3",
                 "orb-trophies" => "Achievements come in phase 3",
                 "orb-settings" => "Settings come in phase 3",
-                "crest" => "The Level Pass comes in phase 2",
                 _ => what,
             });
         }

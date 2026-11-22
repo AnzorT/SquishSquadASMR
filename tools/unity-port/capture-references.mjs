@@ -37,8 +37,8 @@ const CASES = [
   ['menu', 'App.dc.html', 8000, 9000, [
     ['park', click('.mm-play'), 6000],
   ]],
-  // Not yet: the Level Pass (tap .mm-crest) is filled with data the React Native app sends over the bridge
-  // (app/bridge.js), so offline it stays shut. Needs a stand-in for that message first.
+  // The Level Pass (tap .mm-crest) needs the app's player data: export-level-pass.mjs writes its references
+  // (level-pass*.jpg) with a stand-in player.
   ...ROOMS.map(room => [`house-${room}`, `App.dc.html?screen=house&room=${room}`, 30000, 6000, []]),
 ];
 

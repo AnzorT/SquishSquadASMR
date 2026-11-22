@@ -1,0 +1,8343 @@
+{
+ "screen": {
+  "width": 832,
+  "height": 384,
+  "scale": 2.8125
+ },
+ "page": {
+  "k": 0.977,
+  "designHeight": 393
+ },
+ "standIn": {
+  "xp": {
+   "level": 6,
+   "into": 420,
+   "need": 700,
+   "per": 100
+  },
+  "road": [
+   {
+    "lv": 1,
+    "k": "coins",
+    "n": 200,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": true,
+    "claimable": false
+   },
+   {
+    "lv": 2,
+    "k": "coins",
+    "n": 300,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": true,
+    "claimable": false
+   },
+   {
+    "lv": 3,
+    "k": "chest",
+    "n": 0,
+    "t": "common",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Mossy Stump Stash",
+    "got": false,
+    "claimable": true
+   },
+   {
+    "lv": 4,
+    "k": "coins",
+    "n": 400,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": true,
+    "claimable": false
+   },
+   {
+    "lv": 5,
+    "k": "gems",
+    "n": 30,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": true
+   },
+   {
+    "lv": 6,
+    "k": "coins",
+    "n": 500,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": true
+   },
+   {
+    "lv": 7,
+    "k": "chest",
+    "n": 0,
+    "t": "common",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Mossy Stump Stash",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 8,
+    "k": "coins",
+    "n": 600,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 9,
+    "k": "gems",
+    "n": 40,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 10,
+    "k": "chest",
+    "n": 0,
+    "t": "rare",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Birch Bark Box",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 11,
+    "k": "coins",
+    "n": 800,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 12,
+    "k": "chest",
+    "n": 0,
+    "t": "common",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Mossy Stump Stash",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 13,
+    "k": "gems",
+    "n": 50,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 14,
+    "k": "coins",
+    "n": 1000,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 15,
+    "k": "chest",
+    "n": 0,
+    "t": "rare",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Birch Bark Box",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 16,
+    "k": "coins",
+    "n": 1200,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 17,
+    "k": "gems",
+    "n": 60,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 18,
+    "k": "chest",
+    "n": 0,
+    "t": "common",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Mossy Stump Stash",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 19,
+    "k": "coins",
+    "n": 1500,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 20,
+    "k": "chest",
+    "n": 0,
+    "t": "epic",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Ranger's Log Chest",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 21,
+    "k": "coins",
+    "n": 1600,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 22,
+    "k": "chest",
+    "n": 0,
+    "t": "rare",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Birch Bark Box",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 23,
+    "k": "gems",
+    "n": 80,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 24,
+    "k": "coins",
+    "n": 1800,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 25,
+    "k": "chest",
+    "n": 0,
+    "t": "legendary",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Ancient Grove Chest",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 26,
+    "k": "coins",
+    "n": 2000,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 27,
+    "k": "chest",
+    "n": 0,
+    "t": "rare",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Birch Bark Box",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 28,
+    "k": "gems",
+    "n": 100,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 29,
+    "k": "coins",
+    "n": 2200,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 30,
+    "k": "chest",
+    "n": 0,
+    "t": "epic",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Ranger's Log Chest",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 31,
+    "k": "coins",
+    "n": 2400,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 32,
+    "k": "chest",
+    "n": 0,
+    "t": "rare",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Birch Bark Box",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 33,
+    "k": "gems",
+    "n": 120,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 34,
+    "k": "coins",
+    "n": 2600,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 35,
+    "k": "chest",
+    "n": 0,
+    "t": "epic",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Ranger's Log Chest",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 36,
+    "k": "coins",
+    "n": 2800,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 37,
+    "k": "chest",
+    "n": 0,
+    "t": "rare",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Birch Bark Box",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 38,
+    "k": "gems",
+    "n": 150,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 39,
+    "k": "coins",
+    "n": 3000,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 40,
+    "k": "chest",
+    "n": 0,
+    "t": "legendary",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Ancient Grove Chest",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 41,
+    "k": "coins",
+    "n": 3200,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 42,
+    "k": "chest",
+    "n": 0,
+    "t": "epic",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Ranger's Log Chest",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 43,
+    "k": "gems",
+    "n": 180,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 44,
+    "k": "coins",
+    "n": 3500,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 45,
+    "k": "chest",
+    "n": 0,
+    "t": "legendary",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Ancient Grove Chest",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 46,
+    "k": "coins",
+    "n": 4000,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 47,
+    "k": "chest",
+    "n": 0,
+    "t": "epic",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Ranger's Log Chest",
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 48,
+    "k": "gems",
+    "n": 250,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 49,
+    "k": "coins",
+    "n": 5000,
+    "t": null,
+    "g": null,
+    "gn": null,
+    "cn": null,
+    "got": false,
+    "claimable": false
+   },
+   {
+    "lv": 50,
+    "k": "chest",
+    "n": 0,
+    "t": "legendary",
+    "g": "forest",
+    "gn": "Forest Friends",
+    "cn": "Ancient Grove Chest",
+    "got": false,
+    "claimable": false
+   }
+  ],
+  "coins": 1250,
+  "creature": "mittens",
+  "select": 0
+ },
+ "background": {
+  "image": "background",
+  "off": [
+   0,
+   0
+  ],
+  "size": [
+   2340,
+   1080
+  ]
+ },
+ "header": {
+  "left": 16,
+  "top": 12,
+  "right": 16,
+  "height": 46,
+  "gap": 12,
+  "back": {
+   "box": [
+    0,
+    3,
+    40,
+    40
+   ],
+   "pic": {
+    "image": "back",
+    "off": [
+     -33.969,
+     -18.221
+    ],
+    "size": [
+     178,
+     179
+    ]
+   }
+  },
+  "title": {
+   "box": [
+    52,
+    0,
+    167,
+    46
+   ],
+   "pic": {
+    "image": "title",
+    "off": [
+     12.13,
+     12.023
+    ],
+    "size": [
+     436,
+     96
+    ]
+   }
+  },
+  "claimAll": {
+   "height": 30,
+   "padLeft": 15,
+   "padRight": 15,
+   "text": {
+    "font": "Fredoka",
+    "weight": 700,
+    "size": 12.5,
+    "color": "rgb(107, 68, 38)",
+    "letterSpacing": 0.6,
+    "lineHeight": 0,
+    "shadows": []
+   },
+   "frame": {
+    "mode": "slice",
+    "left": {
+     "image": "claimall-l",
+     "size": [
+      129,
+      155
+     ]
+    },
+    "mid": {
+     "image": "claimall-m",
+     "size": [
+      4,
+      155
+     ]
+    },
+    "right": {
+     "image": "claimall-r",
+     "size": [
+      128,
+      155
+     ]
+    },
+    "off": [
+     -35.697,
+     -19.962
+    ],
+    "ext": 34.207
+   }
+  },
+  "lv": {
+   "height": 34,
+   "padLeft": 10,
+   "padRight": 16,
+   "gap": 9,
+   "text": {
+    "font": "Fredoka",
+    "weight": 700,
+    "size": 15,
+    "color": "rgb(255, 246, 226)",
+    "letterSpacing": 0.6,
+    "lineHeight": 0,
+    "shadows": [
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": 0,
+      "y": 1.6,
+      "blur": 0
+     },
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": 1.2,
+      "y": 0,
+      "blur": 0
+     },
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": -1.2,
+      "y": 0,
+      "blur": 0
+     },
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": 0,
+      "y": -1.2,
+      "blur": 0
+     },
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": 1,
+      "y": 1,
+      "blur": 0
+     },
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": -1,
+      "y": 1,
+      "blur": 0
+     }
+    ]
+   },
+   "text2": {
+    "font": "Nunito",
+    "weight": 800,
+    "size": 10.5,
+    "color": "rgb(246, 232, 255)",
+    "letterSpacing": 0.6,
+    "lineHeight": 0,
+    "shadows": []
+   },
+   "bar": {
+    "width": 118,
+    "height": 12,
+    "track": {
+     "mode": "slice",
+     "left": {
+      "image": "lv-bar-l",
+      "size": [
+       22,
+       34
+      ]
+     },
+     "mid": {
+      "image": "lv-bar-m",
+      "size": [
+       4,
+       34
+      ]
+     },
+     "right": {
+      "image": "lv-bar-r",
+      "size": [
+       22,
+       34
+      ]
+     },
+     "off": [
+      -0.229,
+      -0.695
+     ],
+     "ext": 0.496
+    },
+    "fill": {
+     "mode": "slice",
+     "left": {
+      "image": "lv-fill-l",
+      "size": [
+       19,
+       34
+      ]
+     },
+     "mid": {
+      "image": "lv-fill-m",
+      "size": [
+       4,
+       34
+      ]
+     },
+     "right": {
+      "image": "lv-fill-r",
+      "size": [
+       20,
+       34
+      ]
+     },
+     "off": [
+      -0.229,
+      -0.695
+     ],
+     "ext": 1.215
+    }
+   },
+   "frame": {
+    "mode": "crop",
+    "body": {
+     "image": "lv-body",
+     "size": [
+      1509,
+      166
+     ]
+    },
+    "right": {
+     "image": "lv-r",
+     "size": [
+      138,
+      166
+     ]
+    },
+    "off": [
+     -33.77,
+     -19.466
+    ],
+    "ext": 33.477
+   }
+  },
+  "coins": {
+   "height": 30,
+   "padLeft": 28,
+   "padRight": 13,
+   "text": {
+    "font": "Fredoka",
+    "weight": 700,
+    "size": 13.5,
+    "color": "rgb(255, 246, 226)",
+    "letterSpacing": 0.6,
+    "lineHeight": 0,
+    "shadows": [
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": 0,
+      "y": 1.6,
+      "blur": 0
+     },
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": 1.2,
+      "y": 0,
+      "blur": 0
+     },
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": -1.2,
+      "y": 0,
+      "blur": 0
+     },
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": 0,
+      "y": -1.2,
+      "blur": 0
+     },
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": 1,
+      "y": 1,
+      "blur": 0
+     },
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": -1,
+      "y": 1,
+      "blur": 0
+     }
+    ]
+   },
+   "icon": {
+    "box": [
+     -4,
+     1,
+     28,
+     28
+    ],
+    "pic": {
+     "image": "coin-icon",
+     "off": [
+      -12.508,
+      -5.71
+     ],
+     "size": [
+      99,
+      99
+     ]
+    }
+   },
+   "frame": {
+    "mode": "crop",
+    "body": {
+     "image": "coins-body",
+     "size": [
+      1519,
+      155
+     ]
+    },
+    "right": {
+     "image": "coins-r",
+     "size": [
+      135,
+      155
+     ]
+    },
+    "off": [
+     -35.5,
+     -19.962
+    ],
+    "ext": 35.97
+   }
+  }
+ },
+ "track": {
+  "top": 60,
+  "height": 118,
+  "col": 84,
+  "x0": 44,
+  "endPad": 44,
+  "railTop": 58,
+  "railHeight": 12,
+  "nodeTop": 41,
+  "nodeSize": 46,
+  "youTop": 0,
+  "youSize": 34,
+  "pointerBox": [
+   -6,
+   35,
+   12,
+   13
+  ],
+  "rail": {
+   "mode": "slice",
+   "left": {
+    "image": "rail-l",
+    "size": [
+     23,
+     36
+    ]
+   },
+   "mid": {
+    "image": "rail-m",
+    "size": [
+     4,
+     36
+    ]
+   },
+   "right": {
+    "image": "rail-r",
+    "size": [
+     23,
+     36
+    ]
+   },
+   "off": [
+    -0.916,
+    -0.275
+   ],
+   "ext": 0.657
+  },
+  "fill": {
+   "mode": "slice",
+   "left": {
+    "image": "rail-fill-l",
+    "size": [
+     80,
+     100
+    ]
+   },
+   "mid": {
+    "image": "rail-fill-m",
+    "size": [
+     4,
+     100
+    ]
+   },
+   "right": {
+    "image": "rail-fill-r",
+    "size": [
+     79,
+     100
+    ]
+   },
+   "off": [
+    -30.916,
+    -33.275
+   ],
+   "ext": 29.407
+  },
+  "you": {
+   "phases": [
+    0,
+    0.25,
+    0.5,
+    0.75
+   ],
+   "frame": [
+    {
+     "image": "You/you-frame-0",
+     "off": [
+      -68,
+      0.115
+     ],
+     "size": [
+      227,
+      160
+     ]
+    },
+    {
+     "image": "You/you-frame-1",
+     "off": [
+      -68.25,
+      0.115
+     ],
+     "size": [
+      228,
+      160
+     ]
+    },
+    {
+     "image": "You/you-frame-2",
+     "off": [
+      -68.5,
+      0.115
+     ],
+     "size": [
+      228,
+      160
+     ]
+    },
+    {
+     "image": "You/you-frame-3",
+     "off": [
+      -67.75,
+      0.115
+     ],
+     "size": [
+      227,
+      160
+     ]
+    }
+   ],
+   "pointer": [
+    {
+     "image": "You/you-pointer-0",
+     "off": [
+      29,
+      96.115
+     ],
+     "size": [
+      33,
+      20
+     ]
+    },
+    {
+     "image": "You/you-pointer-1",
+     "off": [
+      28.75,
+      96.115
+     ],
+     "size": [
+      34,
+      20
+     ]
+    },
+    {
+     "image": "You/you-pointer-2",
+     "off": [
+      28.5,
+      96.115
+     ],
+     "size": [
+      34,
+      20
+     ]
+    },
+    {
+     "image": "You/you-pointer-3",
+     "off": [
+      29.25,
+      96.115
+     ],
+     "size": [
+      33,
+      20
+     ]
+    }
+   ],
+   "creatures": [
+    {
+     "key": "nimbo",
+     "image": "You/nimbo",
+     "off": [
+      8.125,
+      28.115
+     ],
+     "size": [
+      78,
+      57
+     ]
+    },
+    {
+     "key": "mittens",
+     "image": "You/mittens",
+     "off": [
+      18.125,
+      13.115
+     ],
+     "size": [
+      66,
+      74
+     ]
+    },
+    {
+     "key": "mallow",
+     "image": "You/mallow",
+     "off": [
+      9.125,
+      31.115
+     ],
+     "size": [
+      76,
+      54
+     ]
+    },
+    {
+     "key": "bao",
+     "image": "You/bao",
+     "off": [
+      8.125,
+      22.115
+     ],
+     "size": [
+      78,
+      64
+     ]
+    },
+    {
+     "key": "dunkie",
+     "image": "You/dunkie",
+     "off": [
+      9.125,
+      19.115
+     ],
+     "size": [
+      76,
+      68
+     ]
+    },
+    {
+     "key": "frybo",
+     "image": "You/frybo",
+     "off": [
+      11.125,
+      10.115
+     ],
+     "size": [
+      71,
+      77
+     ]
+    },
+    {
+     "key": "pip",
+     "image": "You/pip",
+     "off": [
+      11.125,
+      18.115
+     ],
+     "size": [
+      71,
+      69
+     ]
+    },
+    {
+     "key": "bunbun",
+     "image": "You/bunbun",
+     "off": [
+      6.125,
+      16.115
+     ],
+     "size": [
+      82,
+      60
+     ]
+    },
+    {
+     "key": "jelli",
+     "image": "You/jelli",
+     "off": [
+      15.125,
+      18.115
+     ],
+     "size": [
+      64,
+      63
+     ]
+    },
+    {
+     "key": "pina",
+     "image": "You/pina",
+     "off": [
+      17.125,
+      8.115
+     ],
+     "size": [
+      60,
+      80
+     ]
+    },
+    {
+     "key": "finn",
+     "image": "You/finn",
+     "off": [
+      15.125,
+      14.115
+     ],
+     "size": [
+      72,
+      70
+     ]
+    },
+    {
+     "key": "sealy",
+     "image": "You/sealy",
+     "off": [
+      15.125,
+      27.115
+     ],
+     "size": [
+      70,
+      57
+     ]
+    },
+    {
+     "key": "biscuit",
+     "image": "You/biscuit",
+     "off": [
+      11.125,
+      18.115
+     ],
+     "size": [
+      71,
+      69
+     ]
+    },
+    {
+     "key": "hana",
+     "image": "You/hana",
+     "off": [
+      20.125,
+      7.115
+     ],
+     "size": [
+      55,
+      84
+     ]
+    },
+    {
+     "key": "choco",
+     "image": "You/choco",
+     "off": [
+      10.125,
+      14.115
+     ],
+     "size": [
+      74,
+      73
+     ]
+    },
+    {
+     "key": "truffle",
+     "image": "You/truffle",
+     "off": [
+      21.125,
+      15.115
+     ],
+     "size": [
+      55,
+      72
+     ]
+    },
+    {
+     "key": "lumi",
+     "image": "You/lumi",
+     "off": [
+      20.125,
+      5.115
+     ],
+     "size": [
+      57,
+      82
+     ]
+    },
+    {
+     "key": "kiko",
+     "image": "You/kiko",
+     "off": [
+      13.125,
+      7.115
+     ],
+     "size": [
+      71,
+      81
+     ]
+    },
+    {
+     "key": "bubbly",
+     "image": "You/bubbly",
+     "off": [
+      12.125,
+      15.115
+     ],
+     "size": [
+      65,
+      63
+     ]
+    },
+    {
+     "key": "twinkle",
+     "image": "You/twinkle",
+     "off": [
+      11.125,
+      7.115
+     ],
+     "size": [
+      72,
+      76
+     ]
+    },
+    {
+     "key": "zappi",
+     "image": "You/zappi",
+     "off": [
+      11.125,
+      7.115
+     ],
+     "size": [
+      75,
+      80
+     ]
+    },
+    {
+     "key": "scoop",
+     "image": "You/scoop",
+     "off": [
+      18.125,
+      5.115
+     ],
+     "size": [
+      58,
+      84
+     ]
+    },
+    {
+     "key": "teddy",
+     "image": "You/teddy",
+     "off": [
+      17.125,
+      15.115
+     ],
+     "size": [
+      60,
+      72
+     ]
+    },
+    {
+     "key": "hoot",
+     "image": "You/hoot",
+     "off": [
+      20.125,
+      14.115
+     ],
+     "size": [
+      54,
+      73
+     ]
+    },
+    {
+     "key": "leo",
+     "image": "You/leo",
+     "off": [
+      12.125,
+      12.115
+     ],
+     "size": [
+      72,
+      75
+     ]
+    },
+    {
+     "key": "nibbles",
+     "image": "You/nibbles",
+     "off": [
+      21.125,
+      17.115
+     ],
+     "size": [
+      52,
+      70
+     ]
+    },
+    {
+     "key": "quill",
+     "image": "You/quill",
+     "off": [
+      12.125,
+      15.115
+     ],
+     "size": [
+      72,
+      75
+     ]
+    },
+    {
+     "key": "panko",
+     "image": "You/panko",
+     "off": [
+      17.125,
+      15.115
+     ],
+     "size": [
+      60,
+      72
+     ]
+    },
+    {
+     "key": "boba",
+     "image": "You/boba",
+     "off": [
+      16.125,
+      5.115
+     ],
+     "size": [
+      62,
+      79
+     ]
+    },
+    {
+     "key": "avo",
+     "image": "You/avo",
+     "off": [
+      16.125,
+      7.115
+     ],
+     "size": [
+      62,
+      80
+     ]
+    },
+    {
+     "key": "berri",
+     "image": "You/berri",
+     "off": [
+      11.125,
+      12.115
+     ],
+     "size": [
+      72,
+      77
+     ]
+    },
+    {
+     "key": "lemmy",
+     "image": "You/lemmy",
+     "off": [
+      12.125,
+      17.115
+     ],
+     "size": [
+      69,
+      72
+     ]
+    },
+    {
+     "key": "kiwi",
+     "image": "You/kiwi",
+     "off": [
+      11.125,
+      18.115
+     ],
+     "size": [
+      72,
+      71
+     ]
+    },
+    {
+     "key": "melo",
+     "image": "You/melo",
+     "off": [
+      12.125,
+      32.115
+     ],
+     "size": [
+      69,
+      57
+     ]
+    },
+    {
+     "key": "peachy",
+     "image": "You/peachy",
+     "off": [
+      14.125,
+      15.115
+     ],
+     "size": [
+      69,
+      74
+     ]
+    },
+    {
+     "key": "pitaya",
+     "image": "You/pitaya",
+     "off": [
+      6.125,
+      15.115
+     ],
+     "size": [
+      78,
+      74
+     ]
+    },
+    {
+     "key": "tutti",
+     "image": "You/tutti",
+     "off": [
+      11.125,
+      13.115
+     ],
+     "size": [
+      73,
+      75
+     ]
+    },
+    {
+     "key": "puff",
+     "image": "You/puff",
+     "off": [
+      13.125,
+      19.115
+     ],
+     "size": [
+      68,
+      66
+     ]
+    },
+    {
+     "key": "seaturtle",
+     "image": "You/seaturtle",
+     "off": [
+      10.125,
+      46.115
+     ],
+     "size": [
+      72,
+      36
+     ]
+    },
+    {
+     "key": "octo",
+     "image": "You/octo",
+     "off": [
+      13.125,
+      20.115
+     ],
+     "size": [
+      68,
+      69
+     ]
+    },
+    {
+     "key": "marina",
+     "image": "You/marina",
+     "off": [
+      23.125,
+      19.115
+     ],
+     "size": [
+      48,
+      68
+     ]
+    },
+    {
+     "key": "pearl",
+     "image": "You/pearl",
+     "off": [
+      11.125,
+      5.115
+     ],
+     "size": [
+      71,
+      77
+     ]
+    },
+    {
+     "key": "waffles",
+     "image": "You/waffles",
+     "off": [
+      17.125,
+      10.115
+     ],
+     "size": [
+      63,
+      77
+     ]
+    },
+    {
+     "key": "poppy",
+     "image": "You/poppy",
+     "off": [
+      13.125,
+      26.115
+     ],
+     "size": [
+      67,
+      59
+     ]
+    },
+    {
+     "key": "duchess",
+     "image": "You/duchess",
+     "off": [
+      19.125,
+      15.115
+     ],
+     "size": [
+      64,
+      71
+     ]
+    },
+    {
+     "key": "mamapaws",
+     "image": "You/mamapaws",
+     "off": [
+      14.125,
+      17.115
+     ],
+     "size": [
+      66,
+      70
+     ]
+    },
+    {
+     "key": "acorn",
+     "image": "You/acorn",
+     "off": [
+      22.125,
+      12.115
+     ],
+     "size": [
+      63,
+      74
+     ]
+    },
+    {
+     "key": "fawn",
+     "image": "You/fawn",
+     "off": [
+      11.125,
+      17.115
+     ],
+     "size": [
+      72,
+      69
+     ]
+    },
+    {
+     "key": "moss",
+     "image": "You/moss",
+     "off": [
+      11.125,
+      12.115
+     ],
+     "size": [
+      72,
+      74
+     ]
+    },
+    {
+     "key": "sprout",
+     "image": "You/sprout",
+     "off": [
+      11.125,
+      9.115
+     ],
+     "size": [
+      71,
+      78
+     ]
+    },
+    {
+     "key": "plip",
+     "image": "You/plip",
+     "off": [
+      12.125,
+      14.115
+     ],
+     "size": [
+      69,
+      72
+     ]
+    },
+    {
+     "key": "breeze",
+     "image": "You/breeze",
+     "off": [
+      10.125,
+      26.115
+     ],
+     "size": [
+      77,
+      58
+     ]
+    },
+    {
+     "key": "dusty",
+     "image": "You/dusty",
+     "off": [
+      6.125,
+      19.115
+     ],
+     "size": [
+      82,
+      64
+     ]
+    },
+    {
+     "key": "aurora",
+     "image": "You/aurora",
+     "off": [
+      10.125,
+      11.115
+     ],
+     "size": [
+      74,
+      71
+     ]
+    },
+    {
+     "key": "boo",
+     "image": "You/boo",
+     "off": [
+      11.125,
+      14.115
+     ],
+     "size": [
+      69,
+      70
+     ]
+    },
+    {
+     "key": "pixie",
+     "image": "You/pixie",
+     "off": [
+      15.125,
+      11.115
+     ],
+     "size": [
+      65,
+      78
+     ]
+    },
+    {
+     "key": "floof",
+     "image": "You/floof",
+     "off": [
+      11.125,
+      23.115
+     ],
+     "size": [
+      73,
+      63
+     ]
+    },
+    {
+     "key": "unibun",
+     "image": "You/unibun",
+     "off": [
+      25.125,
+      6.115
+     ],
+     "size": [
+      43,
+      80
+     ]
+    },
+    {
+     "key": "gumdrop",
+     "image": "You/gumdrop",
+     "off": [
+      26.125,
+      16.115
+     ],
+     "size": [
+      48,
+      70
+     ]
+    },
+    {
+     "key": "ember",
+     "image": "You/ember",
+     "off": [
+      13.125,
+      12.115
+     ],
+     "size": [
+      69,
+      77
+     ]
+    },
+    {
+     "key": "drako",
+     "image": "You/drako",
+     "off": [
+      14.125,
+      12.115
+     ],
+     "size": [
+      76,
+      74
+     ]
+    },
+    {
+     "key": "jinni",
+     "image": "You/jinni",
+     "off": [
+      23.125,
+      6.115
+     ],
+     "size": [
+      50,
+      84
+     ]
+    },
+    {
+     "key": "cuppy",
+     "image": "You/cuppy",
+     "off": [
+      11.125,
+      5.115
+     ],
+     "size": [
+      71,
+      81
+     ]
+    },
+    {
+     "key": "chip",
+     "image": "You/chip",
+     "off": [
+      11.125,
+      26.115
+     ],
+     "size": [
+      72,
+      60
+     ]
+    },
+    {
+     "key": "twisty",
+     "image": "You/twisty",
+     "off": [
+      11.125,
+      23.115
+     ],
+     "size": [
+      71,
+      64
+     ]
+    },
+    {
+     "key": "crois",
+     "image": "You/crois",
+     "off": [
+      11.125,
+      29.115
+     ],
+     "size": [
+      72,
+      56
+     ]
+    },
+    {
+     "key": "maca",
+     "image": "You/maca",
+     "off": [
+      10.125,
+      22.115
+     ],
+     "size": [
+      74,
+      64
+     ]
+    },
+    {
+     "key": "puddi",
+     "image": "You/puddi",
+     "off": [
+      11.125,
+      12.115
+     ],
+     "size": [
+      71,
+      73
+     ]
+    },
+    {
+     "key": "mochi",
+     "image": "You/mochi",
+     "off": [
+      11.125,
+      14.115
+     ],
+     "size": [
+      72,
+      72
+     ]
+    },
+    {
+     "key": "cakey",
+     "image": "You/cakey",
+     "off": [
+      13.125,
+      10.115
+     ],
+     "size": [
+      67,
+      73
+     ]
+    },
+    {
+     "key": "sugarplum",
+     "image": "You/sugarplum",
+     "off": [
+      23.125,
+      15.115
+     ],
+     "size": [
+      48,
+      71
+     ]
+    },
+    {
+     "key": "chefbun",
+     "image": "You/chefbun",
+     "off": [
+      10.125,
+      8.115
+     ],
+     "size": [
+      74,
+      78
+     ]
+    },
+    {
+     "key": "gourdy",
+     "image": "You/gourdy",
+     "off": [
+      10.125,
+      15.115
+     ],
+     "size": [
+      74,
+      70
+     ]
+    },
+    {
+     "key": "batty",
+     "image": "You/batty",
+     "off": [
+      7.125,
+      15.115
+     ],
+     "size": [
+      80,
+      69
+     ]
+    },
+    {
+     "key": "kernel",
+     "image": "You/kernel",
+     "off": [
+      13.125,
+      15.115
+     ],
+     "size": [
+      67,
+      70
+     ]
+    },
+    {
+     "key": "hexie",
+     "image": "You/hexie",
+     "off": [
+      17.125,
+      9.115
+     ],
+     "size": [
+      66,
+      77
+     ]
+    },
+    {
+     "key": "mumbles",
+     "image": "You/mumbles",
+     "off": [
+      25.125,
+      8.115
+     ],
+     "size": [
+      55,
+      78
+     ]
+    },
+    {
+     "key": "hocus",
+     "image": "You/hocus",
+     "off": [
+      16.125,
+      8.115
+     ],
+     "size": [
+      62,
+      78
+     ]
+    },
+    {
+     "key": "countsquishula",
+     "image": "You/countsquishula",
+     "off": [
+      13.125,
+      22.115
+     ],
+     "size": [
+      67,
+      64
+     ]
+    },
+    {
+     "key": "wisecrack",
+     "image": "You/wisecrack",
+     "off": [
+      13.125,
+      10.115
+     ],
+     "size": [
+      67,
+      76
+     ]
+    },
+    {
+     "key": "gigagrowth",
+     "image": "You/gigagrowth",
+     "off": [
+      16.125,
+      9.115
+     ],
+     "size": [
+      62,
+      77
+     ]
+    },
+    {
+     "key": "crystalline",
+     "image": "You/crystalline",
+     "off": [
+      26.125,
+      7.115
+     ],
+     "size": [
+      42,
+      78
+     ]
+    },
+    {
+     "key": "aeroswift",
+     "image": "You/aeroswift",
+     "off": [
+      14.125,
+      10.115
+     ],
+     "size": [
+      66,
+      75
+     ]
+    },
+    {
+     "key": "phantasm",
+     "image": "You/phantasm",
+     "off": [
+      26.125,
+      13.115
+     ],
+     "size": [
+      42,
+      72
+     ]
+    },
+    {
+     "key": "magmara",
+     "image": "You/magmara",
+     "off": [
+      26.125,
+      13.115
+     ],
+     "size": [
+      42,
+      72
+     ]
+    },
+    {
+     "key": "chronoshade",
+     "image": "You/chronoshade",
+     "off": [
+      26.125,
+      15.115
+     ],
+     "size": [
+      42,
+      70
+     ]
+    },
+    {
+     "key": "ribbit",
+     "image": "You/ribbit",
+     "off": [
+      18.125,
+      21.115
+     ],
+     "size": [
+      58,
+      67
+     ]
+    },
+    {
+     "key": "frankie",
+     "image": "You/frankie",
+     "off": [
+      6.125,
+      31.115
+     ],
+     "size": [
+      81,
+      56
+     ]
+    },
+    {
+     "key": "corny",
+     "image": "You/corny",
+     "off": [
+      11.125,
+      9.115
+     ],
+     "size": [
+      71,
+      77
+     ]
+    },
+    {
+     "key": "peppi",
+     "image": "You/peppi",
+     "off": [
+      8.125,
+      13.115
+     ],
+     "size": [
+      78,
+      75
+     ]
+    },
+    {
+     "key": "nori",
+     "image": "You/nori",
+     "off": [
+      11.125,
+      13.115
+     ],
+     "size": [
+      71,
+      73
+     ]
+    },
+    {
+     "key": "sunny",
+     "image": "You/sunny",
+     "off": [
+      14.125,
+      15.115
+     ],
+     "size": [
+      66,
+      70
+     ]
+    },
+    {
+     "key": "toco",
+     "image": "You/toco",
+     "off": [
+      10.125,
+      30.115
+     ],
+     "size": [
+      74,
+      57
+     ]
+    },
+    {
+     "key": "churro",
+     "image": "You/churro",
+     "off": [
+      21.125,
+      15.115
+     ],
+     "size": [
+      52,
+      71
+     ]
+    },
+    {
+     "key": "khinki",
+     "image": "You/khinki",
+     "off": [
+      11.125,
+      19.115
+     ],
+     "size": [
+      71,
+      68
+     ]
+    },
+    {
+     "key": "maki",
+     "image": "You/maki",
+     "off": [
+      13.125,
+      26.115
+     ],
+     "size": [
+      67,
+      60
+     ]
+    },
+    {
+     "key": "noodle",
+     "image": "You/noodle",
+     "off": [
+      11.125,
+      15.115
+     ],
+     "size": [
+      73,
+      71
+     ]
+    },
+    {
+     "key": "flossie",
+     "image": "You/flossie",
+     "off": [
+      9.125,
+      14.115
+     ],
+     "size": [
+      76,
+      75
+     ]
+    },
+    {
+     "key": "shelly",
+     "image": "You/shelly",
+     "off": [
+      15.125,
+      31.115
+     ],
+     "size": [
+      65,
+      53
+     ]
+    },
+    {
+     "key": "tilly",
+     "image": "You/tilly",
+     "off": [
+      20.125,
+      5.115
+     ],
+     "size": [
+      53,
+      85
+     ]
+    },
+    {
+     "key": "pico",
+     "image": "You/pico",
+     "off": [
+      20.125,
+      21.115
+     ],
+     "size": [
+      53,
+      69
+     ]
+    },
+    {
+     "key": "clover",
+     "image": "You/clover",
+     "off": [
+      21.125,
+      6.115
+     ],
+     "size": [
+      52,
+      80
+     ]
+    },
+    {
+     "key": "chilla",
+     "image": "You/chilla",
+     "off": [
+      14.125,
+      11.115
+     ],
+     "size": [
+      66,
+      75
+     ]
+    },
+    {
+     "key": "mimi",
+     "image": "You/mimi",
+     "off": [
+      17.125,
+      13.115
+     ],
+     "size": [
+      60,
+      73
+     ]
+    },
+    {
+     "key": "puddles",
+     "image": "You/puddles",
+     "off": [
+      23.125,
+      13.115
+     ],
+     "size": [
+      48,
+      74
+     ]
+    },
+    {
+     "key": "bean",
+     "image": "You/bean",
+     "off": [
+      18.125,
+      20.115
+     ],
+     "size": [
+      56,
+      67
+     ]
+    },
+    {
+     "key": "zippy",
+     "image": "You/zippy",
+     "off": [
+      24.125,
+      25.115
+     ],
+     "size": [
+      55,
+      62
+     ]
+    },
+    {
+     "key": "nana",
+     "image": "You/nana",
+     "off": [
+      25.125,
+      8.115
+     ],
+     "size": [
+      43,
+      77
+     ]
+    },
+    {
+     "key": "bing",
+     "image": "You/bing",
+     "off": [
+      13.125,
+      7.115
+     ],
+     "size": [
+      67,
+      79
+     ]
+    },
+    {
+     "key": "plummy",
+     "image": "You/plummy",
+     "off": [
+      13.125,
+      19.115
+     ],
+     "size": [
+      67,
+      67
+     ]
+    },
+    {
+     "key": "clemmy",
+     "image": "You/clemmy",
+     "off": [
+      12.125,
+      28.115
+     ],
+     "size": [
+      69,
+      58
+     ]
+    },
+    {
+     "key": "appy",
+     "image": "You/appy",
+     "off": [
+      12.125,
+      20.115
+     ],
+     "size": [
+      69,
+      66
+     ]
+    },
+    {
+     "key": "blueby",
+     "image": "You/blueby",
+     "off": [
+      12.125,
+      33.115
+     ],
+     "size": [
+      69,
+      53
+     ]
+    },
+    {
+     "key": "coco",
+     "image": "You/coco",
+     "off": [
+      12.125,
+      29.115
+     ],
+     "size": [
+      69,
+      54
+     ]
+    },
+    {
+     "key": "perry",
+     "image": "You/perry",
+     "off": [
+      18.125,
+      17.115
+     ],
+     "size": [
+      58,
+      69
+     ]
+    },
+    {
+     "key": "grana",
+     "image": "You/grana",
+     "off": [
+      12.125,
+      25.115
+     ],
+     "size": [
+      69,
+      61
+     ]
+    },
+    {
+     "key": "mangie",
+     "image": "You/mangie",
+     "off": [
+      13.125,
+      21.115
+     ],
+     "size": [
+      67,
+      65
+     ]
+    },
+    {
+     "key": "razzy",
+     "image": "You/razzy",
+     "off": [
+      13.125,
+      25.115
+     ],
+     "size": [
+      67,
+      61
+     ]
+    }
+   ]
+  },
+  "nodes": {
+   "phases": [
+    0,
+    0.25,
+    0.5,
+    0.75
+   ],
+   "looks": [
+    {
+     "key": "brown",
+     "pics": [
+      {
+       "image": "Nodes/node-brown-0",
+       "off": [
+        -7,
+        -7.557
+       ],
+       "size": [
+        141,
+        150
+       ]
+      },
+      {
+       "image": "Nodes/node-brown-1",
+       "off": [
+        -7.25,
+        -7.557
+       ],
+       "size": [
+        141,
+        150
+       ]
+      },
+      {
+       "image": "Nodes/node-brown-2",
+       "off": [
+        -7.5,
+        -7.557
+       ],
+       "size": [
+        141,
+        150
+       ]
+      },
+      {
+       "image": "Nodes/node-brown-3",
+       "off": [
+        -7.75,
+        -7.557
+       ],
+       "size": [
+        142,
+        150
+       ]
+      }
+     ]
+    },
+    {
+     "key": "brown-glow",
+     "pics": [
+      {
+       "image": "Nodes/node-brown-glow-0",
+       "off": [
+        -70,
+        -69.557
+       ],
+       "size": [
+        266,
+        266
+       ]
+      },
+      {
+       "image": "Nodes/node-brown-glow-1",
+       "off": [
+        -70.25,
+        -69.557
+       ],
+       "size": [
+        267,
+        266
+       ]
+      },
+      {
+       "image": "Nodes/node-brown-glow-2",
+       "off": [
+        -70.5,
+        -69.557
+       ],
+       "size": [
+        267,
+        266
+       ]
+      },
+      {
+       "image": "Nodes/node-brown-glow-3",
+       "off": [
+        -69.75,
+        -69.557
+       ],
+       "size": [
+        266,
+        266
+       ]
+      }
+     ]
+    },
+    {
+     "key": "brown-sel",
+     "pics": [
+      {
+       "image": "Nodes/node-brown-sel-0",
+       "off": [
+        -55,
+        -43.557
+       ],
+       "size": [
+        237,
+        237
+       ]
+      },
+      {
+       "image": "Nodes/node-brown-sel-1",
+       "off": [
+        -55.25,
+        -43.557
+       ],
+       "size": [
+        237,
+        237
+       ]
+      },
+      {
+       "image": "Nodes/node-brown-sel-2",
+       "off": [
+        -55.5,
+        -43.557
+       ],
+       "size": [
+        237,
+        237
+       ]
+      },
+      {
+       "image": "Nodes/node-brown-sel-3",
+       "off": [
+        -54.75,
+        -43.557
+       ],
+       "size": [
+        236,
+        237
+       ]
+      }
+     ]
+    },
+    {
+     "key": "gold",
+     "pics": [
+      {
+       "image": "Nodes/node-gold-0",
+       "off": [
+        -7,
+        -7.557
+       ],
+       "size": [
+        141,
+        150
+       ]
+      },
+      {
+       "image": "Nodes/node-gold-1",
+       "off": [
+        -7.25,
+        -7.557
+       ],
+       "size": [
+        141,
+        150
+       ]
+      },
+      {
+       "image": "Nodes/node-gold-2",
+       "off": [
+        -7.5,
+        -7.557
+       ],
+       "size": [
+        141,
+        150
+       ]
+      },
+      {
+       "image": "Nodes/node-gold-3",
+       "off": [
+        -7.75,
+        -7.557
+       ],
+       "size": [
+        142,
+        150
+       ]
+      }
+     ]
+    },
+    {
+     "key": "gold-glow",
+     "pics": [
+      {
+       "image": "Nodes/node-gold-glow-0",
+       "off": [
+        -70,
+        -69.557
+       ],
+       "size": [
+        266,
+        266
+       ]
+      },
+      {
+       "image": "Nodes/node-gold-glow-1",
+       "off": [
+        -70.25,
+        -69.557
+       ],
+       "size": [
+        267,
+        266
+       ]
+      },
+      {
+       "image": "Nodes/node-gold-glow-2",
+       "off": [
+        -70.5,
+        -69.557
+       ],
+       "size": [
+        267,
+        266
+       ]
+      },
+      {
+       "image": "Nodes/node-gold-glow-3",
+       "off": [
+        -69.75,
+        -69.557
+       ],
+       "size": [
+        266,
+        266
+       ]
+      }
+     ]
+    },
+    {
+     "key": "gold-sel",
+     "pics": [
+      {
+       "image": "Nodes/node-gold-sel-0",
+       "off": [
+        -55,
+        -43.557
+       ],
+       "size": [
+        237,
+        237
+       ]
+      },
+      {
+       "image": "Nodes/node-gold-sel-1",
+       "off": [
+        -55.25,
+        -43.557
+       ],
+       "size": [
+        237,
+        237
+       ]
+      },
+      {
+       "image": "Nodes/node-gold-sel-2",
+       "off": [
+        -55.5,
+        -43.557
+       ],
+       "size": [
+        237,
+        237
+       ]
+      },
+      {
+       "image": "Nodes/node-gold-sel-3",
+       "off": [
+        -54.75,
+        -43.557
+       ],
+       "size": [
+        236,
+        237
+       ]
+      }
+     ]
+    },
+    {
+     "key": "gold-cur",
+     "pics": [
+      {
+       "image": "Nodes/node-gold-cur-0",
+       "off": [
+        -16,
+        -15.557
+       ],
+       "size": [
+        158,
+        167
+       ]
+      },
+      {
+       "image": "Nodes/node-gold-cur-1",
+       "off": [
+        -16.25,
+        -15.557
+       ],
+       "size": [
+        158,
+        167
+       ]
+      },
+      {
+       "image": "Nodes/node-gold-cur-2",
+       "off": [
+        -15.5,
+        -15.557
+       ],
+       "size": [
+        158,
+        167
+       ]
+      },
+      {
+       "image": "Nodes/node-gold-cur-3",
+       "off": [
+        -15.75,
+        -15.557
+       ],
+       "size": [
+        158,
+        167
+       ]
+      }
+     ]
+    },
+    {
+     "key": "gold-cur-sel",
+     "pics": [
+      {
+       "image": "Nodes/node-gold-cur-sel-0",
+       "off": [
+        -70,
+        -56.557
+       ],
+       "size": [
+        266,
+        266
+       ]
+      },
+      {
+       "image": "Nodes/node-gold-cur-sel-1",
+       "off": [
+        -69.25,
+        -56.557
+       ],
+       "size": [
+        265,
+        266
+       ]
+      },
+      {
+       "image": "Nodes/node-gold-cur-sel-2",
+       "off": [
+        -69.5,
+        -56.557
+       ],
+       "size": [
+        266,
+        266
+       ]
+      },
+      {
+       "image": "Nodes/node-gold-cur-sel-3",
+       "off": [
+        -69.75,
+        -56.557
+       ],
+       "size": [
+        266,
+        266
+       ]
+      }
+     ]
+    }
+   ],
+   "badges": [
+    {
+     "key": "ok",
+     "pics": [
+      {
+       "image": "Nodes/badge-ok-0",
+       "off": [
+        81,
+        -29.557
+       ],
+       "size": [
+        75,
+        75
+       ]
+      },
+      {
+       "image": "Nodes/badge-ok-1",
+       "off": [
+        80.75,
+        -29.557
+       ],
+       "size": [
+        75,
+        75
+       ]
+      },
+      {
+       "image": "Nodes/badge-ok-2",
+       "off": [
+        80.5,
+        -29.557
+       ],
+       "size": [
+        75,
+        75
+       ]
+      },
+      {
+       "image": "Nodes/badge-ok-3",
+       "off": [
+        80.25,
+        -29.557
+       ],
+       "size": [
+        75,
+        75
+       ]
+      }
+     ]
+    },
+    {
+     "key": "ex",
+     "pics": [
+      {
+       "image": "Nodes/badge-ex-0",
+       "off": [
+        81,
+        -29.557
+       ],
+       "size": [
+        75,
+        75
+       ]
+      },
+      {
+       "image": "Nodes/badge-ex-1",
+       "off": [
+        80.75,
+        -29.557
+       ],
+       "size": [
+        75,
+        75
+       ]
+      },
+      {
+       "image": "Nodes/badge-ex-2",
+       "off": [
+        80.5,
+        -29.557
+       ],
+       "size": [
+        75,
+        75
+       ]
+      },
+      {
+       "image": "Nodes/badge-ex-3",
+       "off": [
+        80.25,
+        -29.557
+       ],
+       "size": [
+        75,
+        75
+       ]
+      }
+     ]
+    },
+    {
+     "key": "lock",
+     "pics": [
+      {
+       "image": "Nodes/badge-lock-0",
+       "off": [
+        81,
+        -29.557
+       ],
+       "size": [
+        75,
+        75
+       ]
+      },
+      {
+       "image": "Nodes/badge-lock-1",
+       "off": [
+        80.75,
+        -29.557
+       ],
+       "size": [
+        75,
+        75
+       ]
+      },
+      {
+       "image": "Nodes/badge-lock-2",
+       "off": [
+        80.5,
+        -29.557
+       ],
+       "size": [
+        75,
+        75
+       ]
+      },
+      {
+       "image": "Nodes/badge-lock-3",
+       "off": [
+        80.25,
+        -29.557
+       ],
+       "size": [
+        75,
+        75
+       ]
+      }
+     ]
+    },
+    {
+     "key": "ok-cur",
+     "pics": [
+      {
+       "image": "Nodes/badge-ok-cur-0",
+       "off": [
+        83,
+        -40.557
+       ],
+       "size": [
+        84,
+        84
+       ]
+      },
+      {
+       "image": "Nodes/badge-ok-cur-1",
+       "off": [
+        82.75,
+        -40.557
+       ],
+       "size": [
+        84,
+        84
+       ]
+      },
+      {
+       "image": "Nodes/badge-ok-cur-2",
+       "off": [
+        82.5,
+        -40.557
+       ],
+       "size": [
+        84,
+        84
+       ]
+      },
+      {
+       "image": "Nodes/badge-ok-cur-3",
+       "off": [
+        82.25,
+        -40.557
+       ],
+       "size": [
+        85,
+        84
+       ]
+      }
+     ]
+    }
+   ],
+   "brownText": {
+    "font": "Fredoka",
+    "weight": 700,
+    "size": 18,
+    "color": "rgb(255, 246, 226)",
+    "letterSpacing": 0,
+    "lineHeight": 0,
+    "shadows": [
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": 0,
+      "y": 1.5,
+      "blur": 0
+     }
+    ]
+   },
+   "goldText": {
+    "font": "Fredoka",
+    "weight": 700,
+    "size": 18,
+    "color": "rgb(107, 68, 38)",
+    "letterSpacing": 0,
+    "lineHeight": 0,
+    "shadows": [
+     {
+      "color": "rgba(255, 255, 255, 0.6)",
+      "x": 0,
+      "y": 1,
+      "blur": 0
+     }
+    ]
+   },
+   "curScale": 1.12,
+   "bob": {
+    "name": "sqClaim",
+    "duration": 1.2,
+    "easing": "ease-in-out",
+    "y": -4
+   }
+  }
+ },
+ "panel": {
+  "left": 16,
+  "right": 16,
+  "top": 184,
+  "height": 197,
+  "padLeft": 19,
+  "padTop": 13,
+  "padRight": 19,
+  "gap": 16,
+  "itemsHeight": 171,
+  "column": {
+   "width": 156,
+   "letteringHeight": 37,
+   "subTop": 44,
+   "subHeight": 16,
+   "actTop": 67,
+   "actWidth": 150,
+   "actHeight": 40,
+   "sub": {
+    "font": "Nunito",
+    "weight": 800,
+    "size": 11.5,
+    "color": "rgb(255, 246, 226)",
+    "letterSpacing": 0.6,
+    "lineHeight": 0,
+    "shadows": [
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": 0,
+      "y": 1,
+      "blur": 0
+     }
+    ]
+   },
+   "claim": {
+    "image": "claim",
+    "off": [
+     -36.427,
+     -19.435
+    ],
+    "size": [
+     485,
+     182
+    ]
+   },
+   "lettering": [
+    {
+     "key": "1-gold",
+     "w": 108,
+     "h": 37,
+     "image": "Lettering/level-1-gold",
+     "off": [
+      11.863,
+      10.687
+     ],
+     "size": [
+      273,
+      74
+     ]
+    },
+    {
+     "key": "1-white",
+     "w": 108,
+     "h": 37,
+     "image": "Lettering/level-1-white",
+     "off": [
+      16.863,
+      17.687
+     ],
+     "size": [
+      263,
+      66
+     ]
+    },
+    {
+     "key": "2-gold",
+     "w": 112,
+     "h": 37,
+     "image": "Lettering/level-2-gold",
+     "off": [
+      11.359,
+      10.687
+     ],
+     "size": [
+      287,
+      74
+     ]
+    },
+    {
+     "key": "2-white",
+     "w": 112,
+     "h": 37,
+     "image": "Lettering/level-2-white",
+     "off": [
+      16.359,
+      17.687
+     ],
+     "size": [
+      276,
+      66
+     ]
+    },
+    {
+     "key": "3-gold",
+     "w": 112,
+     "h": 37,
+     "image": "Lettering/level-3-gold",
+     "off": [
+      11.359,
+      10.687
+     ],
+     "size": [
+      286,
+      75
+     ]
+    },
+    {
+     "key": "3-white",
+     "w": 112,
+     "h": 37,
+     "image": "Lettering/level-3-white",
+     "off": [
+      16.359,
+      17.687
+     ],
+     "size": [
+      276,
+      67
+     ]
+    },
+    {
+     "key": "4-gold",
+     "w": 112,
+     "h": 37,
+     "image": "Lettering/level-4-gold",
+     "off": [
+      11.359,
+      10.687
+     ],
+     "size": [
+      285,
+      74
+     ]
+    },
+    {
+     "key": "4-white",
+     "w": 112,
+     "h": 37,
+     "image": "Lettering/level-4-white",
+     "off": [
+      16.359,
+      17.687
+     ],
+     "size": [
+      275,
+      66
+     ]
+    },
+    {
+     "key": "5-gold",
+     "w": 110,
+     "h": 37,
+     "image": "Lettering/level-5-gold",
+     "off": [
+      10.611,
+      10.687
+     ],
+     "size": [
+      282,
+      75
+     ]
+    },
+    {
+     "key": "5-white",
+     "w": 110,
+     "h": 37,
+     "image": "Lettering/level-5-white",
+     "off": [
+      15.611,
+      17.687
+     ],
+     "size": [
+      272,
+      67
+     ]
+    },
+    {
+     "key": "6-gold",
+     "w": 111,
+     "h": 37,
+     "image": "Lettering/level-6-gold",
+     "off": [
+      11.985,
+      10.687
+     ],
+     "size": [
+      284,
+      75
+     ]
+    },
+    {
+     "key": "6-white",
+     "w": 111,
+     "h": 37,
+     "image": "Lettering/level-6-white",
+     "off": [
+      17.985,
+      17.687
+     ],
+     "size": [
+      273,
+      67
+     ]
+    },
+    {
+     "key": "7-gold",
+     "w": 111,
+     "h": 37,
+     "image": "Lettering/level-7-gold",
+     "off": [
+      11.985,
+      10.687
+     ],
+     "size": [
+      285,
+      74
+     ]
+    },
+    {
+     "key": "7-white",
+     "w": 111,
+     "h": 37,
+     "image": "Lettering/level-7-white",
+     "off": [
+      17.985,
+      17.687
+     ],
+     "size": [
+      274,
+      66
+     ]
+    },
+    {
+     "key": "8-gold",
+     "w": 111,
+     "h": 37,
+     "image": "Lettering/level-8-gold",
+     "off": [
+      11.985,
+      10.687
+     ],
+     "size": [
+      285,
+      75
+     ]
+    },
+    {
+     "key": "8-white",
+     "w": 111,
+     "h": 37,
+     "image": "Lettering/level-8-white",
+     "off": [
+      16.985,
+      17.687
+     ],
+     "size": [
+      275,
+      67
+     ]
+    },
+    {
+     "key": "9-gold",
+     "w": 111,
+     "h": 37,
+     "image": "Lettering/level-9-gold",
+     "off": [
+      11.985,
+      10.687
+     ],
+     "size": [
+      284,
+      74
+     ]
+    },
+    {
+     "key": "9-white",
+     "w": 111,
+     "h": 37,
+     "image": "Lettering/level-9-white",
+     "off": [
+      17.985,
+      17.687
+     ],
+     "size": [
+      273,
+      66
+     ]
+    },
+    {
+     "key": "10-gold",
+     "w": 122,
+     "h": 37,
+     "image": "Lettering/level-10-gold",
+     "off": [
+      11.099,
+      10.687
+     ],
+     "size": [
+      313,
+      75
+     ]
+    },
+    {
+     "key": "10-white",
+     "w": 122,
+     "h": 37,
+     "image": "Lettering/level-10-white",
+     "off": [
+      17.099,
+      17.687
+     ],
+     "size": [
+      302,
+      67
+     ]
+    },
+    {
+     "key": "11-gold",
+     "w": 117,
+     "h": 37,
+     "image": "Lettering/level-11-gold",
+     "off": [
+      12.229,
+      10.687
+     ],
+     "size": [
+      300,
+      74
+     ]
+    },
+    {
+     "key": "11-white",
+     "w": 117,
+     "h": 37,
+     "image": "Lettering/level-11-white",
+     "off": [
+      17.229,
+      17.687
+     ],
+     "size": [
+      289,
+      66
+     ]
+    },
+    {
+     "key": "12-gold",
+     "w": 122,
+     "h": 37,
+     "image": "Lettering/level-12-gold",
+     "off": [
+      11.099,
+      10.687
+     ],
+     "size": [
+      314,
+      74
+     ]
+    },
+    {
+     "key": "12-white",
+     "w": 122,
+     "h": 37,
+     "image": "Lettering/level-12-white",
+     "off": [
+      17.099,
+      17.687
+     ],
+     "size": [
+      303,
+      66
+     ]
+    },
+    {
+     "key": "13-gold",
+     "w": 122,
+     "h": 37,
+     "image": "Lettering/level-13-gold",
+     "off": [
+      11.099,
+      10.687
+     ],
+     "size": [
+      313,
+      75
+     ]
+    },
+    {
+     "key": "13-white",
+     "w": 122,
+     "h": 37,
+     "image": "Lettering/level-13-white",
+     "off": [
+      17.099,
+      17.687
+     ],
+     "size": [
+      302,
+      67
+     ]
+    },
+    {
+     "key": "14-gold",
+     "w": 121,
+     "h": 37,
+     "image": "Lettering/level-14-gold",
+     "off": [
+      11.725,
+      10.687
+     ],
+     "size": [
+      311,
+      74
+     ]
+    },
+    {
+     "key": "14-white",
+     "w": 121,
+     "h": 37,
+     "image": "Lettering/level-14-white",
+     "off": [
+      17.725,
+      17.687
+     ],
+     "size": [
+      300,
+      66
+     ]
+    },
+    {
+     "key": "15-gold",
+     "w": 120,
+     "h": 37,
+     "image": "Lettering/level-15-gold",
+     "off": [
+      11.351,
+      10.687
+     ],
+     "size": [
+      308,
+      75
+     ]
+    },
+    {
+     "key": "15-white",
+     "w": 120,
+     "h": 37,
+     "image": "Lettering/level-15-white",
+     "off": [
+      16.351,
+      17.687
+     ],
+     "size": [
+      298,
+      67
+     ]
+    },
+    {
+     "key": "16-gold",
+     "w": 121,
+     "h": 37,
+     "image": "Lettering/level-16-gold",
+     "off": [
+      12.725,
+      10.687
+     ],
+     "size": [
+      311,
+      75
+     ]
+    },
+    {
+     "key": "16-white",
+     "w": 121,
+     "h": 37,
+     "image": "Lettering/level-16-white",
+     "off": [
+      18.725,
+      17.687
+     ],
+     "size": [
+      299,
+      67
+     ]
+    },
+    {
+     "key": "17-gold",
+     "w": 121,
+     "h": 37,
+     "image": "Lettering/level-17-gold",
+     "off": [
+      12.725,
+      10.687
+     ],
+     "size": [
+      311,
+      74
+     ]
+    },
+    {
+     "key": "17-white",
+     "w": 121,
+     "h": 37,
+     "image": "Lettering/level-17-white",
+     "off": [
+      18.725,
+      17.687
+     ],
+     "size": [
+      300,
+      66
+     ]
+    },
+    {
+     "key": "18-gold",
+     "w": 121,
+     "h": 37,
+     "image": "Lettering/level-18-gold",
+     "off": [
+      12.725,
+      10.687
+     ],
+     "size": [
+      311,
+      75
+     ]
+    },
+    {
+     "key": "18-white",
+     "w": 121,
+     "h": 37,
+     "image": "Lettering/level-18-white",
+     "off": [
+      17.725,
+      17.687
+     ],
+     "size": [
+      301,
+      67
+     ]
+    },
+    {
+     "key": "19-gold",
+     "w": 121,
+     "h": 37,
+     "image": "Lettering/level-19-gold",
+     "off": [
+      12.725,
+      10.687
+     ],
+     "size": [
+      311,
+      74
+     ]
+    },
+    {
+     "key": "19-white",
+     "w": 121,
+     "h": 37,
+     "image": "Lettering/level-19-white",
+     "off": [
+      18.725,
+      17.687
+     ],
+     "size": [
+      299,
+      66
+     ]
+    },
+    {
+     "key": "20-gold",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-20-gold",
+     "off": [
+      10.595,
+      10.687
+     ],
+     "size": [
+      326,
+      75
+     ]
+    },
+    {
+     "key": "20-white",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-20-white",
+     "off": [
+      16.595,
+      17.687
+     ],
+     "size": [
+      314,
+      67
+     ]
+    },
+    {
+     "key": "21-gold",
+     "w": 122,
+     "h": 37,
+     "image": "Lettering/level-21-gold",
+     "off": [
+      11.099,
+      10.687
+     ],
+     "size": [
+      313,
+      74
+     ]
+    },
+    {
+     "key": "21-white",
+     "w": 122,
+     "h": 37,
+     "image": "Lettering/level-21-white",
+     "off": [
+      17.099,
+      17.687
+     ],
+     "size": [
+      301,
+      66
+     ]
+    },
+    {
+     "key": "22-gold",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-22-gold",
+     "off": [
+      10.595,
+      10.687
+     ],
+     "size": [
+      326,
+      74
+     ]
+    },
+    {
+     "key": "22-white",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-22-white",
+     "off": [
+      15.595,
+      17.687
+     ],
+     "size": [
+      316,
+      66
+     ]
+    },
+    {
+     "key": "23-gold",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-23-gold",
+     "off": [
+      10.595,
+      10.687
+     ],
+     "size": [
+      326,
+      75
+     ]
+    },
+    {
+     "key": "23-white",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-23-white",
+     "off": [
+      16.595,
+      17.687
+     ],
+     "size": [
+      314,
+      67
+     ]
+    },
+    {
+     "key": "24-gold",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-24-gold",
+     "off": [
+      11.595,
+      10.687
+     ],
+     "size": [
+      323,
+      74
+     ]
+    },
+    {
+     "key": "24-white",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-24-white",
+     "off": [
+      16.595,
+      17.687
+     ],
+     "size": [
+      313,
+      66
+     ]
+    },
+    {
+     "key": "25-gold",
+     "w": 124,
+     "h": 37,
+     "image": "Lettering/level-25-gold",
+     "off": [
+      10.847,
+      10.687
+     ],
+     "size": [
+      320,
+      75
+     ]
+    },
+    {
+     "key": "25-white",
+     "w": 124,
+     "h": 37,
+     "image": "Lettering/level-25-white",
+     "off": [
+      15.847,
+      17.687
+     ],
+     "size": [
+      310,
+      67
+     ]
+    },
+    {
+     "key": "26-gold",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-26-gold",
+     "off": [
+      12.221,
+      10.687
+     ],
+     "size": [
+      323,
+      75
+     ]
+    },
+    {
+     "key": "26-white",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-26-white",
+     "off": [
+      17.221,
+      17.687
+     ],
+     "size": [
+      312,
+      67
+     ]
+    },
+    {
+     "key": "27-gold",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-27-gold",
+     "off": [
+      12.221,
+      10.687
+     ],
+     "size": [
+      323,
+      74
+     ]
+    },
+    {
+     "key": "27-white",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-27-white",
+     "off": [
+      17.221,
+      17.687
+     ],
+     "size": [
+      313,
+      66
+     ]
+    },
+    {
+     "key": "28-gold",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-28-gold",
+     "off": [
+      11.221,
+      10.687
+     ],
+     "size": [
+      324,
+      75
+     ]
+    },
+    {
+     "key": "28-white",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-28-white",
+     "off": [
+      17.221,
+      17.687
+     ],
+     "size": [
+      313,
+      67
+     ]
+    },
+    {
+     "key": "29-gold",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-29-gold",
+     "off": [
+      12.221,
+      10.687
+     ],
+     "size": [
+      323,
+      74
+     ]
+    },
+    {
+     "key": "29-white",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-29-white",
+     "off": [
+      17.221,
+      17.687
+     ],
+     "size": [
+      312,
+      66
+     ]
+    },
+    {
+     "key": "30-gold",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-30-gold",
+     "off": [
+      10.595,
+      10.687
+     ],
+     "size": [
+      326,
+      75
+     ]
+    },
+    {
+     "key": "30-white",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-30-white",
+     "off": [
+      16.595,
+      17.687
+     ],
+     "size": [
+      314,
+      67
+     ]
+    },
+    {
+     "key": "31-gold",
+     "w": 122,
+     "h": 37,
+     "image": "Lettering/level-31-gold",
+     "off": [
+      11.099,
+      10.687
+     ],
+     "size": [
+      313,
+      75
+     ]
+    },
+    {
+     "key": "31-white",
+     "w": 122,
+     "h": 37,
+     "image": "Lettering/level-31-white",
+     "off": [
+      17.099,
+      17.687
+     ],
+     "size": [
+      301,
+      67
+     ]
+    },
+    {
+     "key": "32-gold",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-32-gold",
+     "off": [
+      10.595,
+      10.687
+     ],
+     "size": [
+      326,
+      75
+     ]
+    },
+    {
+     "key": "32-white",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-32-white",
+     "off": [
+      16.595,
+      17.687
+     ],
+     "size": [
+      315,
+      67
+     ]
+    },
+    {
+     "key": "33-gold",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-33-gold",
+     "off": [
+      10.595,
+      10.687
+     ],
+     "size": [
+      326,
+      75
+     ]
+    },
+    {
+     "key": "33-white",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-33-white",
+     "off": [
+      16.595,
+      17.687
+     ],
+     "size": [
+      314,
+      67
+     ]
+    },
+    {
+     "key": "34-gold",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-34-gold",
+     "off": [
+      11.595,
+      10.687
+     ],
+     "size": [
+      323,
+      75
+     ]
+    },
+    {
+     "key": "34-white",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-34-white",
+     "off": [
+      16.595,
+      17.687
+     ],
+     "size": [
+      313,
+      67
+     ]
+    },
+    {
+     "key": "35-gold",
+     "w": 124,
+     "h": 37,
+     "image": "Lettering/level-35-gold",
+     "off": [
+      10.847,
+      10.687
+     ],
+     "size": [
+      320,
+      75
+     ]
+    },
+    {
+     "key": "35-white",
+     "w": 124,
+     "h": 37,
+     "image": "Lettering/level-35-white",
+     "off": [
+      15.847,
+      17.687
+     ],
+     "size": [
+      310,
+      67
+     ]
+    },
+    {
+     "key": "36-gold",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-36-gold",
+     "off": [
+      12.221,
+      10.687
+     ],
+     "size": [
+      323,
+      75
+     ]
+    },
+    {
+     "key": "36-white",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-36-white",
+     "off": [
+      17.221,
+      17.687
+     ],
+     "size": [
+      312,
+      67
+     ]
+    },
+    {
+     "key": "37-gold",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-37-gold",
+     "off": [
+      12.221,
+      10.687
+     ],
+     "size": [
+      323,
+      75
+     ]
+    },
+    {
+     "key": "37-white",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-37-white",
+     "off": [
+      17.221,
+      17.687
+     ],
+     "size": [
+      313,
+      67
+     ]
+    },
+    {
+     "key": "38-gold",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-38-gold",
+     "off": [
+      11.221,
+      10.687
+     ],
+     "size": [
+      324,
+      75
+     ]
+    },
+    {
+     "key": "38-white",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-38-white",
+     "off": [
+      17.221,
+      17.687
+     ],
+     "size": [
+      313,
+      67
+     ]
+    },
+    {
+     "key": "39-gold",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-39-gold",
+     "off": [
+      12.221,
+      10.687
+     ],
+     "size": [
+      323,
+      75
+     ]
+    },
+    {
+     "key": "39-white",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-39-white",
+     "off": [
+      17.221,
+      17.687
+     ],
+     "size": [
+      312,
+      67
+     ]
+    },
+    {
+     "key": "40-gold",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-40-gold",
+     "off": [
+      11.595,
+      10.687
+     ],
+     "size": [
+      324,
+      75
+     ]
+    },
+    {
+     "key": "40-white",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-40-white",
+     "off": [
+      16.595,
+      17.687
+     ],
+     "size": [
+      314,
+      67
+     ]
+    },
+    {
+     "key": "41-gold",
+     "w": 121,
+     "h": 37,
+     "image": "Lettering/level-41-gold",
+     "off": [
+      11.725,
+      10.687
+     ],
+     "size": [
+      312,
+      74
+     ]
+    },
+    {
+     "key": "41-white",
+     "w": 121,
+     "h": 37,
+     "image": "Lettering/level-41-white",
+     "off": [
+      17.725,
+      17.687
+     ],
+     "size": [
+      300,
+      66
+     ]
+    },
+    {
+     "key": "42-gold",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-42-gold",
+     "off": [
+      11.595,
+      10.687
+     ],
+     "size": [
+      325,
+      74
+     ]
+    },
+    {
+     "key": "42-white",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-42-white",
+     "off": [
+      16.595,
+      17.687
+     ],
+     "size": [
+      314,
+      66
+     ]
+    },
+    {
+     "key": "43-gold",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-43-gold",
+     "off": [
+      11.595,
+      10.687
+     ],
+     "size": [
+      324,
+      75
+     ]
+    },
+    {
+     "key": "43-white",
+     "w": 126,
+     "h": 37,
+     "image": "Lettering/level-43-white",
+     "off": [
+      16.595,
+      17.687
+     ],
+     "size": [
+      314,
+      67
+     ]
+    },
+    {
+     "key": "44-gold",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-44-gold",
+     "off": [
+      12.221,
+      10.687
+     ],
+     "size": [
+      322,
+      74
+     ]
+    },
+    {
+     "key": "44-white",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-44-white",
+     "off": [
+      17.221,
+      17.687
+     ],
+     "size": [
+      312,
+      66
+     ]
+    },
+    {
+     "key": "45-gold",
+     "w": 124,
+     "h": 37,
+     "image": "Lettering/level-45-gold",
+     "off": [
+      10.847,
+      10.687
+     ],
+     "size": [
+      320,
+      75
+     ]
+    },
+    {
+     "key": "45-white",
+     "w": 124,
+     "h": 37,
+     "image": "Lettering/level-45-white",
+     "off": [
+      15.847,
+      17.687
+     ],
+     "size": [
+      309,
+      67
+     ]
+    },
+    {
+     "key": "46-gold",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-46-gold",
+     "off": [
+      13.221,
+      10.687
+     ],
+     "size": [
+      321,
+      75
+     ]
+    },
+    {
+     "key": "46-white",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-46-white",
+     "off": [
+      18.221,
+      17.687
+     ],
+     "size": [
+      311,
+      67
+     ]
+    },
+    {
+     "key": "47-gold",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-47-gold",
+     "off": [
+      13.221,
+      10.687
+     ],
+     "size": [
+      322,
+      74
+     ]
+    },
+    {
+     "key": "47-white",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-47-white",
+     "off": [
+      18.221,
+      17.687
+     ],
+     "size": [
+      311,
+      66
+     ]
+    },
+    {
+     "key": "48-gold",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-48-gold",
+     "off": [
+      12.221,
+      10.687
+     ],
+     "size": [
+      323,
+      75
+     ]
+    },
+    {
+     "key": "48-white",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-48-white",
+     "off": [
+      17.221,
+      17.687
+     ],
+     "size": [
+      313,
+      67
+     ]
+    },
+    {
+     "key": "49-gold",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-49-gold",
+     "off": [
+      13.221,
+      10.687
+     ],
+     "size": [
+      321,
+      74
+     ]
+    },
+    {
+     "key": "49-white",
+     "w": 125,
+     "h": 37,
+     "image": "Lettering/level-49-white",
+     "off": [
+      18.221,
+      17.687
+     ],
+     "size": [
+      311,
+      66
+     ]
+    },
+    {
+     "key": "50-gold",
+     "w": 124,
+     "h": 37,
+     "image": "Lettering/level-50-gold",
+     "off": [
+      10.847,
+      10.687
+     ],
+     "size": [
+      320,
+      75
+     ]
+    },
+    {
+     "key": "50-white",
+     "w": 124,
+     "h": 37,
+     "image": "Lettering/level-50-white",
+     "off": [
+      15.847,
+      17.687
+     ],
+     "size": [
+      310,
+      67
+     ]
+    }
+   ],
+   "actFrame": {
+    "image": "act-frame",
+    "off": [
+     -36.427,
+     -19.435
+    ],
+    "size": [
+     485,
+     182
+    ]
+   },
+   "iconSize": 17,
+   "iconGap": 6,
+   "actText": {
+    "font": "Fredoka",
+    "weight": 700,
+    "size": 14,
+    "color": "rgb(255, 246, 226)",
+    "letterSpacing": 0.6,
+    "lineHeight": 0,
+    "shadows": [
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": 0,
+      "y": 1.6,
+      "blur": 0
+     },
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": 1.2,
+      "y": 0,
+      "blur": 0
+     },
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": -1.2,
+      "y": 0,
+      "blur": 0
+     },
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": 0,
+      "y": -1.2,
+      "blur": 0
+     },
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": 1,
+      "y": 1,
+      "blur": 0
+     },
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": -1,
+      "y": 1,
+      "blur": 0
+     }
+    ]
+   },
+   "check": {
+    "image": "act-check",
+    "off": [
+     5.977,
+     11.962
+    ],
+    "size": [
+     35,
+     26
+    ]
+   },
+   "actIconTop": 11.5,
+   "lock": {
+    "image": "act-lock",
+    "off": [
+     5.008,
+     2.962
+    ],
+    "size": [
+     36,
+     44
+    ]
+   }
+  },
+  "card": {
+   "basis": 196,
+   "gap": 12,
+   "padTop": 12,
+   "padX": 8,
+   "artHeight": 86,
+   "titleTop": 103,
+   "titleHeight": 23,
+   "descTop": 129,
+   "tagTop": -8,
+   "desc": {
+    "font": "Nunito",
+    "weight": 700,
+    "size": 11,
+    "color": "rgb(255, 246, 226)",
+    "letterSpacing": 0.6,
+    "lineHeight": 13.75,
+    "shadows": [
+     {
+      "color": "rgb(107, 68, 38)",
+      "x": 0,
+      "y": 1,
+      "blur": 0
+     }
+    ]
+   },
+   "bg": {
+    "mode": "slice",
+    "left": {
+     "image": "card-l",
+     "size": [
+      49,
+      471
+     ]
+    },
+    "mid": {
+     "image": "card-m",
+     "size": [
+      4,
+      471
+     ]
+    },
+    "right": {
+     "image": "card-r",
+     "size": [
+      51,
+      471
+     ]
+    },
+    "off": [
+     -0.023,
+     -0.374
+    ],
+    "ext": 1.351
+   },
+   "glow": {
+    "w": 120,
+    "h": 100,
+    "image": "art-glow",
+    "off": [
+     1.55,
+     0.886
+    ],
+    "size": [
+     328,
+     273
+    ]
+   },
+   "tags": [
+    {
+     "key": "CHEST",
+     "w": 48.547,
+     "h": 14,
+     "image": "Tags/tag-chest",
+     "off": [
+      -3.63,
+      -4.389
+     ],
+     "size": [
+      141,
+      47
+     ]
+    },
+    {
+     "key": "COINS",
+     "w": 47.141,
+     "h": 14,
+     "image": "Tags/tag-coins",
+     "off": [
+      -3.563,
+      -4.389
+     ],
+     "size": [
+      138,
+      47
+     ]
+    },
+    {
+     "key": "GEMS",
+     "w": 43.828,
+     "h": 14,
+     "image": "Tags/tag-gems",
+     "off": [
+      -4.114,
+      -4.389
+     ],
+     "size": [
+      130,
+      47
+     ]
+    },
+    {
+     "key": "NEW ROOM",
+     "w": 73.297,
+     "h": 14,
+     "image": "Tags/tag-newroom",
+     "off": [
+      -3.623,
+      -4.389
+     ],
+     "size": [
+      210,
+      47
+     ]
+    },
+    {
+     "key": "GAMES",
+     "w": 51.031,
+     "h": 14,
+     "image": "Tags/tag-games",
+     "off": [
+      -4.217,
+      -4.389
+     ],
+     "size": [
+      150,
+      47
+     ]
+    },
+    {
+     "key": "HOUSE",
+     "w": 50.656,
+     "h": 14,
+     "image": "Tags/tag-house",
+     "off": [
+      -3.732,
+      -4.389
+     ],
+     "size": [
+      146,
+      47
+     ]
+    }
+   ],
+   "chests": [
+    {
+     "key": "snack-common",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/snack-common",
+     "off": [
+      93.384,
+      71.671
+     ],
+     "size": [
+      226,
+      279
+     ]
+    },
+    {
+     "key": "snack-rare",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/snack-rare",
+     "off": [
+      44.384,
+      49.671
+     ],
+     "size": [
+      318,
+      308
+     ]
+    },
+    {
+     "key": "snack-epic",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/snack-epic",
+     "off": [
+      34.384,
+      62.671
+     ],
+     "size": [
+      357,
+      297
+     ]
+    },
+    {
+     "key": "snack-legendary",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/snack-legendary",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "snack-set",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/snack-set",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "fruit-common",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/fruit-common",
+     "off": [
+      97.384,
+      94.671
+     ],
+     "size": [
+      213,
+      254
+     ]
+    },
+    {
+     "key": "fruit-rare",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/fruit-rare",
+     "off": [
+      65.384,
+      116.671
+     ],
+     "size": [
+      279,
+      238
+     ]
+    },
+    {
+     "key": "fruit-epic",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/fruit-epic",
+     "off": [
+      54.384,
+      90.671
+     ],
+     "size": [
+      314,
+      266
+     ]
+    },
+    {
+     "key": "fruit-legendary",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/fruit-legendary",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "fruit-set",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/fruit-set",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "ocean-common",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/ocean-common",
+     "off": [
+      101.384,
+      77.671
+     ],
+     "size": [
+      218,
+      275
+     ]
+    },
+    {
+     "key": "ocean-rare",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/ocean-rare",
+     "off": [
+      44.384,
+      98.671
+     ],
+     "size": [
+      315,
+      259
+     ]
+    },
+    {
+     "key": "ocean-epic",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/ocean-epic",
+     "off": [
+      32.384,
+      81.671
+     ],
+     "size": [
+      360,
+      278
+     ]
+    },
+    {
+     "key": "ocean-legendary",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/ocean-legendary",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "ocean-set",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/ocean-set",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "pet-common",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/pet-common",
+     "off": [
+      91.384,
+      77.671
+     ],
+     "size": [
+      220,
+      273
+     ]
+    },
+    {
+     "key": "pet-rare",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/pet-rare",
+     "off": [
+      46.384,
+      95.671
+     ],
+     "size": [
+      314,
+      262
+     ]
+    },
+    {
+     "key": "pet-epic",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/pet-epic",
+     "off": [
+      31.384,
+      76.671
+     ],
+     "size": [
+      360,
+      283
+     ]
+    },
+    {
+     "key": "pet-legendary",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/pet-legendary",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "pet-set",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/pet-set",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "forest-common",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/forest-common",
+     "off": [
+      102.384,
+      95.671
+     ],
+     "size": [
+      210,
+      254
+     ]
+    },
+    {
+     "key": "forest-rare",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/forest-rare",
+     "off": [
+      59.384,
+      111.671
+     ],
+     "size": [
+      291,
+      244
+     ]
+    },
+    {
+     "key": "forest-epic",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/forest-epic",
+     "off": [
+      43.384,
+      102.671
+     ],
+     "size": [
+      338,
+      256
+     ]
+    },
+    {
+     "key": "forest-legendary",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/forest-legendary",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "forest-set",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/forest-set",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "sky-common",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/sky-common",
+     "off": [
+      99.384,
+      94.671
+     ],
+     "size": [
+      226,
+      255
+     ]
+    },
+    {
+     "key": "sky-rare",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/sky-rare",
+     "off": [
+      72.384,
+      64.671
+     ],
+     "size": [
+      265,
+      289
+     ]
+    },
+    {
+     "key": "sky-epic",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/sky-epic",
+     "off": [
+      41.384,
+      106.671
+     ],
+     "size": [
+      345,
+      251
+     ]
+    },
+    {
+     "key": "sky-legendary",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/sky-legendary",
+     "off": [
+      4.384,
+      0.671
+     ],
+     "size": [
+      421,
+      363
+     ]
+    },
+    {
+     "key": "sky-set",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/sky-set",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "dream-common",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/dream-common",
+     "off": [
+      112.384,
+      108.671
+     ],
+     "size": [
+      208,
+      241
+     ]
+    },
+    {
+     "key": "dream-rare",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/dream-rare",
+     "off": [
+      73.384,
+      87.671
+     ],
+     "size": [
+      263,
+      265
+     ]
+    },
+    {
+     "key": "dream-epic",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/dream-epic",
+     "off": [
+      59.384,
+      69.671
+     ],
+     "size": [
+      296,
+      285
+     ]
+    },
+    {
+     "key": "dream-legendary",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/dream-legendary",
+     "off": [
+      9.384,
+      0.671
+     ],
+     "size": [
+      413,
+      363
+     ]
+    },
+    {
+     "key": "dream-set",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/dream-set",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "bakery-common",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/bakery-common",
+     "off": [
+      87.384,
+      132.671
+     ],
+     "size": [
+      229,
+      219
+     ]
+    },
+    {
+     "key": "bakery-rare",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/bakery-rare",
+     "off": [
+      43.384,
+      112.671
+     ],
+     "size": [
+      291,
+      242
+     ]
+    },
+    {
+     "key": "bakery-epic",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/bakery-epic",
+     "off": [
+      49.384,
+      91.671
+     ],
+     "size": [
+      318,
+      265
+     ]
+    },
+    {
+     "key": "bakery-legendary",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/bakery-legendary",
+     "off": [
+      2.384,
+      0.671
+     ],
+     "size": [
+      423,
+      363
+     ]
+    },
+    {
+     "key": "bakery-set",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/bakery-set",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "spooky-common",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/spooky-common",
+     "off": [
+      99.384,
+      87.671
+     ],
+     "size": [
+      214,
+      262
+     ]
+    },
+    {
+     "key": "spooky-rare",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/spooky-rare",
+     "off": [
+      51.384,
+      91.671
+     ],
+     "size": [
+      288,
+      263
+     ]
+    },
+    {
+     "key": "spooky-epic",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/spooky-epic",
+     "off": [
+      53.384,
+      72.671
+     ],
+     "size": [
+      318,
+      284
+     ]
+    },
+    {
+     "key": "spooky-legendary",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/spooky-legendary",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "spooky-set",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/spooky-set",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "heroes-common",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/heroes-common",
+     "off": [
+      86.384,
+      116.671
+     ],
+     "size": [
+      230,
+      235
+     ]
+    },
+    {
+     "key": "heroes-rare",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/heroes-rare",
+     "off": [
+      55.384,
+      106.671
+     ],
+     "size": [
+      303,
+      250
+     ]
+    },
+    {
+     "key": "heroes-epic",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/heroes-epic",
+     "off": [
+      44.384,
+      106.671
+     ],
+     "size": [
+      342,
+      252
+     ]
+    },
+    {
+     "key": "heroes-legendary",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/heroes-legendary",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "heroes-set",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/heroes-set",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "elemental-common",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/elemental-common",
+     "off": [
+      80.384,
+      118.671
+     ],
+     "size": [
+      259,
+      233
+     ]
+    },
+    {
+     "key": "elemental-rare",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/elemental-rare",
+     "off": [
+      72.384,
+      75.671
+     ],
+     "size": [
+      285,
+      278
+     ]
+    },
+    {
+     "key": "elemental-epic",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/elemental-epic",
+     "off": [
+      38.384,
+      96.671
+     ],
+     "size": [
+      348,
+      262
+     ]
+    },
+    {
+     "key": "elemental-legendary",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/elemental-legendary",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    },
+    {
+     "key": "elemental-set",
+     "w": 154.797,
+     "h": 129,
+     "image": "Chests/elemental-set",
+     "off": [
+      -1.616,
+      0.671
+     ],
+     "size": [
+      427,
+      363
+     ]
+    }
+   ],
+   "chestFit": {
+    "heightPct": 1.5,
+    "marginTopPct": -0.22,
+    "marginBottomPct": -0.2
+   },
+   "titles": [
+    {
+     "key": "200 Coins",
+     "w": 80,
+     "h": 23,
+     "image": "Titles/200-coins",
+     "off": [
+      11.588,
+      10.573
+     ],
+     "size": [
+      197,
+      42
+     ]
+    },
+    {
+     "key": "300 Coins",
+     "w": 80,
+     "h": 23,
+     "image": "Titles/300-coins",
+     "off": [
+      11.588,
+      10.573
+     ],
+     "size": [
+      197,
+      42
+     ]
+    },
+    {
+     "key": "400 Coins",
+     "w": 80,
+     "h": 23,
+     "image": "Titles/400-coins",
+     "off": [
+      11.588,
+      10.573
+     ],
+     "size": [
+      197,
+      42
+     ]
+    },
+    {
+     "key": "30 Gems",
+     "w": 72,
+     "h": 23,
+     "image": "Titles/30-gems",
+     "off": [
+      12.595,
+      11.573
+     ],
+     "size": [
+      174,
+      41
+     ]
+    },
+    {
+     "key": "500 Coins",
+     "w": 79,
+     "h": 23,
+     "image": "Titles/500-coins",
+     "off": [
+      10.214,
+      10.573
+     ],
+     "size": [
+      194,
+      42
+     ]
+    },
+    {
+     "key": "600 Coins",
+     "w": 79,
+     "h": 23,
+     "image": "Titles/600-coins",
+     "off": [
+      9.214,
+      10.573
+     ],
+     "size": [
+      196,
+      42
+     ]
+    },
+    {
+     "key": "40 Gems",
+     "w": 71,
+     "h": 23,
+     "image": "Titles/40-gems",
+     "off": [
+      9.221,
+      11.573
+     ],
+     "size": [
+      174,
+      41
+     ]
+    },
+    {
+     "key": "800 Coins",
+     "w": 80,
+     "h": 23,
+     "image": "Titles/800-coins",
+     "off": [
+      11.588,
+      10.573
+     ],
+     "size": [
+      197,
+      42
+     ]
+    },
+    {
+     "key": "50 Gems",
+     "w": 70,
+     "h": 23,
+     "image": "Titles/50-gems",
+     "off": [
+      10.847,
+      11.573
+     ],
+     "size": [
+      171,
+      41
+     ]
+    },
+    {
+     "key": "1,000 Coins",
+     "w": 90,
+     "h": 23,
+     "image": "Titles/1-000-coins",
+     "off": [
+      11.328,
+      10.573
+     ],
+     "size": [
+      224,
+      48
+     ]
+    },
+    {
+     "key": "1,200 Coins",
+     "w": 90,
+     "h": 23,
+     "image": "Titles/1-200-coins",
+     "off": [
+      11.328,
+      10.573
+     ],
+     "size": [
+      224,
+      48
+     ]
+    },
+    {
+     "key": "60 Gems",
+     "w": 71,
+     "h": 23,
+     "image": "Titles/60-gems",
+     "off": [
+      10.221,
+      11.573
+     ],
+     "size": [
+      172,
+      41
+     ]
+    },
+    {
+     "key": "1,500 Coins",
+     "w": 89,
+     "h": 23,
+     "image": "Titles/1-500-coins",
+     "off": [
+      10.954,
+      10.573
+     ],
+     "size": [
+      221,
+      48
+     ]
+    },
+    {
+     "key": "1,600 Coins",
+     "w": 89,
+     "h": 23,
+     "image": "Titles/1-600-coins",
+     "off": [
+      9.954,
+      10.573
+     ],
+     "size": [
+      222,
+      48
+     ]
+    },
+    {
+     "key": "80 Gems",
+     "w": 71,
+     "h": 23,
+     "image": "Titles/80-gems",
+     "off": [
+      10.221,
+      11.573
+     ],
+     "size": [
+      173,
+      41
+     ]
+    },
+    {
+     "key": "1,800 Coins",
+     "w": 89,
+     "h": 23,
+     "image": "Titles/1-800-coins",
+     "off": [
+      9.954,
+      10.573
+     ],
+     "size": [
+      223,
+      48
+     ]
+    },
+    {
+     "key": "2,000 Coins",
+     "w": 92,
+     "h": 23,
+     "image": "Titles/2-000-coins",
+     "off": [
+      11.076,
+      10.573
+     ],
+     "size": [
+      231,
+      48
+     ]
+    },
+    {
+     "key": "100 Gems",
+     "w": 78,
+     "h": 23,
+     "image": "Titles/100-gems",
+     "off": [
+      11.84,
+      11.573
+     ],
+     "size": [
+      191,
+      41
+     ]
+    },
+    {
+     "key": "2,200 Coins",
+     "w": 93,
+     "h": 23,
+     "image": "Titles/2-200-coins",
+     "off": [
+      10.45,
+      10.573
+     ],
+     "size": [
+      232,
+      48
+     ]
+    },
+    {
+     "key": "2,400 Coins",
+     "w": 92,
+     "h": 23,
+     "image": "Titles/2-400-coins",
+     "off": [
+      11.076,
+      10.573
+     ],
+     "size": [
+      231,
+      48
+     ]
+    },
+    {
+     "key": "120 Gems",
+     "w": 78,
+     "h": 23,
+     "image": "Titles/120-gems",
+     "off": [
+      11.84,
+      11.573
+     ],
+     "size": [
+      191,
+      41
+     ]
+    },
+    {
+     "key": "2,600 Coins",
+     "w": 92,
+     "h": 23,
+     "image": "Titles/2-600-coins",
+     "off": [
+      12.076,
+      10.573
+     ],
+     "size": [
+      229,
+      48
+     ]
+    },
+    {
+     "key": "2,800 Coins",
+     "w": 92,
+     "h": 23,
+     "image": "Titles/2-800-coins",
+     "off": [
+      11.076,
+      10.573
+     ],
+     "size": [
+      231,
+      48
+     ]
+    },
+    {
+     "key": "150 Gems",
+     "w": 76,
+     "h": 23,
+     "image": "Titles/150-gems",
+     "off": [
+      11.092,
+      11.573
+     ],
+     "size": [
+      187,
+      41
+     ]
+    },
+    {
+     "key": "3,000 Coins",
+     "w": 92,
+     "h": 23,
+     "image": "Titles/3-000-coins",
+     "off": [
+      11.076,
+      10.573
+     ],
+     "size": [
+      231,
+      48
+     ]
+    },
+    {
+     "key": "3,200 Coins",
+     "w": 92,
+     "h": 23,
+     "image": "Titles/3-200-coins",
+     "off": [
+      11.076,
+      10.573
+     ],
+     "size": [
+      231,
+      48
+     ]
+    },
+    {
+     "key": "180 Gems",
+     "w": 77,
+     "h": 23,
+     "image": "Titles/180-gems",
+     "off": [
+      9.466,
+      11.573
+     ],
+     "size": [
+      190,
+      41
+     ]
+    },
+    {
+     "key": "3,500 Coins",
+     "w": 91,
+     "h": 23,
+     "image": "Titles/3-500-coins",
+     "off": [
+      9.702,
+      10.573
+     ],
+     "size": [
+      228,
+      48
+     ]
+    },
+    {
+     "key": "4,000 Coins",
+     "w": 92,
+     "h": 23,
+     "image": "Titles/4-000-coins",
+     "off": [
+      11.076,
+      10.573
+     ],
+     "size": [
+      231,
+      48
+     ]
+    },
+    {
+     "key": "250 Gems",
+     "w": 79,
+     "h": 23,
+     "image": "Titles/250-gems",
+     "off": [
+      10.214,
+      11.573
+     ],
+     "size": [
+      195,
+      41
+     ]
+    },
+    {
+     "key": "5,000 Coins",
+     "w": 91,
+     "h": 23,
+     "image": "Titles/5-000-coins",
+     "off": [
+      9.702,
+      10.573
+     ],
+     "size": [
+      228,
+      48
+     ]
+    },
+    {
+     "key": "Paper Snack Bag",
+     "w": 129,
+     "h": 23,
+     "image": "Titles/paper-snack-bag",
+     "off": [
+      10.916,
+      10.573
+     ],
+     "size": [
+      330,
+      50
+     ]
+    },
+    {
+     "key": "Takeout Snack Box",
+     "w": 144,
+     "h": 23,
+     "image": "Titles/takeout-snack-box",
+     "off": [
+      11.527,
+      10.573
+     ],
+     "size": [
+      373,
+      42
+     ]
+    },
+    {
+     "key": "Snack Crate",
+     "w": 97,
+     "h": 23,
+     "image": "Titles/snack-crate",
+     "off": [
+      10.947,
+      10.573
+     ],
+     "size": [
+      243,
+      42
+     ]
+    },
+    {
+     "key": "Heavy-Duty Snack Vault",
+     "w": 183,
+     "h": 23,
+     "image": "Titles/heavy-duty-snack-vault",
+     "off": [
+      11.115,
+      10.573
+     ],
+     "size": [
+      479,
+      51
+     ]
+    },
+    {
+     "key": "Rainbow Snack Treasury",
+     "w": 183,
+     "h": 23,
+     "image": "Titles/rainbow-snack-treasury",
+     "off": [
+      11.115,
+      10.573
+     ],
+     "size": [
+      479,
+      51
+     ]
+    },
+    {
+     "key": "Berry Punnet",
+     "w": 106,
+     "h": 23,
+     "image": "Titles/berry-punnet",
+     "off": [
+      12.313,
+      11.573
+     ],
+     "size": [
+      268,
+      50
+     ]
+    },
+    {
+     "key": "Orchard Crate",
+     "w": 112,
+     "h": 23,
+     "image": "Titles/orchard-crate",
+     "off": [
+      10.557,
+      10.573
+     ],
+     "size": [
+      287,
+      42
+     ]
+    },
+    {
+     "key": "Picnic Hamper",
+     "w": 111,
+     "h": 23,
+     "image": "Titles/picnic-hamper",
+     "off": [
+      11.183,
+      10.573
+     ],
+     "size": [
+      282,
+      50
+     ]
+    },
+    {
+     "key": "Golden Harvest Chest",
+     "w": 166,
+     "h": 23,
+     "image": "Titles/golden-harvest-chest",
+     "off": [
+      12.756,
+      10.573
+     ],
+     "size": [
+      432,
+      42
+     ]
+    },
+    {
+     "key": "Rainbow Fruit Jewel Box",
+     "w": 184,
+     "h": 23,
+     "image": "Titles/rainbow-fruit-jewel-box",
+     "off": [
+      13.489,
+      10.573
+     ],
+     "size": [
+      480,
+      42
+     ]
+    },
+    {
+     "key": "Sand Bucket",
+     "w": 99,
+     "h": 23,
+     "image": "Titles/sand-bucket",
+     "off": [
+      10.695,
+      10.573
+     ],
+     "size": [
+      248,
+      42
+     ]
+    },
+    {
+     "key": "Beach Cooler",
+     "w": 106,
+     "h": 23,
+     "image": "Titles/beach-cooler",
+     "off": [
+      13.313,
+      10.573
+     ],
+     "size": [
+      266,
+      42
+     ]
+    },
+    {
+     "key": "Barnacle Sea Chest",
+     "w": 149,
+     "h": 23,
+     "image": "Titles/barnacle-sea-chest",
+     "off": [
+      11.397,
+      10.573
+     ],
+     "size": [
+      385,
+      42
+     ]
+    },
+    {
+     "key": "Brass Diving Vault",
+     "w": 139,
+     "h": 23,
+     "image": "Titles/brass-diving-vault",
+     "off": [
+      11.657,
+      10.573
+     ],
+     "size": [
+      357,
+      50
+     ]
+    },
+    {
+     "key": "Pearl Clam Treasury",
+     "w": 156,
+     "h": 23,
+     "image": "Titles/pearl-clam-treasury",
+     "off": [
+      13.015,
+      10.573
+     ],
+     "size": [
+      404,
+      51
+     ]
+    },
+    {
+     "key": "Cardboard Pet Carrier",
+     "w": 168,
+     "h": 23,
+     "image": "Titles/cardboard-pet-carrier",
+     "off": [
+      11.504,
+      10.573
+     ],
+     "size": [
+      439,
+      42
+     ]
+    },
+    {
+     "key": "Doghouse Chest",
+     "w": 125,
+     "h": 23,
+     "image": "Titles/doghouse-chest",
+     "off": [
+      11.42,
+      10.573
+     ],
+     "size": [
+      319,
+      50
+     ]
+    },
+    {
+     "key": "Tufted Velvet Trunk",
+     "w": 150,
+     "h": 23,
+     "image": "Titles/tufted-velvet-trunk",
+     "off": [
+      10.771,
+      10.573
+     ],
+     "size": [
+      391,
+      42
+     ]
+    },
+    {
+     "key": "Golden Pet Palace",
+     "w": 141,
+     "h": 23,
+     "image": "Titles/golden-pet-palace",
+     "off": [
+      10.405,
+      10.573
+     ],
+     "size": [
+      365,
+      42
+     ]
+    },
+    {
+     "key": "Rainbow Royal Cushion Chest",
+     "w": 218,
+     "h": 23,
+     "image": "Titles/rainbow-royal-cushion-chest",
+     "off": [
+      12.206,
+      10.573
+     ],
+     "size": [
+      576,
+      51
+     ]
+    },
+    {
+     "key": "Mossy Stump Stash",
+     "w": 147,
+     "h": 23,
+     "image": "Titles/mossy-stump-stash",
+     "off": [
+      11.649,
+      10.573
+     ],
+     "size": [
+      379,
+      51
+     ]
+    },
+    {
+     "key": "Birch Bark Box",
+     "w": 114,
+     "h": 23,
+     "image": "Titles/birch-bark-box",
+     "off": [
+      12.305,
+      10.573
+     ],
+     "size": [
+      290,
+      42
+     ]
+    },
+    {
+     "key": "Ranger's Log Chest",
+     "w": 146,
+     "h": 23,
+     "image": "Titles/ranger-s-log-chest",
+     "off": [
+      13.275,
+      10.573
+     ],
+     "size": [
+      376,
+      50
+     ]
+    },
+    {
+     "key": "Ancient Grove Chest",
+     "w": 158,
+     "h": 23,
+     "image": "Titles/ancient-grove-chest",
+     "off": [
+      11.763,
+      10.573
+     ],
+     "size": [
+      411,
+      42
+     ]
+    },
+    {
+     "key": "Rainbow Fairy Ring Treasury",
+     "w": 212,
+     "h": 23,
+     "image": "Titles/rainbow-fairy-ring-treasury",
+     "off": [
+      11.962,
+      10.573
+     ],
+     "size": [
+      560,
+      51
+     ]
+    },
+    {
+     "key": "Cloud Puff Sack",
+     "w": 124,
+     "h": 23,
+     "image": "Titles/cloud-puff-sack",
+     "off": [
+      11.046,
+      10.573
+     ],
+     "size": [
+      319,
+      42
+     ]
+    },
+    {
+     "key": "Stargazer Box",
+     "w": 112,
+     "h": 23,
+     "image": "Titles/stargazer-box",
+     "off": [
+      11.557,
+      11.573
+     ],
+     "size": [
+      285,
+      49
+     ]
+    },
+    {
+     "key": "Silver Moon Trunk",
+     "w": 139,
+     "h": 23,
+     "image": "Titles/silver-moon-trunk",
+     "off": [
+      10.657,
+      10.573
+     ],
+     "size": [
+      359,
+      42
+     ]
+    },
+    {
+     "key": "Celestial Observatory Vault",
+     "w": 208,
+     "h": 23,
+     "image": "Titles/celestial-observatory-vault",
+     "off": [
+      11.466,
+      10.573
+     ],
+     "size": [
+      549,
+      51
+     ]
+    },
+    {
+     "key": "Rainbow Aurora Treasury",
+     "w": 191,
+     "h": 23,
+     "image": "Titles/rainbow-aurora-treasury",
+     "off": [
+      12.107,
+      10.573
+     ],
+     "size": [
+      500,
+      51
+     ]
+    },
+    {
+     "key": "Sleepy Pillow Pouch",
+     "w": 152,
+     "h": 23,
+     "image": "Titles/sleepy-pillow-pouch",
+     "off": [
+      11.519,
+      10.573
+     ],
+     "size": [
+      394,
+      51
+     ]
+    },
+    {
+     "key": "Toy Block Box",
+     "w": 109,
+     "h": 23,
+     "image": "Titles/toy-block-box",
+     "off": [
+      9.435,
+      10.573
+     ],
+     "size": [
+      278,
+      51
+     ]
+    },
+    {
+     "key": "Lullaby Music Box",
+     "w": 139,
+     "h": 23,
+     "image": "Titles/lullaby-music-box",
+     "off": [
+      11.657,
+      10.573
+     ],
+     "size": [
+      358,
+      51
+     ]
+    },
+    {
+     "key": "Dream Castle Chest",
+     "w": 151,
+     "h": 23,
+     "image": "Titles/dream-castle-chest",
+     "off": [
+      12.145,
+      10.573
+     ],
+     "size": [
+      389,
+      42
+     ]
+    },
+    {
+     "key": "Rainbow Unicorn Dream Treasury",
+     "w": 246,
+     "h": 23,
+     "image": "Titles/rainbow-unicorn-dream-treasury",
+     "off": [
+      12.679,
+      10.573
+     ],
+     "size": [
+      652,
+      51
+     ]
+    },
+    {
+     "key": "Bakery Pastry Box",
+     "w": 142,
+     "h": 23,
+     "image": "Titles/bakery-pastry-box",
+     "off": [
+      11.779,
+      10.573
+     ],
+     "size": [
+      368,
+      51
+     ]
+    },
+    {
+     "key": "Cookie Tin",
+     "w": 86,
+     "h": 23,
+     "image": "Titles/cookie-tin",
+     "off": [
+      11.832,
+      10.573
+     ],
+     "size": [
+      212,
+      42
+     ]
+    },
+    {
+     "key": "Layer Cake Chest",
+     "w": 135,
+     "h": 23,
+     "image": "Titles/layer-cake-chest",
+     "off": [
+      12.16,
+      10.573
+     ],
+     "size": [
+      346,
+      51
+     ]
+    },
+    {
+     "key": "Glass Cloche Patisserie",
+     "w": 177,
+     "h": 23,
+     "image": "Titles/glass-cloche-patisserie",
+     "off": [
+      10.87,
+      10.573
+     ],
+     "size": [
+      463,
+      42
+     ]
+    },
+    {
+     "key": "Rainbow Swirl Sugar Treasury",
+     "w": 221,
+     "h": 23,
+     "image": "Titles/rainbow-swirl-sugar-treasury",
+     "off": [
+      10.328,
+      10.573
+     ],
+     "size": [
+      585,
+      51
+     ]
+    },
+    {
+     "key": "Comic Book Box",
+     "w": 122,
+     "h": 23,
+     "image": "Titles/comic-book-box",
+     "off": [
+      11.298,
+      10.573
+     ],
+     "size": [
+      314,
+      42
+     ]
+    },
+    {
+     "key": "Hero Lunchbox",
+     "w": 117,
+     "h": 23,
+     "image": "Titles/hero-lunchbox",
+     "off": [
+      11.427,
+      10.573
+     ],
+     "size": [
+      297,
+      42
+     ]
+    },
+    {
+     "key": "Hero Gear Locker",
+     "w": 136,
+     "h": 23,
+     "image": "Titles/hero-gear-locker",
+     "off": [
+      12.534,
+      10.573
+     ],
+     "size": [
+      349,
+      42
+     ]
+    },
+    {
+     "key": "Hero HQ Vault",
+     "w": 111,
+     "h": 23,
+     "image": "Titles/hero-hq-vault",
+     "off": [
+      11.183,
+      10.573
+     ],
+     "size": [
+      281,
+      42
+     ]
+    },
+    {
+     "key": "Rainbow Legend Treasury",
+     "w": 193,
+     "h": 23,
+     "image": "Titles/rainbow-legend-treasury",
+     "off": [
+      11.855,
+      10.573
+     ],
+     "size": [
+      505,
+      51
+     ]
+    },
+    {
+     "key": "Cracked Ember Rock",
+     "w": 155,
+     "h": 23,
+     "image": "Titles/cracked-ember-rock",
+     "off": [
+      10.641,
+      10.573
+     ],
+     "size": [
+      403,
+      42
+     ]
+    },
+    {
+     "key": "Rune Stone Chest",
+     "w": 136,
+     "h": 23,
+     "image": "Titles/rune-stone-chest",
+     "off": [
+      13.534,
+      10.573
+     ],
+     "size": [
+      348,
+      42
+     ]
+    },
+    {
+     "key": "Elemental Forge Chest",
+     "w": 172,
+     "h": 23,
+     "image": "Titles/elemental-forge-chest",
+     "off": [
+      13,
+      10.573
+     ],
+     "size": [
+      448,
+      50
+     ]
+    },
+    {
+     "key": "Magma Core Vault",
+     "w": 139,
+     "h": 23,
+     "image": "Titles/magma-core-vault",
+     "off": [
+      11.657,
+      10.573
+     ],
+     "size": [
+      358,
+      50
+     ]
+    },
+    {
+     "key": "Rainbow Prism Treasury",
+     "w": 181,
+     "h": 23,
+     "image": "Titles/rainbow-prism-treasury",
+     "off": [
+      11.366,
+      10.573
+     ],
+     "size": [
+      473,
+      51
+     ]
+    },
+    {
+     "key": "Pumpkin Treat Pail",
+     "w": 144,
+     "h": 23,
+     "image": "Titles/pumpkin-treat-pail",
+     "off": [
+      12.527,
+      10.573
+     ],
+     "size": [
+      372,
+      50
+     ]
+    },
+    {
+     "key": "Creaky Coffin Crate",
+     "w": 152,
+     "h": 23,
+     "image": "Titles/creaky-coffin-crate",
+     "off": [
+      10.519,
+      10.573
+     ],
+     "size": [
+      397,
+      51
+     ]
+    },
+    {
+     "key": "Haunted Trunk",
+     "w": 116,
+     "h": 23,
+     "image": "Titles/haunted-trunk",
+     "off": [
+      13.053,
+      10.573
+     ],
+     "size": [
+      294,
+      42
+     ]
+    },
+    {
+     "key": "Moonlit Crypt Chest",
+     "w": 155,
+     "h": 23,
+     "image": "Titles/moonlit-crypt-chest",
+     "off": [
+      11.641,
+      10.573
+     ],
+     "size": [
+      401,
+      51
+     ]
+    },
+    {
+     "key": "Rainbow Phantom Treasury",
+     "w": 204,
+     "h": 23,
+     "image": "Titles/rainbow-phantom-treasury",
+     "off": [
+      12.969,
+      10.573
+     ],
+     "size": [
+      537,
+      51
+     ]
+    },
+    {
+     "key": "Common Chest",
+     "w": 116,
+     "h": 23,
+     "image": "Titles/common-chest",
+     "off": [
+      11.053,
+      10.573
+     ],
+     "size": [
+      297,
+      42
+     ]
+    },
+    {
+     "key": "Rare Chest",
+     "w": 88,
+     "h": 23,
+     "image": "Titles/rare-chest",
+     "off": [
+      12.58,
+      10.573
+     ],
+     "size": [
+      218,
+      42
+     ]
+    },
+    {
+     "key": "Epic Chest",
+     "w": 86,
+     "h": 23,
+     "image": "Titles/epic-chest",
+     "off": [
+      13.832,
+      10.573
+     ],
+     "size": [
+      211,
+      50
+     ]
+    },
+    {
+     "key": "Legendary Chest",
+     "w": 132,
+     "h": 23,
+     "image": "Titles/legendary-chest",
+     "off": [
+      14.038,
+      10.573
+     ],
+     "size": [
+      337,
+      51
+     ]
+    },
+    {
+     "key": "Rainbow Chest",
+     "w": 115,
+     "h": 23,
+     "image": "Titles/rainbow-chest",
+     "off": [
+      11.679,
+      10.573
+     ],
+     "size": [
+      292,
+      42
+     ]
+    },
+    {
+     "key": "Living Room",
+     "w": 97,
+     "h": 23,
+     "image": "Titles/living-room",
+     "off": [
+      11.947,
+      10.573
+     ],
+     "size": [
+      242,
+      50
+     ]
+    },
+    {
+     "key": "Kitchen",
+     "w": 65,
+     "h": 23,
+     "image": "Titles/kitchen",
+     "off": [
+      11.977,
+      10.573
+     ],
+     "size": [
+      153,
+      42
+     ]
+    },
+    {
+     "key": "Bathroom",
+     "w": 81,
+     "h": 23,
+     "image": "Titles/bathroom",
+     "off": [
+      10.962,
+      10.573
+     ],
+     "size": [
+      198,
+      42
+     ]
+    },
+    {
+     "key": "Bedroom",
+     "w": 74,
+     "h": 23,
+     "image": "Titles/bedroom",
+     "off": [
+      12.343,
+      10.573
+     ],
+     "size": [
+      179,
+      42
+     ]
+    },
+    {
+     "key": "Backyard",
+     "w": 77,
+     "h": 23,
+     "image": "Titles/backyard",
+     "off": [
+      10.466,
+      10.573
+     ],
+     "size": [
+      189,
+      51
+     ]
+    },
+    {
+     "key": "Dance Room",
+     "w": 98,
+     "h": 23,
+     "image": "Titles/dance-room",
+     "off": [
+      12.321,
+      11.573
+     ],
+     "size": [
+      245,
+      41
+     ]
+    },
+    {
+     "key": "Movie Room",
+     "w": 96,
+     "h": 23,
+     "image": "Titles/movie-room",
+     "off": [
+      12.573,
+      10.573
+     ],
+     "size": [
+      239,
+      42
+     ]
+    },
+    {
+     "key": "Beach",
+     "w": 55,
+     "h": 23,
+     "image": "Titles/beach",
+     "off": [
+      12.237,
+      10.573
+     ],
+     "size": [
+      125,
+      42
+     ]
+    },
+    {
+     "key": "Yard Games",
+     "w": 94,
+     "h": 23,
+     "image": "Titles/yard-games",
+     "off": [
+      10.824,
+      10.573
+     ],
+     "size": [
+      237,
+      42
+     ]
+    },
+    {
+     "key": "Cozy home",
+     "w": 89,
+     "h": 23,
+     "image": "Titles/cozy-home",
+     "off": [
+      10.954,
+      10.573
+     ],
+     "size": [
+      221,
+      51
+     ]
+    },
+    {
+     "key": "Lovely home",
+     "w": 100,
+     "h": 23,
+     "image": "Titles/lovely-home",
+     "off": [
+      13.069,
+      10.573
+     ],
+     "size": [
+      251,
+      51
+     ]
+    },
+    {
+     "key": "Royal palace",
+     "w": 102,
+     "h": 23,
+     "image": "Titles/royal-palace",
+     "off": [
+      12.817,
+      10.573
+     ],
+     "size": [
+      256,
+      51
+     ]
+    }
+   ],
+   "descLines": [
+    {
+     "key": "Gems to spend in the Shop",
+     "width": 180,
+     "lines": [
+      "Gems to spend in the Shop"
+     ]
+    },
+    {
+     "key": "Coins to spend in the Shop",
+     "width": 180,
+     "lines": [
+      "Coins to spend in the Shop"
+     ]
+    },
+    {
+     "key": "A new room opens in your house",
+     "width": 180,
+     "lines": [
+      "A new room opens in your",
+      "house"
+     ]
+    },
+    {
+     "key": "The backyard's 7 yard games (buy each one's toy there to play it)",
+     "width": 180,
+     "lines": [
+      "The backyard's 7 yard games",
+      "(buy each one's toy there to",
+      "play it)"
+     ]
+    },
+    {
+     "key": "Your house gets its next look",
+     "width": 180,
+     "lines": [
+      "Your house gets its next look"
+     ]
+    },
+    {
+     "key": "Nothing new at this level",
+     "width": 180,
+     "lines": [
+      "Nothing new at this level"
+     ]
+    },
+    {
+     "key": "Common chest",
+     "width": 180,
+     "lines": [
+      "Common chest"
+     ]
+    },
+    {
+     "key": "Snack Shack · Common chest",
+     "width": 180,
+     "lines": [
+      "Snack Shack · Common chest"
+     ]
+    },
+    {
+     "key": "Fruit Patch · Common chest",
+     "width": 180,
+     "lines": [
+      "Fruit Patch · Common chest"
+     ]
+    },
+    {
+     "key": "Ocean Pals · Common chest",
+     "width": 180,
+     "lines": [
+      "Ocean Pals · Common chest"
+     ]
+    },
+    {
+     "key": "Pet Shop · Common chest",
+     "width": 180,
+     "lines": [
+      "Pet Shop · Common chest"
+     ]
+    },
+    {
+     "key": "Forest Friends · Common chest",
+     "width": 180,
+     "lines": [
+      "Forest Friends · Common chest"
+     ]
+    },
+    {
+     "key": "Sky & Stars · Common chest",
+     "width": 180,
+     "lines": [
+      "Sky & Stars · Common chest"
+     ]
+    },
+    {
+     "key": "Dreamland · Common chest",
+     "width": 180,
+     "lines": [
+      "Dreamland · Common chest"
+     ]
+    },
+    {
+     "key": "Sweet Bakery · Common chest",
+     "width": 180,
+     "lines": [
+      "Sweet Bakery · Common chest"
+     ]
+    },
+    {
+     "key": "Spooky Squish · Common chest",
+     "width": 180,
+     "lines": [
+      "Spooky Squish · Common chest"
+     ]
+    },
+    {
+     "key": "Masked Heroes · Common chest",
+     "width": 180,
+     "lines": [
+      "Masked Heroes · Common chest"
+     ]
+    },
+    {
+     "key": "Elemental Heroes · Common chest",
+     "width": 180,
+     "lines": [
+      "Elemental Heroes · Common",
+      "chest"
+     ]
+    },
+    {
+     "key": "Rare chest",
+     "width": 180,
+     "lines": [
+      "Rare chest"
+     ]
+    },
+    {
+     "key": "Snack Shack · Rare chest",
+     "width": 180,
+     "lines": [
+      "Snack Shack · Rare chest"
+     ]
+    },
+    {
+     "key": "Fruit Patch · Rare chest",
+     "width": 180,
+     "lines": [
+      "Fruit Patch · Rare chest"
+     ]
+    },
+    {
+     "key": "Ocean Pals · Rare chest",
+     "width": 180,
+     "lines": [
+      "Ocean Pals · Rare chest"
+     ]
+    },
+    {
+     "key": "Pet Shop · Rare chest",
+     "width": 180,
+     "lines": [
+      "Pet Shop · Rare chest"
+     ]
+    },
+    {
+     "key": "Forest Friends · Rare chest",
+     "width": 180,
+     "lines": [
+      "Forest Friends · Rare chest"
+     ]
+    },
+    {
+     "key": "Sky & Stars · Rare chest",
+     "width": 180,
+     "lines": [
+      "Sky & Stars · Rare chest"
+     ]
+    },
+    {
+     "key": "Dreamland · Rare chest",
+     "width": 180,
+     "lines": [
+      "Dreamland · Rare chest"
+     ]
+    },
+    {
+     "key": "Sweet Bakery · Rare chest",
+     "width": 180,
+     "lines": [
+      "Sweet Bakery · Rare chest"
+     ]
+    },
+    {
+     "key": "Spooky Squish · Rare chest",
+     "width": 180,
+     "lines": [
+      "Spooky Squish · Rare chest"
+     ]
+    },
+    {
+     "key": "Masked Heroes · Rare chest",
+     "width": 180,
+     "lines": [
+      "Masked Heroes · Rare chest"
+     ]
+    },
+    {
+     "key": "Elemental Heroes · Rare chest",
+     "width": 180,
+     "lines": [
+      "Elemental Heroes · Rare chest"
+     ]
+    },
+    {
+     "key": "Epic chest",
+     "width": 180,
+     "lines": [
+      "Epic chest"
+     ]
+    },
+    {
+     "key": "Snack Shack · Epic chest",
+     "width": 180,
+     "lines": [
+      "Snack Shack · Epic chest"
+     ]
+    },
+    {
+     "key": "Fruit Patch · Epic chest",
+     "width": 180,
+     "lines": [
+      "Fruit Patch · Epic chest"
+     ]
+    },
+    {
+     "key": "Ocean Pals · Epic chest",
+     "width": 180,
+     "lines": [
+      "Ocean Pals · Epic chest"
+     ]
+    },
+    {
+     "key": "Pet Shop · Epic chest",
+     "width": 180,
+     "lines": [
+      "Pet Shop · Epic chest"
+     ]
+    },
+    {
+     "key": "Forest Friends · Epic chest",
+     "width": 180,
+     "lines": [
+      "Forest Friends · Epic chest"
+     ]
+    },
+    {
+     "key": "Sky & Stars · Epic chest",
+     "width": 180,
+     "lines": [
+      "Sky & Stars · Epic chest"
+     ]
+    },
+    {
+     "key": "Dreamland · Epic chest",
+     "width": 180,
+     "lines": [
+      "Dreamland · Epic chest"
+     ]
+    },
+    {
+     "key": "Sweet Bakery · Epic chest",
+     "width": 180,
+     "lines": [
+      "Sweet Bakery · Epic chest"
+     ]
+    },
+    {
+     "key": "Spooky Squish · Epic chest",
+     "width": 180,
+     "lines": [
+      "Spooky Squish · Epic chest"
+     ]
+    },
+    {
+     "key": "Masked Heroes · Epic chest",
+     "width": 180,
+     "lines": [
+      "Masked Heroes · Epic chest"
+     ]
+    },
+    {
+     "key": "Elemental Heroes · Epic chest",
+     "width": 180,
+     "lines": [
+      "Elemental Heroes · Epic chest"
+     ]
+    },
+    {
+     "key": "Legendary chest",
+     "width": 180,
+     "lines": [
+      "Legendary chest"
+     ]
+    },
+    {
+     "key": "Snack Shack · Legendary chest",
+     "width": 180,
+     "lines": [
+      "Snack Shack · Legendary chest"
+     ]
+    },
+    {
+     "key": "Fruit Patch · Legendary chest",
+     "width": 180,
+     "lines": [
+      "Fruit Patch · Legendary chest"
+     ]
+    },
+    {
+     "key": "Ocean Pals · Legendary chest",
+     "width": 180,
+     "lines": [
+      "Ocean Pals · Legendary chest"
+     ]
+    },
+    {
+     "key": "Pet Shop · Legendary chest",
+     "width": 180,
+     "lines": [
+      "Pet Shop · Legendary chest"
+     ]
+    },
+    {
+     "key": "Forest Friends · Legendary chest",
+     "width": 180,
+     "lines": [
+      "Forest Friends · Legendary",
+      "chest"
+     ]
+    },
+    {
+     "key": "Sky & Stars · Legendary chest",
+     "width": 180,
+     "lines": [
+      "Sky & Stars · Legendary chest"
+     ]
+    },
+    {
+     "key": "Dreamland · Legendary chest",
+     "width": 180,
+     "lines": [
+      "Dreamland · Legendary chest"
+     ]
+    },
+    {
+     "key": "Sweet Bakery · Legendary chest",
+     "width": 180,
+     "lines": [
+      "Sweet Bakery · Legendary",
+      "chest"
+     ]
+    },
+    {
+     "key": "Spooky Squish · Legendary chest",
+     "width": 180,
+     "lines": [
+      "Spooky Squish · Legendary",
+      "chest"
+     ]
+    },
+    {
+     "key": "Masked Heroes · Legendary chest",
+     "width": 180,
+     "lines": [
+      "Masked Heroes · Legendary",
+      "chest"
+     ]
+    },
+    {
+     "key": "Elemental Heroes · Legendary chest",
+     "width": 180,
+     "lines": [
+      "Elemental Heroes · Legendary",
+      "chest"
+     ]
+    },
+    {
+     "key": "Rainbow chest",
+     "width": 180,
+     "lines": [
+      "Rainbow chest"
+     ]
+    },
+    {
+     "key": "Snack Shack · Rainbow chest",
+     "width": 180,
+     "lines": [
+      "Snack Shack · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Fruit Patch · Rainbow chest",
+     "width": 180,
+     "lines": [
+      "Fruit Patch · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Ocean Pals · Rainbow chest",
+     "width": 180,
+     "lines": [
+      "Ocean Pals · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Pet Shop · Rainbow chest",
+     "width": 180,
+     "lines": [
+      "Pet Shop · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Forest Friends · Rainbow chest",
+     "width": 180,
+     "lines": [
+      "Forest Friends · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Sky & Stars · Rainbow chest",
+     "width": 180,
+     "lines": [
+      "Sky & Stars · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Dreamland · Rainbow chest",
+     "width": 180,
+     "lines": [
+      "Dreamland · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Sweet Bakery · Rainbow chest",
+     "width": 180,
+     "lines": [
+      "Sweet Bakery · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Spooky Squish · Rainbow chest",
+     "width": 180,
+     "lines": [
+      "Spooky Squish · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Masked Heroes · Rainbow chest",
+     "width": 180,
+     "lines": [
+      "Masked Heroes · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Elemental Heroes · Rainbow chest",
+     "width": 180,
+     "lines": [
+      "Elemental Heroes · Rainbow",
+      "chest"
+     ]
+    },
+    {
+     "key": "Gems to spend in the Shop",
+     "width": 179.156,
+     "lines": [
+      "Gems to spend in the Shop"
+     ]
+    },
+    {
+     "key": "Coins to spend in the Shop",
+     "width": 179.156,
+     "lines": [
+      "Coins to spend in the Shop"
+     ]
+    },
+    {
+     "key": "A new room opens in your house",
+     "width": 179.156,
+     "lines": [
+      "A new room opens in your",
+      "house"
+     ]
+    },
+    {
+     "key": "The backyard's 7 yard games (buy each one's toy there to play it)",
+     "width": 179.156,
+     "lines": [
+      "The backyard's 7 yard games",
+      "(buy each one's toy there to",
+      "play it)"
+     ]
+    },
+    {
+     "key": "Your house gets its next look",
+     "width": 179.156,
+     "lines": [
+      "Your house gets its next look"
+     ]
+    },
+    {
+     "key": "Nothing new at this level",
+     "width": 179.156,
+     "lines": [
+      "Nothing new at this level"
+     ]
+    },
+    {
+     "key": "Common chest",
+     "width": 179.156,
+     "lines": [
+      "Common chest"
+     ]
+    },
+    {
+     "key": "Snack Shack · Common chest",
+     "width": 179.156,
+     "lines": [
+      "Snack Shack · Common chest"
+     ]
+    },
+    {
+     "key": "Fruit Patch · Common chest",
+     "width": 179.156,
+     "lines": [
+      "Fruit Patch · Common chest"
+     ]
+    },
+    {
+     "key": "Ocean Pals · Common chest",
+     "width": 179.156,
+     "lines": [
+      "Ocean Pals · Common chest"
+     ]
+    },
+    {
+     "key": "Pet Shop · Common chest",
+     "width": 179.156,
+     "lines": [
+      "Pet Shop · Common chest"
+     ]
+    },
+    {
+     "key": "Forest Friends · Common chest",
+     "width": 179.156,
+     "lines": [
+      "Forest Friends · Common chest"
+     ]
+    },
+    {
+     "key": "Sky & Stars · Common chest",
+     "width": 179.156,
+     "lines": [
+      "Sky & Stars · Common chest"
+     ]
+    },
+    {
+     "key": "Dreamland · Common chest",
+     "width": 179.156,
+     "lines": [
+      "Dreamland · Common chest"
+     ]
+    },
+    {
+     "key": "Sweet Bakery · Common chest",
+     "width": 179.156,
+     "lines": [
+      "Sweet Bakery · Common chest"
+     ]
+    },
+    {
+     "key": "Spooky Squish · Common chest",
+     "width": 179.156,
+     "lines": [
+      "Spooky Squish · Common chest"
+     ]
+    },
+    {
+     "key": "Masked Heroes · Common chest",
+     "width": 179.156,
+     "lines": [
+      "Masked Heroes · Common",
+      "chest"
+     ]
+    },
+    {
+     "key": "Elemental Heroes · Common chest",
+     "width": 179.156,
+     "lines": [
+      "Elemental Heroes · Common",
+      "chest"
+     ]
+    },
+    {
+     "key": "Rare chest",
+     "width": 179.156,
+     "lines": [
+      "Rare chest"
+     ]
+    },
+    {
+     "key": "Snack Shack · Rare chest",
+     "width": 179.156,
+     "lines": [
+      "Snack Shack · Rare chest"
+     ]
+    },
+    {
+     "key": "Fruit Patch · Rare chest",
+     "width": 179.156,
+     "lines": [
+      "Fruit Patch · Rare chest"
+     ]
+    },
+    {
+     "key": "Ocean Pals · Rare chest",
+     "width": 179.156,
+     "lines": [
+      "Ocean Pals · Rare chest"
+     ]
+    },
+    {
+     "key": "Pet Shop · Rare chest",
+     "width": 179.156,
+     "lines": [
+      "Pet Shop · Rare chest"
+     ]
+    },
+    {
+     "key": "Forest Friends · Rare chest",
+     "width": 179.156,
+     "lines": [
+      "Forest Friends · Rare chest"
+     ]
+    },
+    {
+     "key": "Sky & Stars · Rare chest",
+     "width": 179.156,
+     "lines": [
+      "Sky & Stars · Rare chest"
+     ]
+    },
+    {
+     "key": "Dreamland · Rare chest",
+     "width": 179.156,
+     "lines": [
+      "Dreamland · Rare chest"
+     ]
+    },
+    {
+     "key": "Sweet Bakery · Rare chest",
+     "width": 179.156,
+     "lines": [
+      "Sweet Bakery · Rare chest"
+     ]
+    },
+    {
+     "key": "Spooky Squish · Rare chest",
+     "width": 179.156,
+     "lines": [
+      "Spooky Squish · Rare chest"
+     ]
+    },
+    {
+     "key": "Masked Heroes · Rare chest",
+     "width": 179.156,
+     "lines": [
+      "Masked Heroes · Rare chest"
+     ]
+    },
+    {
+     "key": "Elemental Heroes · Rare chest",
+     "width": 179.156,
+     "lines": [
+      "Elemental Heroes · Rare chest"
+     ]
+    },
+    {
+     "key": "Epic chest",
+     "width": 179.156,
+     "lines": [
+      "Epic chest"
+     ]
+    },
+    {
+     "key": "Snack Shack · Epic chest",
+     "width": 179.156,
+     "lines": [
+      "Snack Shack · Epic chest"
+     ]
+    },
+    {
+     "key": "Fruit Patch · Epic chest",
+     "width": 179.156,
+     "lines": [
+      "Fruit Patch · Epic chest"
+     ]
+    },
+    {
+     "key": "Ocean Pals · Epic chest",
+     "width": 179.156,
+     "lines": [
+      "Ocean Pals · Epic chest"
+     ]
+    },
+    {
+     "key": "Pet Shop · Epic chest",
+     "width": 179.156,
+     "lines": [
+      "Pet Shop · Epic chest"
+     ]
+    },
+    {
+     "key": "Forest Friends · Epic chest",
+     "width": 179.156,
+     "lines": [
+      "Forest Friends · Epic chest"
+     ]
+    },
+    {
+     "key": "Sky & Stars · Epic chest",
+     "width": 179.156,
+     "lines": [
+      "Sky & Stars · Epic chest"
+     ]
+    },
+    {
+     "key": "Dreamland · Epic chest",
+     "width": 179.156,
+     "lines": [
+      "Dreamland · Epic chest"
+     ]
+    },
+    {
+     "key": "Sweet Bakery · Epic chest",
+     "width": 179.156,
+     "lines": [
+      "Sweet Bakery · Epic chest"
+     ]
+    },
+    {
+     "key": "Spooky Squish · Epic chest",
+     "width": 179.156,
+     "lines": [
+      "Spooky Squish · Epic chest"
+     ]
+    },
+    {
+     "key": "Masked Heroes · Epic chest",
+     "width": 179.156,
+     "lines": [
+      "Masked Heroes · Epic chest"
+     ]
+    },
+    {
+     "key": "Elemental Heroes · Epic chest",
+     "width": 179.156,
+     "lines": [
+      "Elemental Heroes · Epic chest"
+     ]
+    },
+    {
+     "key": "Legendary chest",
+     "width": 179.156,
+     "lines": [
+      "Legendary chest"
+     ]
+    },
+    {
+     "key": "Snack Shack · Legendary chest",
+     "width": 179.156,
+     "lines": [
+      "Snack Shack · Legendary chest"
+     ]
+    },
+    {
+     "key": "Fruit Patch · Legendary chest",
+     "width": 179.156,
+     "lines": [
+      "Fruit Patch · Legendary chest"
+     ]
+    },
+    {
+     "key": "Ocean Pals · Legendary chest",
+     "width": 179.156,
+     "lines": [
+      "Ocean Pals · Legendary chest"
+     ]
+    },
+    {
+     "key": "Pet Shop · Legendary chest",
+     "width": 179.156,
+     "lines": [
+      "Pet Shop · Legendary chest"
+     ]
+    },
+    {
+     "key": "Forest Friends · Legendary chest",
+     "width": 179.156,
+     "lines": [
+      "Forest Friends · Legendary",
+      "chest"
+     ]
+    },
+    {
+     "key": "Sky & Stars · Legendary chest",
+     "width": 179.156,
+     "lines": [
+      "Sky & Stars · Legendary chest"
+     ]
+    },
+    {
+     "key": "Dreamland · Legendary chest",
+     "width": 179.156,
+     "lines": [
+      "Dreamland · Legendary chest"
+     ]
+    },
+    {
+     "key": "Sweet Bakery · Legendary chest",
+     "width": 179.156,
+     "lines": [
+      "Sweet Bakery · Legendary",
+      "chest"
+     ]
+    },
+    {
+     "key": "Spooky Squish · Legendary chest",
+     "width": 179.156,
+     "lines": [
+      "Spooky Squish · Legendary",
+      "chest"
+     ]
+    },
+    {
+     "key": "Masked Heroes · Legendary chest",
+     "width": 179.156,
+     "lines": [
+      "Masked Heroes · Legendary",
+      "chest"
+     ]
+    },
+    {
+     "key": "Elemental Heroes · Legendary chest",
+     "width": 179.156,
+     "lines": [
+      "Elemental Heroes · Legendary",
+      "chest"
+     ]
+    },
+    {
+     "key": "Rainbow chest",
+     "width": 179.156,
+     "lines": [
+      "Rainbow chest"
+     ]
+    },
+    {
+     "key": "Snack Shack · Rainbow chest",
+     "width": 179.156,
+     "lines": [
+      "Snack Shack · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Fruit Patch · Rainbow chest",
+     "width": 179.156,
+     "lines": [
+      "Fruit Patch · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Ocean Pals · Rainbow chest",
+     "width": 179.156,
+     "lines": [
+      "Ocean Pals · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Pet Shop · Rainbow chest",
+     "width": 179.156,
+     "lines": [
+      "Pet Shop · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Forest Friends · Rainbow chest",
+     "width": 179.156,
+     "lines": [
+      "Forest Friends · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Sky & Stars · Rainbow chest",
+     "width": 179.156,
+     "lines": [
+      "Sky & Stars · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Dreamland · Rainbow chest",
+     "width": 179.156,
+     "lines": [
+      "Dreamland · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Sweet Bakery · Rainbow chest",
+     "width": 179.156,
+     "lines": [
+      "Sweet Bakery · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Spooky Squish · Rainbow chest",
+     "width": 179.156,
+     "lines": [
+      "Spooky Squish · Rainbow chest"
+     ]
+    },
+    {
+     "key": "Masked Heroes · Rainbow chest",
+     "width": 179.156,
+     "lines": [
+      "Masked Heroes · Rainbow",
+      "chest"
+     ]
+    },
+    {
+     "key": "Elemental Heroes · Rainbow chest",
+     "width": 179.156,
+     "lines": [
+      "Elemental Heroes · Rainbow",
+      "chest"
+     ]
+    }
+   ],
+   "piles": [
+    {
+     "key": "coins",
+     "w": 96,
+     "h": 80,
+     "image": "pile-coins",
+     "off": [
+      -4.427,
+      -0.595
+     ],
+     "size": [
+      274,
+      237
+     ]
+    },
+    {
+     "key": "gems",
+     "w": 96,
+     "h": 80,
+     "image": "pile-gems",
+     "off": [
+      13.573,
+      10.405
+     ],
+     "size": [
+      239,
+      219
+     ]
+    }
+   ],
+   "rooms": [
+    {
+     "key": "backyard",
+     "w": 114.656,
+     "h": 86,
+     "image": "Rooms/backyard",
+     "off": [
+      -8.595,
+      -7.351
+     ],
+     "size": [
+      331,
+      259
+     ]
+    },
+    {
+     "key": "bathroom",
+     "w": 114.656,
+     "h": 86,
+     "image": "Rooms/bathroom",
+     "off": [
+      -8.595,
+      -7.351
+     ],
+     "size": [
+      331,
+      259
+     ]
+    },
+    {
+     "key": "beach",
+     "w": 114.656,
+     "h": 86,
+     "image": "Rooms/beach",
+     "off": [
+      -8.595,
+      -7.351
+     ],
+     "size": [
+      331,
+      259
+     ]
+    },
+    {
+     "key": "bedroom",
+     "w": 114.656,
+     "h": 86,
+     "image": "Rooms/bedroom",
+     "off": [
+      -8.595,
+      -7.351
+     ],
+     "size": [
+      331,
+      259
+     ]
+    },
+    {
+     "key": "dance",
+     "w": 114.656,
+     "h": 86,
+     "image": "Rooms/dance",
+     "off": [
+      -8.595,
+      -7.351
+     ],
+     "size": [
+      331,
+      259
+     ]
+    },
+    {
+     "key": "kitchen",
+     "w": 114.656,
+     "h": 86,
+     "image": "Rooms/kitchen",
+     "off": [
+      -8.595,
+      -7.351
+     ],
+     "size": [
+      331,
+      259
+     ]
+    },
+    {
+     "key": "living",
+     "w": 114.656,
+     "h": 86,
+     "image": "Rooms/living",
+     "off": [
+      -8.595,
+      -7.351
+     ],
+     "size": [
+      331,
+      259
+     ]
+    },
+    {
+     "key": "movie",
+     "w": 114.656,
+     "h": 86,
+     "image": "Rooms/movie",
+     "off": [
+      -8.595,
+      -7.351
+     ],
+     "size": [
+      331,
+      259
+     ]
+    },
+    {
+     "key": "tier1",
+     "w": 114.656,
+     "h": 86,
+     "image": "Rooms/tier1",
+     "off": [
+      -8.595,
+      -7.351
+     ],
+     "size": [
+      331,
+      259
+     ]
+    },
+    {
+     "key": "tier2",
+     "w": 114.656,
+     "h": 86,
+     "image": "Rooms/tier2",
+     "off": [
+      -8.595,
+      -7.351
+     ],
+     "size": [
+      331,
+      259
+     ]
+    },
+    {
+     "key": "tier3",
+     "w": 114.656,
+     "h": 86,
+     "image": "Rooms/tier3",
+     "off": [
+      -8.595,
+      -7.351
+     ],
+     "size": [
+      331,
+      259
+     ]
+    },
+    {
+     "key": "yard",
+     "w": 114.656,
+     "h": 86,
+     "image": "Rooms/yard",
+     "off": [
+      -8.595,
+      -7.351
+     ],
+     "size": [
+      331,
+      259
+     ]
+    }
+   ],
+   "roomAspect": 1.3333333333333333,
+   "plainChests": [
+    {
+     "key": "common",
+     "w": 82.547,
+     "h": 72.234,
+     "image": "Chests/plain-common",
+     "off": [
+      16.109,
+      23.756
+     ],
+     "size": [
+      192,
+      174
+     ]
+    },
+    {
+     "key": "rare",
+     "w": 82.547,
+     "h": 72.234,
+     "image": "Chests/plain-rare",
+     "off": [
+      16.109,
+      23.756
+     ],
+     "size": [
+      192,
+      174
+     ]
+    },
+    {
+     "key": "epic",
+     "w": 82.547,
+     "h": 72.234,
+     "image": "Chests/plain-epic",
+     "off": [
+      16.109,
+      23.756
+     ],
+     "size": [
+      192,
+      174
+     ]
+    },
+    {
+     "key": "legendary",
+     "w": 82.547,
+     "h": 72.234,
+     "image": "Chests/plain-legendary",
+     "off": [
+      16.109,
+      23.756
+     ],
+     "size": [
+      192,
+      174
+     ]
+    },
+    {
+     "key": "set",
+     "w": 82.547,
+     "h": 72.234,
+     "image": "Chests/plain-set",
+     "off": [
+      16.109,
+      23.756
+     ],
+     "size": [
+      192,
+      174
+     ]
+    }
+   ],
+   "noneDescTop": 80.625,
+   "noneDescHeight": 13.75,
+   "padBottom": 8
+  },
+  "frame": {
+   "mode": "crop",
+   "body": {
+    "image": "panel-body",
+    "size": [
+     3805,
+     593
+    ]
+   },
+   "right": {
+    "image": "panel-r",
+    "size": [
+     153,
+     593
+    ]
+   },
+   "off": [
+    -36.969,
+    -19.649
+   ],
+   "ext": 37.97
+  }
+ },
+ "fly": {
+  "icons": [
+   {
+    "key": "coin",
+    "w": 26,
+    "h": 26,
+    "image": "fly-coin",
+    "off": [
+     -0.237,
+     -0.771
+    ],
+    "size": [
+     72,
+     73
+    ]
+   },
+   {
+    "key": "gem",
+    "w": 26,
+    "h": 26,
+    "image": "fly-gem",
+    "off": [
+     6.763,
+     4.229
+    ],
+    "size": [
+     58,
+     64
+    ]
+   }
+  ],
+  "count": 9,
+  "start": 0.03,
+  "every": 0.055,
+  "duration": 0.75,
+  "easing": "cubic-bezier(.5,-0.2,.7,1)",
+  "scale": 0.7,
+  "fadeDelay": 0.62,
+  "fadeDuration": 0.2,
+  "fadeEasing": "ease",
+  "removeAt": 1.3,
+  "jitter": [
+   40,
+   30
+  ]
+ }
+}

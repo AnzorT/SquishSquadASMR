@@ -72,7 +72,7 @@ Game Park carousel), Level Pass, Squad House v6 (8 rooms with animated creatures
 |---|---|---|
 | 0 | Project, first-open setup, reference screenshots, art export | **Done** (this session) |
 | 1 | Main Menu, still: scene at level 1 + HUD, checked 1:1 against `menu.jpg` | **Written** (2026-11-22), waiting for its first run in Unity |
-| 2 | Main Menu, alive: weather, the creature rig, PLAY → Game Park | |
+| 2 | Main Menu, alive: weather, the creature rig, PLAY → Game Park; the Level Pass | Level Pass **written** (2026-11-22), waiting for its first run in Unity |
 | 3 | Characters, Shop, Settings, Achievements, Level road | |
 | 4 | Squish Time (3D) | |
 | 5 | Squad House (8 rooms) | |
@@ -92,6 +92,48 @@ whichever screen first needs it.
   come when the exporter loops over them (phase 2), then the delivery plan above.
 - Buttons answer with a "comes in phase N" message until their screens exist.
 
+## Level Pass (the crest's page)
+
+`webgame/app/menu.js` M.levels, opened by tapping the crest. Taken apart by `tools/unity-port/export-level-pass.mjs`
+into `Resources/Screens/LevelPass/` (pictures + `layout.json`), put back by `Scripts/App/LevelPass/LevelPassScreen.cs`.
+
+- **Pieces**: the page's wood background; header (back orb, "Level Pass" lettering, CLAIM ALL plaque, LV plaque with
+  its pink bar's track and fill, coin plaque and its coin); track (rail and its fill, the level node in 8 looks, the
+  ok / ! / lock badges, the "you" frame and pointer, the creature inside it per creature); panel (frame, "LEVEL n"
+  gold and white for levels 1-50, CLAIM, the action's frame with its check and lock, the reward card, the glow behind
+  the art, 6 tags, 55 group chests + 5 plain ones, coin and gem piles, 12 room pictures, 103 reward titles); the
+  burst's coin and gem.
+- **Layout**: `layout.json` keeps the page's own numbers (design px, × k = 384 / 393 in Unity) measured in the page,
+  and each picture's place relative to its element's box in A15 px, so it lands on the page's pixel. Pieces whose
+  width changes are cut in three: plain ones stretch a 4 px strip of their uniform middle; wooden ones (the LV and coin
+  plaques, the panel) cut their left part to length from one drawn long, so the wood's stripes stay put. Pieces that
+  move along the track (nodes, badges, the "you" frame) are drawn at 4 sub-pixel phases.
+- **Behaviour**: the track drags sideways with menu.js dragRow's numbers (6 dp threshold, glide ×0.94 per 16 ms,
+  a tap after a drag swallowed, the wheel); a tap picks a level, a second tap on one waiting claims it; CLAIM,
+  CLAIM ALL, "Claiming…" while the caller's handler answers (`LevelPassClaimHandler`; none = claimed at once, as the
+  page does outside the app); 9 coins or gems fly to the coin plaque (menu.js burst timings); waiting levels bob
+  (sqClaim, CssAnimation); the track and the panel's content fade in over 0.18 s; back orb and phone back close it.
+- **Data**: `LevelPassState` (xp, road, coins, creature), the app's own shapes. The menu builds it from `MenuState`
+  (new: `XpPer`, `Road`; null road = the page with no app data: levels, no prizes). **PlushCrush > Screens > Level
+  Pass** shows the stand-in player of the pictures and of `Reference/game/level-pass.jpg` / `level-pass-L8.jpg`
+  (level 6, 420 / 700 XP, levels 1, 2, 4 claimed, 1,250 coins, Mittens, today's Forest chests).
+- **Self-check** (the pieces put back together by Unity's rules, in the browser, against the page): opening state
+  0.88% of the screen's pixels differ by more than 2/255 outside the text Unity draws, 0.016% clearly (>40/255);
+  level 8 picked (three cards) 4.05% and 0.56%: the cards' pieces are drawn at the one-card position, so with three
+  cards their edges are up to half a pixel off.
+
+Known differences:
+- Text drawn by Unity (LV n, the XP, the coins, CLAIM ALL (n), level numbers, the lines under the levels and the
+  rewards, the action's words) goes through Unity's text engine; the header's plaques take their widths from it.
+  Descriptions keep the browser's own line breaks.
+- Wooden plaques drawn long differ from the page's by Chrome's gradient noise (single pixels, up to ~10/255).
+- Other screen shapes: the background picture is stretched (its stripes widen); the rest follows the page's layout.
+- Not ported: sounds (tap, score), the page's gold toast for claim errors (Unity's toast instead), the menu creature's
+  "happy" when the pass closes (no rig yet). The fade starts on the first frame (the page waits for a steady frame
+  rate, up to 1.5 s). A mouse wheel step is a guess (~100 px, as a browser's notch).
+- Levels past 50 and titles not exported fall back to Unity text with an outline.
+- 21 MB of pictures in Resources (chests 7.8 MB): to move to Addressables with the rest of the art.
+
 ## What needs you
 
 - [ ] **Open the project** in Unity 6000.3 (with the Android module) and send a screenshot of the first screen
@@ -107,4 +149,5 @@ node webgame/build.mjs --out webgame/test/out/webgame   # the game pages, as the
 node tools/unity-port/capture-references.mjs            # reference screenshots -> Assets/_Project/Reference/game
 node tools/unity-port/export-art.mjs                    # creature art -> Assets/_Project/Art/Generated (not in git)
 node tools/unity-port/export-menu.mjs                   # Main Menu pieces + layout.json -> Resources/Screens/MainMenu
+node tools/unity-port/export-level-pass.mjs             # Level Pass pieces + layout.json + its reference screenshots
 ```
