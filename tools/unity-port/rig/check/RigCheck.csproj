@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Checks the Unity port of the creature rig (unity/Assets/_Project/Scripts/Core/Rig) against a recording of the
+       game's own rig (../record-rig.mjs). The rig's C# is compiled here exactly as Unity has it. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../../unity/Assets/_Project/Scripts/Core/Rig/*.cs" />
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+</Project>
