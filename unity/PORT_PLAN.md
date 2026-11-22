@@ -72,7 +72,8 @@ Game Park carousel), Level Pass, Squad House v6 (8 rooms with animated creatures
 |---|---|---|
 | 0 | Project, first-open setup, reference screenshots, art export | **Done** (this session) |
 | 1 | Main Menu, still: scene at level 1 + HUD, checked 1:1 against `menu.jpg` | **Written** (2026-11-22), waiting for its first run in Unity |
-| 2 | Main Menu, alive: weather, the creature rig, PLAY → Game Park | |
+| 2 | Main Menu, alive: every state, HUD motion, weather, PLAY → Game Park, Level Pass | **Written** except the creature rig (see below) |
+| 2b | The creature rig (rive-rig.js + rive-generic.js) | Not started: a project of its own |
 | 3 | Characters, Shop, Settings, Achievements, Level road | |
 | 4 | Squish Time (3D) | |
 | 5 | Squad House (8 rooms) | |
@@ -91,6 +92,40 @@ whichever screen first needs it.
 - Only one state exported so far: level 1, rainy, Mittens. Other creatures' names, other levels' numbers and scenes
   come when the exporter loops over them (phase 2), then the delivery plan above.
 - Buttons answer with a "comes in phase N" message until their screens exist.
+
+## Phase 2 notes (Main Menu, alive)
+
+- **Every state is a picture made by the game:** the scene for levels 1-30 x sunny/rainy/snowy (without its vignette,
+  which is a layer of its own), the Game Park's picture likewise, every creature's name plate (118, plaque and stars by
+  rarity), every crest number (1-200), the XP ring per percent, the prize badge (1-9, 9+), each creature at rest.
+  Big ones (scenes, parks, creatures: ~280 MB) are generated into `Art/Generated` (not in git): run
+  `export-menu-states.mjs` before opening the project. The default state's pictures are in git.
+- **HUD motion** (`MenuHud.cs`, `CssAnimation.cs`): the flourish every 5.2 s exactly as menu.js (crest float, wing
+  flap, star flip, shine, sparkles; PLAY glow and glint 1.3 s later), the press effects (only PLAY and the crest have
+  them in the page), the XP ring's fill-in on the first menu, the badge, sunny-day birds, rain and snow. The crest is
+  taken apart layer by layer with each layer's own share of the drop shadow (solved from the browser's drawing); put
+  back together it differs from the real crest on 0.07% of its pixels.
+- **PLAY -> Game Park** (`MainMenuScreen.cs` EnterPark / LeavePark): the HUD fades (.35 s), the vignette fades (.45 s),
+  turn (380 ms), walk with the camera following (2300 ms, EOUT / EIOC exactly as menu.js), turn back, the games; back:
+  340 / 2100 / 340 ms. The park's picture lands on whole pixels like the house's. The games carousel and the Level
+  Pass are separate pieces (GameParkOverlay, LevelPassScreen).
+- **The creature is its still picture** for now: it doesn't breathe, blink, look around, play moves or turn side-on
+  as in the game; walking it does the page's own fallback bob (mmBob). Taps on it do nothing (in the game a quick tap
+  does nothing either, a bug there: rive-rig.js:1373; holding squeezes it, dragging spins it).
+
+## The creature rig: what porting it means
+
+The game draws every creature with RiveRig: hand-built rigs for 20 creatures (rive-rig.js, pet-defs.js,
+pet2-defs.js) and a generic one for the other 98 (rive-generic.js: it tags each shape of the creature's front art
+with a role and rigs it). Every frame it rebuilds every path of the creature from a pose of ~50 numbers: idle loop,
+fidgets, glances, blinks, the showcase moves, a 2.5D head sphere the face slides around, touch (squeeze, spin),
+the walking gaits (house-walk.js), plus the fabric texture and outline effects. About 1.1 MB of JavaScript.
+
+A 1:1 port needs: the rig logic in C# (pose layers, keyframe tracks, springs, the warps), a vector renderer in Unity
+that redraws the warped paths with their gradients every frame (the Vector Graphics package's tessellator, or a
+custom mesh builder), and shaders for the fabric texture and outlines. Checked frame by frame against the browser,
+like the rest. It's the biggest single piece of the port, and it's what makes the creatures feel alive everywhere in
+the game (menu, house, Characters), so it's worth doing as its own focused piece of work.
 
 ## What needs you
 

@@ -2,16 +2,18 @@
 //   names      the name plate per creature (plaque, stars and lettering follow its rarity and name) -> Names/
 //   levels     the crest's number, levels 1..200                                                     -> Levels/
 //   creatures  each creature standing on the menu, still (until the rig is ported)        -> Art/Generated (not in git)
-//   scenes     the scene per level (1..30) and season (sunny, rainy, snowy)                 -> Art/Generated (not in git)
+//   scenes     the scene per level (1..30) and season (sunny, rainy, snowy), no vignette    -> Art/Generated (not in git)
+//   parks      the Game Park's picture per level and season                                 -> Art/Generated (not in git)
 // Each kind gets an index (where each picture goes on the A15) next to layout.json, which Unity reads.
 //
 //   node tools/unity-port/export-menu-states.mjs                 all four
 //   node tools/unity-port/export-menu-states.mjs names levels    some
 import fs from 'node:fs';
 import path from 'node:path';
-import { PNG, MENU_OUT, SCENES_OUT, REPO, SEASONS, needBuild, launch, openMenu, openScenePage, drawScene, shootScene, shootPart, markCrestNumber, showAll, sceneAt } from './lib/menu-page.mjs';
+import { PNG, MENU_OUT, SCENES_OUT, REPO, SEASONS, needBuild, launch, openMenu, openScenePage, drawScene, shootScene, shootPark, shootPart, markCrestNumber, showAll, sceneAt } from './lib/menu-page.mjs';
 
 const CREATURES_OUT = path.join(path.dirname(SCENES_OUT), 'MenuCreatures');
+const PARKS_OUT = path.join(path.dirname(SCENES_OUT), 'MenuParks');
 const MAX_LEVEL = 200;
 const want = process.argv.slice(2);
 const doIt = k => !want.length || want.includes(k);
@@ -108,5 +110,15 @@ if (doIt('scenes')) {
   }
   console.log(`scenes: 90 -> ${path.relative(REPO, SCENES_OUT)}`);
   await ctx.close();
+}
+
+if (doIt('parks')) {
+  const items = [];
+  for (let L = 1; L <= 30; L++) for (const season of SEASONS) {
+    const p = await shootPark(browser, L, season);
+    save(path.join(PARKS_OUT, `park-L${L}-${season}.png`), p.buf);
+    items.push({ key: `L${L}-${season}`, d: p.d, top: p.top });
+  }
+  writeIndex(path.join(MENU_OUT, 'parks.json'), items);
 }
 await browser.close();

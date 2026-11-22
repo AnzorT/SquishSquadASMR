@@ -145,16 +145,55 @@ export async function openScenePage(browser) {
 }
 
 // Draw the scene for a level and season the way the menu does (main-menu-scene.js svg(), animations stripped as
-// menu.js still() does), into the page's own scene box.
-export async function drawScene(page, level, season) {
-  await page.evaluate(({ level, season }) => {
+// menu.js still() does), into the page's own scene box. Without its vignette (the darkened edges: the last rect,
+// fill url(#…Vig)), which Unity lays over it as a layer of its own: it fades out while the Game Park is beside the
+// house (menu.js vignette()), and it's the same for every level and season.
+export async function drawScene(page, level, season, { vignette = false } = {}) {
+  await page.evaluate(({ level, season, vignette }) => {
     const x = window.SquishMenu._x, Sc = window.MainMenuScene;
     const st = Sc.state({ level, season });
     const svg = Sc.svg(st).replace(/<animate(?:Transform|Motion)?\b[^>]*\/>/g, '');
     x.scene.classList.remove('sq-pic-on', 'sq-pic-hh');
     x.scene.innerHTML = '<div class="sq-live">' + svg + '</div>';
-  }, { level, season });
+    if (!vignette) x.scene.querySelectorAll('rect[fill$="Vig)"]').forEach(r => r.remove());
+  }, { level, season, vignette });
   await page.waitForTimeout(150);
+}
+
+// The vignette alone, as it lies over the scene (same size and place as a scene picture).
+export async function shootVignette(page) {
+  await drawScene(page, 1, 'rainy', { vignette: true });
+  await isolate(page, { sel: '.mm-scene', only: 'rect[fill$="Vig)"]' });
+  return page.screenshot({ omitBackground: true });
+}
+
+// The Game Park's picture for a level and season (main-menu-scene.js svg({ ...st, park: true }), menu.js parkLayer()):
+// drawn in a box the size of the screen, to the left of the house, overflowing it (a tree stands on the seam). Shot in
+// a page three scenes wide at the A15's scene scale. On the A15 the page draws its drawing from x = -W*K + offset
+// (-2343.913 px); the picture is shifted by a fraction of a pixel so that Unity, placing it on whole pixels, lands it
+// there. Returns { buf, d, top }: where the picture's left and top edges are, in scene units, from the house
+// picture's left edge minus the screen's width (the park box's place in Unity) and from the top.
+export async function shootPark(browser, level, season) {
+  const { ctx, page } = await openMenu(browser, { width: 3000, height: 460 }, SCENE_SCALE);
+  const imgW = Math.ceil(1000 * SCENE_SCALE - 1e-6), houseLeft = (W * K - imgW) / 2;      // -4 px on the A15
+  const origin = -W * K + (W * K - 1000 * SCENE_SCALE) / 2;                              // the page's: -2343.913 px
+  const B = 1000 * SCENE_SCALE, frac = v => v - Math.floor(v);
+  const sigma = frac(frac(origin) - frac(B));                                            // px, so B + sigma lands like origin
+  await page.evaluate(({ level, season, sh }) => {
+    const Sc = window.MainMenuScene, st = Sc.state({ level, season });
+    const svg = Sc.svg(Object.assign({}, st, { park: true })).replace(/<animate(?:Transform|Motion)?\b[^>]*\/>/g, '');
+    const d = document.createElement('div'); d.id = 'x-park';
+    d.style.cssText = 'position:fixed;left:1000px;top:0;width:1000px;height:460px;z-index:99999;transform:translateX(' + sh + 'px)';
+    d.innerHTML = svg; document.body.appendChild(d);
+    const sv = d.firstChild; if (sv && sv.style) sv.style.overflow = 'visible';
+  }, { level, season, sh: sigma / SCENE_SCALE });
+  await page.waitForTimeout(200);
+  await isolate(page, { sel: '#x-park' });
+  const t = trim(await page.screenshot({ omitBackground: true }));
+  await ctx.close();
+  const L = origin - (B + sigma) + t.x;                    // where Unity puts the picture's left edge on the A15 (whole px)
+  const d = L - (houseLeft - W * K);
+  return { buf: t.buf, d: +(d / SCENE_SCALE).toFixed(5), top: +(t.y / SCENE_SCALE).toFixed(5), dPx: +d.toFixed(3) };
 }
 
 export async function shootScene(page) {

@@ -7,6 +7,7 @@
 // Phase 2: the creature's rig, the crest and PLAY animations, PLAY -> Game Park, real player data.
 using System.Collections.Generic;
 using UnityEngine;
+using PlushCrush.App.Motion;
 using UnityEngine.UIElements;
 
 namespace PlushCrush.App.MainMenu
@@ -42,6 +43,14 @@ namespace PlushCrush.App.MainMenu
 
         public MainMenuScreen(MenuState state = null) { _state = state ?? new MenuState(); }
 
+        // the page's layers: the world (scene, vignette, the Game Park's picture, creature, name plate: the camera pans
+        // it), the weather over it (fixed to the screen), the HUD on top (fades while the creature walks)
+        VisualElement _world, _hud, _vignette, _creatureEl, _nameEl, _park;
+        IMenuCreature _creature;
+        bool _busy;
+        ParkWalk _walk;
+        sealed class ParkWalk { public float W, X0, X1; public bool Leaving; }
+
         protected override VisualElement Build()
         {
             var root = new VisualElement { name = "main-menu" };
@@ -56,36 +65,196 @@ namespace PlushCrush.App.MainMenu
             }
             float W = _layout.screen.width, H = _layout.screen.height;
 
-            // 1. the scene: the whole drawing, cropped like preserveAspectRatio="xMidYMax slice"
-            var scene = new VisualElement { name = "scene", pickingMode = PickingMode.Ignore };
-            Fill(scene);
-            scene.style.backgroundImage = new StyleBackground(ScenePicture());
-            scene.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
-            scene.style.backgroundPositionX = new BackgroundPosition(BackgroundPositionKeyword.Center);
-            scene.style.backgroundPositionY = new BackgroundPosition(BackgroundPositionKeyword.Bottom);
-            root.Add(scene);
+            _world = new VisualElement { name = "world", pickingMode = PickingMode.Ignore };
+            Fill(_world);
+            root.Add(_world);
 
-            // 2. the world (creature, name plate, name), 3. the weather over it, 4. the HUD on top
-            foreach (var part in _layout.parts) if (part.layer == "world") AddPart(root, part, W, H);
+            // 1. the scene: the whole drawing, cropped like preserveAspectRatio="xMidYMax slice"; its vignette over it
+            var scene = new VisualElement { name = "scene", pickingMode = PickingMode.Ignore };
+            CoverScene(scene, ScenePicture());
+            _world.Add(scene);
+            if (!string.IsNullOrEmpty(_layout.scene.vignette))
+            {
+                _vignette = new VisualElement { name = "vignette", pickingMode = PickingMode.Ignore };
+                CoverScene(_vignette, MenuLayout.Picture(_layout.scene.vignette));
+                _world.Add(_vignette);
+            }
+
+            // 2. the creature and its name plate, 3. the weather, 4. the HUD
+            foreach (var part in _layout.parts) if (part.layer == "world") AddPart(_world, part, W, H);
+            _creatureEl = _world.Q("creature");
+            _nameEl = _world.Q("nameplate");
+            // the stage (moved by the walk) holds the picture (bobbed by the walk), as .mm-stage holds the rig's box
+            VisualElement pic = null;
+            if (_creatureEl != null)
+            {
+                pic = new VisualElement { name = "creature-picture", pickingMode = PickingMode.Ignore };
+                Fill(pic);
+                pic.style.backgroundImage = _creatureEl.style.backgroundImage;
+                pic.style.backgroundSize = _creatureEl.style.backgroundSize;
+                _creatureEl.style.backgroundImage = new StyleBackground(StyleKeyword.None);
+                _creatureEl.Add(pic);
+            }
+            // until the rig is ported: the still picture (it turns and walks in the page); the stage is 169 dp tall
+            _creature = new StillCreature(pic, 169f);
             root.Add(new MenuWeather(_layout.weather, _state.SeasonNow(), W, H));
             if (MenuBirds.Shown(_state.SeasonNow(), _state.Level)) root.Add(new MenuBirds());
+
+            _hud = new VisualElement { name = "hud", pickingMode = PickingMode.Ignore };
+            Fill(_hud);
+            root.Add(_hud);
             // the moving HUD pieces (crest, PLAY) when hud.json is there; their still pictures otherwise
             var hudSpec = HudSpec.Load();
             var hud = hudSpec != null ? new MenuHud(hudSpec) : null;
             foreach (var part in _layout.parts)
             {
                 if (part.layer == "world") continue;
-                if (hud != null && part.name == "play") { AddPlay(root, hud, hudSpec, part, W, H); continue; }
-                if (hud != null && part.name == "crest") { AddCrest(root, hud, hudSpec, W, H); continue; }
+                if (hud != null && part.name == "play") { AddPlay(_hud, hud, hudSpec, part, W, H); continue; }
+                if (hud != null && part.name == "crest") { AddCrest(_hud, hud, hudSpec, W, H); continue; }
                 if (hud != null && (part.name == "crest-level" || part.name.StartsWith("crest-spark"))) continue; // in the crest
-                AddPart(root, part, W, H);
-                foreach (var t in _layout.texts) if (t.parent == part.name) AddText(root, t, W, H);
+                AddPart(_hud, part, W, H);
+                foreach (var t in _layout.texts) if (t.parent == part.name) AddText(_hud, t, W, H);
             }
             hud?.Run(root);
 
             SetNumber("coins", _state.Coins);
             SetNumber("gems", _state.Gems);
             return root;
+        }
+
+        static void CoverScene(VisualElement e, Texture2D tex)
+        {
+            Fill(e);
+            e.style.backgroundImage = new StyleBackground(tex);
+            e.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
+            e.style.backgroundPositionX = new BackgroundPosition(BackgroundPositionKeyword.Center);
+            e.style.backgroundPositionY = new BackgroundPosition(BackgroundPositionKeyword.Bottom);
+        }
+
+        // ---------------- PLAY: the walk to the Game Park and back (menu.js enterPark / leavePark) ----------------
+
+        // the scene on this screen: xMidYMax slice of 1000 x 460 (main-menu.js geo)
+        void Geo(out float W, out float H, out float s, out float ox, out float oy)
+        {
+            var r = View.layout;
+            W = r.width; H = r.height;
+            s = Mathf.Max(W / 1000f, H / 460f); ox = (W - 1000f * s) / 2f; oy = H - 460f * s;
+        }
+
+        // the HUD, the tap areas and the name plate fade (.mm-fade: opacity .35 s ease; .mm-gone takes taps away)
+        void FadeHud(bool on)
+        {
+            foreach (var e in new[] { _hud, _nameEl })
+                if (e != null) Tween.Fade(e, on ? 1f : 0f, 350f, Easing.Ease);
+        }
+
+        void EnterPark()
+        {
+            if (_busy || _walk != null) return;
+            _busy = true;
+            Geo(out float W, out _, out float s, out float ox, out _);
+            const float PAD = 160f; // where the creature stands in the park (the house's pad is at 500)
+            var w = _walk = new ParkWalk { W = W, X0 = ox + 500f * s, X1 = ox + PAD * s };
+            FadeHud(false);
+            _creature.Play("idle");
+            ShowParkPicture();
+            if (_vignette != null) Tween.Fade(_vignette, 0f, 450f, Easing.Ease);
+            // turn left (380 ms), walk left while the camera follows (2300 ms), turn back (380 ms)
+            Tween.Run(View, 380f, (e, t) => _creature.SpinOff(-90f * e), Tween.EIO, () =>
+            {
+                _creature.Walking(true, -90f);
+                Tween.Run(View, 2300f, (e, t) =>
+                {
+                    float scr = w.X0 + (w.X1 - w.X0) * Tween.EOUT(t), cam = w.W * Tween.EIOC(Mathf.Clamp01((t - 0.06f) / 0.94f));
+                    _world.style.translate = new Translate(cam, 0);
+                    if (_creatureEl != null) _creatureEl.style.translate = new Translate(scr - w.X0 - cam, 0);
+                }, null, () =>
+                {
+                    _creature.Walking(false, 0f);
+                    Tween.Run(View, 380f, (e, t) => _creature.SpinOff(-90f * (1f - e)), Tween.EIO, () =>
+                    {
+                        _creature.SpinOff(0f);
+                        _creature.Play("happy");
+                        ShowGames();
+                    });
+                });
+            });
+        }
+
+        void LeavePark()
+        {
+            var w = _walk;
+            if (w == null || w.Leaving) return;
+            w.Leaving = true;
+            HideGames();
+            _creature.Play("idle");
+            Tween.Run(View, 340f, (e, t) => _creature.SpinOff(90f * e), Tween.EIO, () =>
+            {
+                _creature.Walking(true, 90f);
+                Tween.Run(View, 2100f, (e, t) =>
+                {
+                    float scr = w.X1 + (w.X0 - w.X1) * Tween.EIO(t), cam = w.W * (1f - Tween.EIOC(Mathf.Clamp01(t / 0.94f)));
+                    _world.style.translate = new Translate(cam, 0);
+                    if (_creatureEl != null) _creatureEl.style.translate = new Translate(scr - w.X0 - cam, 0);
+                }, null, () =>
+                {
+                    _creature.Walking(false, 0f);
+                    Tween.Run(View, 340f, (e, t) => _creature.SpinOff(90f * (1f - e)), Tween.EIO, () =>
+                    {
+                        _creature.SpinOff(0f);
+                        _world.style.translate = new Translate(0, 0);
+                        if (_creatureEl != null) _creatureEl.style.translate = new Translate(0, 0);
+                        if (_vignette != null) Tween.Fade(_vignette, 1f, 450f, Easing.Ease);
+                        _park?.RemoveFromHierarchy(); _park = null; // its seam tree would show at the house's left edge
+                        _walk = null; _busy = false;
+                        FadeHud(true);
+                        _creature.Play("happy");
+                    });
+                });
+            });
+        }
+
+        // The Game Park's picture, a screen's width to the left of the house, in the world (it pans with it).
+        void ShowParkPicture()
+        {
+            if (_park != null || _layout.park == null) return;
+            int L = Mathf.Clamp(_state.Level, 1, 30);
+            string season = _state.SeasonNow(), key = $"L{L}-{season}";
+            Texture2D tex = null; float d = _layout.park.d, top = _layout.park.top;
+            var d0 = _layout.defaults;
+            if (d0 == null || L != d0.level || season != d0.season)
+            {
+                var item = MenuLayout.Parks.Find(key);
+                var gen = item != null ? MenuLayout.Optional("MenuParks/park-" + key) : null;
+                if (gen != null) { tex = gen; d = item.d; top = item.top; }
+            }
+            if (tex == null) tex = MenuLayout.Picture(_layout.park.image);
+            if (tex == null) return;
+
+            Geo(out float W, out float H, out float s, out float ox, out float oy);
+            float k = 1f / _layout.park.sceneScale;                       // scene units per picture pixel
+            float houseW = _layout.scene.pixels[0] * k * s, houseLeft = (W - houseW) / 2f;
+            _park = new VisualElement { name = "park", pickingMode = PickingMode.Ignore };
+            _park.style.position = Position.Absolute;
+            _park.style.left = houseLeft - W + d * s;
+            _park.style.top = oy + top * s;
+            _park.style.width = tex.width * k * s;
+            _park.style.height = tex.height * k * s;
+            _park.style.backgroundImage = new StyleBackground(tex);
+            _park.style.backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100));
+            // over the house's scene and vignette, under the creature (menu.js: inserted after the scene)
+            int at = _vignette != null ? _world.IndexOf(_vignette) + 1 : 1;
+            _world.Insert(at, _park);
+        }
+
+        // the games carousel over the park (GameParkOverlay): wired in when it's ported
+        void ShowGames() { }
+        void HideGames() { }
+
+        public override bool OnBack()
+        {
+            if (_walk != null) { LeavePark(); return true; }
+            return false;
         }
 
         void AddCrest(VisualElement root, MenuHud hud, HudSpec spec, float W, float H)
@@ -264,10 +433,11 @@ namespace PlushCrush.App.MainMenu
 
         void Tapped(string what)
         {
+            if (_busy) return; // (.mm-gone: no taps while the HUD is faded)
+            if (what == "play") { EnterPark(); return; }
             // Phase 2 wires these to the real screens as they're ported.
             App.Toast(what switch
             {
-                "play" => "PLAY: the Game Park comes in phase 2",
                 "tab-house" => "The house comes in phase 5",
                 "tab-characters" => "Characters comes in phase 3",
                 "tab-shop" or "pill-coins" or "pill-gems" => "The Shop comes in phase 3",

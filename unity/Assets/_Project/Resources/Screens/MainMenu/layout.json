@@ -11,6 +11,7 @@
  },
  "scene": {
   "image": "scene-L1-rainy",
+  "vignette": "vignette",
   "viewBox": [
    1000,
    460
@@ -359,6 +360,12 @@
    ]
   }
  ],
+ "park": {
+  "image": "park-L1-rainy",
+  "d": -71.55556,
+  "top": 0,
+  "sceneScale": 2.347826
+ },
  "weather": {
   "season": "rainy",
   "f": 0,

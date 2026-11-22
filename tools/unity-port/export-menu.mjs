@@ -19,7 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { PNG, REPO, BUILT, MENU_OUT as OUT, W, H, K, needBuild, launch, openMenu, openScenePage, shootScene, shootPart, showAll, sceneAt } from './lib/menu-page.mjs';
+import { PNG, REPO, BUILT, MENU_OUT as OUT, W, H, K, SCENE_SCALE, needBuild, launch, openMenu, openScenePage, shootScene, shootVignette, shootPark, shootPart, showAll, sceneAt } from './lib/menu-page.mjs';
 
 const CHECK = path.join(REPO, 'webgame/test/out/unity-menu-check');
 
@@ -53,14 +53,25 @@ const browser = await launch();
 const layout = { screen: { width: W, height: H, scale: K }, defaults: { creature: 'mittens', level: 1, season: 'rainy' }, scene: null, parts: [], texts: [] };
 
 // ---- 1. the scene: the whole drawing (viewBox 1000 x 460) at the A15's scale for it ----
+// (the menu's own drawing, without its vignette: that's a layer of its own, the same for every scene, faded out while
+//  the Game Park is beside the house; and the Game Park's picture, to the left of the house)
 {
   const { ctx, page, shift } = await openScenePage(browser);
+  const vig = await shootVignette(page);
+  fs.writeFileSync(path.join(OUT, 'vignette.png'), vig);
+  await page.reload(); await page.waitForTimeout(8000);
+  for (let t = 0; t < 9000; t += 500) { await page.clock.runFor(500); await page.waitForTimeout(100); }
+  await page.evaluate(() => { const x = window.SquishMenu._x; x.scene.classList.remove('sq-pic-on', 'sq-pic-hh'); x.scene.querySelectorAll('rect[fill$="Vig)"]').forEach(r => r.remove()); });
   const buf = await shootScene(page);
   const png = PNG.sync.read(buf);
   fs.writeFileSync(path.join(OUT, 'scene-L1-rainy.png'), buf);
-  layout.scene = { image: 'scene-L1-rainy', viewBox: [1000, 460], align: 'xMidYMax slice', pixels: [png.width, png.height], subpixelShift: +shift.toFixed(4), level: 1, season: 'rainy' };
-  console.log(`scene-L1-rainy.png  ${png.width} x ${png.height}`);
+  layout.scene = { image: 'scene-L1-rainy', vignette: 'vignette', viewBox: [1000, 460], align: 'xMidYMax slice', pixels: [png.width, png.height], subpixelShift: +shift.toFixed(4), level: 1, season: 'rainy' };
+  console.log(`scene-L1-rainy.png  ${png.width} x ${png.height} (+ vignette.png)`);
   await ctx.close();
+  const park = await shootPark(browser, 1, 'rainy');
+  fs.writeFileSync(path.join(OUT, 'park-L1-rainy.png'), park.buf);
+  layout.park = { image: 'park-L1-rainy', d: park.d, top: park.top, sceneScale: +SCENE_SCALE.toFixed(6) };
+  console.log(`park-L1-rainy.png (left edge ${park.dPx} px from the park box)`);
 }
 
 // ---- 2. the pieces, at the A15's size ----
@@ -134,6 +145,7 @@ const html = `<!doctype html><html><head><style>
   .t{position:absolute;white-space:nowrap}
 </style></head><body>
 <img src="scene-L1-rainy.png" style="left:${Math.round((W * K - sceneW) / 2)}px;top:0">
+<img src="vignette.png" style="left:${Math.round((W * K - sceneW) / 2)}px;top:0">
 ${layout.parts.map(p => `<img src="${p.image}.png" style="left:${p.px[0]}px;top:${p.px[1]}px">`).join('\n')}
 ${layout.texts.map(t => `<div class="t" style="left:${PX(t.x)}px;top:${PX(t.y)}px;font:${t.weight} ${t.size * K}px ${t.font};letter-spacing:${t.letterSpacing * K}px;line-height:${t.h * K}px;color:${t.color};text-shadow:${t.shadows.map(s => `${s.color} ${s.x * K}px ${s.y * K}px ${s.blur * K}px`).join(',')}">${t.text}</div>`).join('\n')}
 </body></html>`;

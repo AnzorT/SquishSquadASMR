@@ -13,6 +13,7 @@ namespace PlushCrush.App.MainMenu
         public ScreenSpec screen;
         public DefaultsSpec defaults;
         public SceneSpec scene;
+        public ParkSpec park;
         public PartSpec[] parts;
         public TextSpec[] texts;
         public WeatherSpec weather;
@@ -22,10 +23,14 @@ namespace PlushCrush.App.MainMenu
         /// <summary>The state the default pictures show: the reference screenshots' (level 1, rainy, Mittens).</summary>
         [Serializable] public sealed class DefaultsSpec { public string creature, season; public int level; }
 
+        /// <summary>The Game Park's picture (default state): d, top = its left and top edges in scene units, from the
+        /// house picture's left edge minus the screen's width, and from the scene's top; sceneScale = px per unit.</summary>
+        [Serializable] public sealed class ParkSpec { public string image; public float d, top, sceneScale; }
+
         [Serializable]
         public sealed class SceneSpec
         {
-            public string image, align, season;
+            public string image, align, season, vignette;
             public float[] viewBox;
             public int[] pixels;
             public float subpixelShift;
@@ -104,9 +109,11 @@ namespace PlushCrush.App.MainMenu
             public int rar;
             public int[] px;
             public float[] sceneAt;
+            public float d, top; // parks.json
         }
 
-        static ValueIndex _names, _levels, _creatures;
+        static ValueIndex _names, _levels, _creatures, _parks;
+        public static ValueIndex Parks => _parks ??= LoadIndex(Folder + "parks");
         public static ValueIndex Names => _names ??= LoadIndex(Folder + "Names/index");
         public static ValueIndex Levels => _levels ??= LoadIndex(Folder + "Levels/index");
         public static ValueIndex Creatures => _creatures ??= LoadIndex(Folder + "creatures");
