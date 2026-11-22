@@ -262,6 +262,7 @@ namespace PlushCrush.Core.Rig
                 var id = Ref(v);
                 if (id != null && Gradients.TryGetValue(id, out var g)) return new RigPaint { Grad = g };
                 if (id != null && ById.TryGetValue(id, out var gn) && (gn.Tag == "radialGradient" || gn.Tag == "linearGradient")) throw new NotSupportedException("RigTree: gradient " + v);
+                if (id == null || !ById.ContainsKey(id)) return RigPaint.None;   // a reference to nothing (quill's muzzle: 'url(#c)'): the browser paints none
                 throw new NotSupportedException("RigTree: paint " + v + " not ported yet");
             }
             if (RigColor.TryParse(v, out var c)) return new RigPaint { Color = c };
