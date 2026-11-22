@@ -1,5 +1,6 @@
 // The creature rig's data, as webgame/rive-rig.js (and the move files that add to it) has it: every move (STATES) as
-// keyframe tracks per pose channel, the rest pose, the idle fidgets, each creature's squeeze and let-go reactions.
+// keyframe tracks per pose channel, the rest pose, the idle fidgets, each creature's squeeze and let-go reactions, the
+// particle presets (PRE).
 // Exported from the running game by tools/unity-port/rig/record-rig.mjs (rig-states.json); nothing is retyped here.
 using System;
 using System.Collections.Generic;

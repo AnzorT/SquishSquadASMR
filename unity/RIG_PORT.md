@@ -8,19 +8,22 @@ checked number for number against the game itself.
 ## How it's checked
 
 `tools/unity-port/rig/record-rig.mjs <key>` makes a test copy of the built game where rive-rig.js is changed in
-test-only ways (its tick() is reachable, its own frame loop is off, its random draws come from a seeded generator,
-each frame's pose and every attribute it writes to the drawing are reported), loads the real menu page (all move
-files, the remote-config filter), mounts the creature and drives it 60 frames a second for 40 s with scripted moves
-and touches. It writes:
+test-only ways (its tick() is reachable, its own frame loop is off, the random draws of tick() and of the particles
+(emit, drawParts) come from a seeded generator, each frame's pose and every attribute it writes to the drawing are
+reported), loads the real menu page (all move files, the remote-config filter), mounts the creature and drives it 60
+frames a second for 40 s with scripted moves, touches and particles (`emit:<preset>:<where>` steps: every kind). It writes:
 
-- `Art/Generated/Resources/Rig/rig-states.json`: every creature's moves (the game's own data; 12 MB, not in git)
+- `Art/Generated/Resources/Rig/rig-states.json`: every creature's moves and the particle presets (PRE, with the
+  entries other files add; the game's own data; 12 MB, not in git)
 - `Art/Generated/Resources/Rig/geo-<key>.json`: the creature's definition, the geometry mount() precomputes from it
   (parsed outlines, ear sections, fur rings: data, so not ported), and its drawing's element tree
-- `tools/unity-port/rig/out/trace-<key>.json`: per frame, the pose and the drawing's attribute writes
+- `tools/unity-port/rig/out/trace-<key>.json`: per frame, the pose, the drawing's attribute writes and the fx layer's
+  markup (particles and the move's effect)
 
 `tools/unity-port/rig/check` (.NET 8; `dotnet run -c Release -- <rig-states.json> <trace.json> [<geo.json>]`) compiles
 the Unity rig files exactly as they are and replays the trace: every pose channel, and with the geometry, every
-attribute the game wrote to the drawing (path numbers, opacities, stroke widths, ellipses) and the parts' stacking order.
+attribute the game wrote to the drawing (path numbers, opacities, stroke widths, ellipses), the parts' stacking order,
+and the fx layer element by element (tags, attributes, numbers to a rounding step) against the game's markup.
 Record with `--draw-frames 2400` to check the drawing over all 40 s (the trace is then ~44 MB, in `rig/out/`, not in git).
 `HULL_FRAME=<n>` prints the near-ties in the ear outlines at that frame.
 
@@ -33,7 +36,7 @@ Record with `--draw-frames 2400` to check the drawing over all 40 s (the trace i
 | 3 | Unity drawing: the element tree (fills, gradients, clips, the fabric grain) on the GPU; live in the menu | **Done for Mittens**: the draw list, played in software, matches Chrome's screenshots (11 frames: mean 0.7/255, 2% of pixels more than 8/255 off, at outline edges); GPU drawer written, first run in Unity pending |
 | 4 | The other 19 built-in rigs (their own branches of render(): web feet, crests, lobe ears, wings, …) | |
 | 5 | The generic rig (rive-generic.js, ~835 KB of code) for the other 98 creatures | |
-| 6 | Walking gaits (house-walk.js), the light / look / outline layers, particles | |
+| 6 | Walking gaits (house-walk.js), the light / look / outline layers, particles | Particles **done**: emit / drawParts (`RigParticles`, `RigFx`), all 13 kinds, every frame of the 20 rigs the same as the game's markup; the rest to do |
 
 ## The drawing (step 3)
 
@@ -49,7 +52,7 @@ Record with `--draw-frames 2400` to check the drawing over all 40 s (the trace i
   filters), the result in straight alpha for the UI. `RigView` is the live creature in a VisualElement.
 - The check plays the same list in software (`rig/check/RigRaster.cs`: the shader's steps, 4 samples a pixel) and
   compares with Chrome's screenshots of the same frames (`record-rig.mjs --shots 1,450,...`, at the A15's 2.8125 px per
-  dp): what's left is anti-aliasing at outline edges, and the sparkles of the happy move (particles: step 6).
+  dp): what's left is anti-aliasing at outline edges (most where particles are: small shapes, thin strokes).
 - Cost (desktop, one core): tick 0.01 ms, outlines 0.12 ms, draw list 0.10 ms a frame; ~50 commands, ~5,500 vertices.
 - To do: the moves file is 12 MB of JSON parsed into objects at start (a worker thread); a compact per-creature export
   would save memory and time on phones.
@@ -59,6 +62,13 @@ Record with `--draw-frames 2400` to check the drawing over all 40 s (the trace i
 - Quirks of the game are kept (1:1 with what the app does): the soft body's two spring steps are commented out in
   the game (they never move); a quick tap on a creature does nothing (the poke branch is inside a comment).
 - The rig's own random draws come through a delegate: the game's Math.random in the app, a seeded generator in tests.
+- Particles (rive-rig.js PRE, emit, drawParts): a move fires them (an `emit` event, an emit window, a let-go
+  reaction's `em`); each starts where the rig drew that part the frame before (I.W: RigRender.W, handed to the
+  engine as `RigEngine.W`). They live in the engine (pooled) and move at the end of Tick (the game moves them in
+  drawParts, after render, which draws no random numbers, so the order of draws is the same). `RigFx` turns them into
+  the fx layer's shapes (paths, circles, ellipses, groups with a transform and opacity; the dust clouds use the tree's
+  `phz` gradient), before the move's own effect; `RigDisplay` draws them like the tree (a group's opacity on more than
+  one paint is a layer).
 - The renderer (RigRender) writes paths as commands plus numbers already rounded the game's way (r2, JS Math.round),
   not as strings, so a phone isn't making garbage every frame; RigPath.ToString() prints the game's string form for checks.
 - Math.hypot is V8's algorithm (scaled, Kahan-summed), so lengths match to the bit.
