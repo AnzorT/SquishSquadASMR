@@ -102,6 +102,7 @@ static class Program
             bool hasDraw = fr.TryGetValue("draw", out var dw) && dw is Dictionary<string, object>;
             if (Rd != null && f > 0 && (hasDraw || shotFrames.Contains(f))) Rd.Render(P, R, now);
             if (Rd != null && f > 0 && hasDraw) dc.Frame(f, R.CurName, Rd, (Dictionary<string, object>)dw, fr.TryGetValue("order", out var od) ? od as string : null);
+            if (shooter != null && Rd != null && f > 0 && (hasDraw || shotFrames.Contains(f))) shooter.Track();
             if (shooter != null && shotFrames.Contains(f)) shooter.Frame(f, R, Rd, now);
         }
         if (Rd != null) dc.Report();
@@ -299,6 +300,7 @@ sealed class Shots
     }
 
     readonly RigFx _fx = new RigFx();
+    public void Track() => _d.Track();
 
     public void Frame(int f, RigEngine E, RigRender R, double now)
     {

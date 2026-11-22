@@ -128,7 +128,7 @@ namespace PlushCrush.Core.Rig
         }
 
         /// <summary>The stroke: quads along each subpath, joins at its corners, caps on open ends.</summary>
-        public static void Stroke(RigContours c, float width, string cap, string join, float miterLimit, float pxPerUnit, RigMesh m)
+        public static void Stroke(RigContours c, float width, string cap, string join, float miterLimit, float pxPerUnit, RigMesh m, float[] dash = null)
         {
             m.Clear(true);
             float h = width / 2;
@@ -144,13 +144,49 @@ namespace PlushCrush.Core.Rig
                     pts.Add((c.X[i], c.Y[i])); crn.Add(c.Corner[i]);
                 }
                 if (closed && pts.Count > 1) { var f = pts[0]; var l = pts[pts.Count - 1]; if (Math.Abs(f.x - l.x) < 1e-5f && Math.Abs(f.y - l.y) < 1e-5f) { pts.RemoveAt(pts.Count - 1); crn.RemoveAt(crn.Count - 1); } }
+                if (dash != null && pts.Count > 1) { Dashes(m, pts, crn, closed, h, dash, cap, join, miterLimit, pxPerUnit); continue; }
+                Poly(m, pts, crn, closed, h, cap, join, miterLimit, pxPerUnit);
+            }
+        }
+
+        static readonly List<(float x, float y)> _dp = new List<(float x, float y)>(64);
+        static readonly List<bool> _dc = new List<bool>(64);
+
+        /// <summary>stroke-dasharray: the polyline cut into its dashes (from its start, offset 0), each stroked open with caps.</summary>
+        static void Dashes(RigMesh m, List<(float x, float y)> pts, List<bool> crn, bool closed, float h, float[] dash, string cap, string join, float miterLimit, float pxPerUnit)
+        {
+            float total = 0; foreach (var d in dash) total += d;
+            if (!(total > 0)) { Poly(m, pts, crn, closed, h, cap, join, miterLimit, pxPerUnit); return; }
+            int k = 0; float left = dash[0]; bool on = true;
+            _dp.Clear(); _dc.Clear(); _dp.Add(pts[0]); _dc.Add(true);
+            int n = pts.Count, segs = closed ? n : n - 1;
+            for (int i = 0; i < segs; i++)
+            {
+                var a = pts[i]; var b = pts[(i + 1) % n];
+                float dx = b.x - a.x, dy = b.y - a.y, L = (float)Math.Sqrt(dx * dx + dy * dy), t = 0;
+                while (L - t > left)
+                {
+                    t += left; float px = a.x + dx * t / L, py = a.y + dy * t / L;
+                    if (on) { _dp.Add((px, py)); _dc.Add(true); if (_dp.Count > 1) Poly(m, _dp, _dc, false, h, cap, join, miterLimit, pxPerUnit); }
+                    on = !on; k = (k + 1) % dash.Length; left = dash[k];
+                    _dp.Clear(); _dc.Clear(); if (on) { _dp.Add((px, py)); _dc.Add(true); }
+                }
+                left -= L - t;
+                if (on) { _dp.Add(b); _dc.Add(crn[(i + 1) % n]); }
+            }
+            if (on && _dp.Count > 1) Poly(m, _dp, _dc, false, h, cap, join, miterLimit, pxPerUnit);
+        }
+
+        static void Poly(RigMesh m, List<(float x, float y)> pts, List<bool> crn, bool closed, float h, string cap, string join, float miterLimit, float pxPerUnit)
+        {
+            {
                 int n = pts.Count;
-                if (n == 0) continue;
+                if (n == 0) return;
                 if (n == 1)
                 {   // a zero-length subpath: a dot with round or square caps
                     if (cap == "round") Disc(m, pts[0].x, pts[0].y, h, pxPerUnit);
                     else if (cap == "square") Quad(m, pts[0].x - h, pts[0].y - h, pts[0].x + h, pts[0].y - h, pts[0].x + h, pts[0].y + h, pts[0].x - h, pts[0].y + h);
-                    continue;
+                    return;
                 }
                 int segs = closed ? n : n - 1;
                 for (int i = 0; i < segs; i++)

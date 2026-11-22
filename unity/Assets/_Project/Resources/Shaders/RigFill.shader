@@ -5,7 +5,7 @@
 // drawn into their own texture and laid back with the Composite pass. The check's software copy is
 // tools/unity-port/rig/check/RigRaster.cs: keep the two the same.
 //
-// Passes: 0 FanNonzero, 1 FanUnion, 2 Cover, 3 ClipSet, 4 ClipPopDecr, 5 ClearLow, 6 Composite, 7 Straight
+// Passes: 0 FanNonzero, 1 FanUnion, 2 Cover, 3 ClipSet, 4 ClipPopDecr, 5 ClearLow, 6 Composite, 7 Straight, 8 Blur
 // The stencil reference comes from the material (render state can't come from a property block): RigDrawer keeps
 // one material per reference value.
 Shader "Hidden/PlushCrush/RigFill"
@@ -21,8 +21,9 @@ Shader "Hidden/PlushCrush/RigFill"
 
     float4x4 _RigToClip;      // rig units -> clip space (with the platform's render-texture flip)
     float4 _TargetSize;       // w, h, 1/w, 1/h in pixels
-    float _UseBox;            // 1: the mesh is a unit quad stretched over _Box (rig units)
+    float _UseBox;            // 1: the mesh is a unit quad stretched over _Box (its own units)
     float4 _Box;
+    float4 _Xf0, _Xf1;        // its units -> rig units: x' = dot(_Xf0.xyz, (x, y, 1)), y' = dot(_Xf1.xyz, (x, y, 1))
 
     float _PaintType;         // 0 a colour, 1 radial gradient, 2 linear gradient
     float4 _Color;            // straight alpha
@@ -31,11 +32,14 @@ Shader "Hidden/PlushCrush/RigFill"
     float _GUser;             // 1: userSpaceOnUse
     float4 _GRad;             // cx, cy, r
     float4 _GLin;             // x1, y1, x2, y2
+    float4 _GInv0, _GInv1;    // the inverse of the gradient's own transform (gradientTransform), same form as _Xf
     float4 _GOff;             // up to four stop offsets
     float4 _GCol0, _GCol1, _GCol2, _GCol3;   // stop colours, straight alpha
     float _GN;
 
     sampler2D _Layer;
+    sampler2D _Mask; float _UseMask;   // a mask layer: its luminance multiplies the layer
+    float4 _BlurDir;          // blur pass: (1/w, 0) or (0, 1/h), sigma in pixels in z
     float _Opacity;
     float _Fabric;
     sampler2D _Grain;
@@ -48,8 +52,9 @@ Shader "Hidden/PlushCrush/RigFill"
     {
         v2f o;
         float2 p = _UseBox > 0.5 ? lerp(_Box.xy, _Box.zw, v.vertex.xy) : v.vertex.xy;
-        o.pos = mul(_RigToClip, float4(p, 0, 1));
-        o.rig = p;
+        float2 q = float2(dot(_Xf0.xyz, float3(p, 1)), dot(_Xf1.xyz, float3(p, 1)));
+        o.pos = mul(_RigToClip, float4(q, 0, 1));
+        o.rig = p;   // the paint is worked out in the shape's own units
         return o;
     }
 
@@ -73,6 +78,7 @@ Shader "Hidden/PlushCrush/RigFill"
     {
         if (_PaintType < 0.5) return pm(_Color) * _Alpha;
         float2 uv = _GUser > 0.5 ? p : (p - _GBox.xy) / (_GBox.zw - _GBox.xy);
+        uv = float2(dot(_GInv0.xyz, float3(uv, 1)), dot(_GInv1.xyz, float3(uv, 1)));
         float t;
         if (_PaintType < 1.5) t = length(uv - _GRad.xy) / _GRad.z;
         else { float2 e = _GLin.zw - _GLin.xy; float L = dot(e, e); t = L > 0 ? dot(uv - _GLin.xy, e) / L : 0; }
@@ -104,9 +110,26 @@ Shader "Hidden/PlushCrush/RigFill"
 
     float4 fragComposite(v2f i) : SV_Target
     {
-        float4 c = tex2D(_Layer, i.pos.xy * _TargetSize.zw);
+        float2 uv = i.pos.xy * _TargetSize.zw;
+        float4 c = tex2D(_Layer, uv);
+        if (_UseMask > 0.5) { float4 m = tex2D(_Mask, uv); c *= 0.2125 * m.r + 0.7154 * m.g + 0.0721 * m.b; }   // premultiplied: luminance x alpha
         if (_Fabric > 0.5) c = fabric(c, grainAt(i.rig));
         return c * _Opacity;
+    }
+
+    // feGaussianBlur, one direction (premultiplied; 3 sigma each side, as the check's software copy)
+    float4 fragBlur(v2f i) : SV_Target
+    {
+        float2 uv = i.pos.xy * _TargetSize.zw;
+        float sigma = _BlurDir.z; int r = (int)ceil(sigma * 3);
+        float4 acc = 0; float sum = 0;
+        for (int k = -48; k <= 48; k++)
+        {
+            if (k < -r || k > r) continue;
+            float w = exp(-k * k / (2 * sigma * sigma));
+            acc += tex2D(_Layer, uv + _BlurDir.xy * k) * w; sum += w;
+        }
+        return acc / sum;
     }
 
     float4 fragStraight(v2f i) : SV_Target
@@ -190,6 +213,14 @@ Shader "Hidden/PlushCrush/RigFill"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment fragStraight
+            ENDHLSL
+        }
+        Pass // 8 Blur: one direction of a Gaussian blur, into a plain texture
+        {
+            Blend Off
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment fragBlur
             ENDHLSL
         }
     }

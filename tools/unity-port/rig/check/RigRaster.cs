@@ -35,25 +35,32 @@ sealed class RigRaster
             switch (c.Kind)
             {
                 case RigCmdKind.Draw:
-                    Fan(T, c.Mesh, T.Level);
-                    Cover(T, c.Mesh, (byte)(T.Level << 4), (x, y) => RigDisplay.Shade(c, x, y));
+                {
+                    Fan(T, c.Mesh, c.Xf, T.Level);
+                    var inv = c.Xf.Inverse();
+                    Cover(T, c.Mesh, c.Xf, (byte)(T.Level << 4), (x, y) => { var q = inv.Apply(x, y); return RigDisplay.Shade(c, q.x, q.y); });
                     break;
+                }
                 case RigCmdKind.PushClip:
-                    Fan(T, c.Mesh, T.Level);
-                    ForBox(c.Mesh, (i) => { if (T.St[i] > (T.Level << 4)) T.St[i] = (byte)((T.Level + 1) << 4); });
+                    Fan(T, c.Mesh, c.Xf, T.Level);
+                    ForBox(c.Mesh, c.Xf, (i) => { if (T.St[i] > (T.Level << 4)) T.St[i] = (byte)((T.Level + 1) << 4); });
                     T.Level++;
                     break;
                 case RigCmdKind.PopClip:
-                    ForBox(c.Mesh, (i) => { if ((T.St[i] & 0xF0) == (T.Level << 4)) T.St[i] = (byte)((T.Level - 1) << 4); });
+                    ForBox(c.Mesh, c.Xf, (i) => { if ((T.St[i] & 0xF0) == (T.Level << 4)) T.St[i] = (byte)((T.Level - 1) << 4); });
                     T.Level--;
                     break;
                 case RigCmdKind.PushLayer:
+                case RigCmdKind.MaskBegin:
                     _stack.Push(New());
                     break;
                 case RigCmdKind.PopLayer:
+                {
+                    var M = c.Masked ? _stack.Pop() : null;
                     var L = _stack.Pop(); var P = _stack.Peek();
-                    Composite(L, P, c);
+                    Composite(L, M, P, c);
                     break;
+                }
             }
         }
         var R = _stack.Pop(); var o = new float[W * H * 4];
@@ -61,17 +68,45 @@ sealed class RigRaster
         return o;
     }
 
-    void Composite(Target L, Target P, RigCmd c)
+    /// <summary>A target resolved to pixels (premultiplied RGBA).</summary>
+    float[] Resolve(Target L)
+    {
+        var o = new float[W * H * 4];
+        for (int p = 0; p < W * H; p++) for (int ch = 0; ch < 4; ch++) { float s = 0; for (int k = 0; k < S; k++) s += L.C[(p * S + k) * 4 + ch]; o[p * 4 + ch] = s / S; }
+        return o;
+    }
+
+    /// <summary>feGaussianBlur: a separable Gaussian (sigma in pixels, 3 sigma each side) on premultiplied pixels.</summary>
+    float[] Blur(float[] src, float sigma)
+    {
+        int r = Math.Max(1, (int)Math.Ceiling(sigma * 3)); var w = new float[2 * r + 1]; float sum = 0;
+        for (int i = -r; i <= r; i++) { w[i + r] = (float)Math.Exp(-i * i / (2.0 * sigma * sigma)); sum += w[i + r]; }
+        for (int i = 0; i < w.Length; i++) w[i] /= sum;
+        var tmp = new float[src.Length]; var o = new float[src.Length];
+        for (int y = 0; y < H; y++) for (int x = 0; x < W; x++) for (int ch = 0; ch < 4; ch++)
+        { float acc = 0; for (int i = -r; i <= r; i++) { int xx = x + i; if (xx < 0 || xx >= W) continue; acc += src[(y * W + xx) * 4 + ch] * w[i + r]; } tmp[(y * W + x) * 4 + ch] = acc; }
+        for (int y = 0; y < H; y++) for (int x = 0; x < W; x++) for (int ch = 0; ch < 4; ch++)
+        { float acc = 0; for (int i = -r; i <= r; i++) { int yy = y + i; if (yy < 0 || yy >= H) continue; acc += tmp[(yy * W + x) * 4 + ch] * w[i + r]; } o[(y * W + x) * 4 + ch] = acc; }
+        return o;
+    }
+
+    void Composite(Target L, Target M, Target P, RigCmd c)
     {
         byte lvl = (byte)(P.Level << 4);
+        var px = Resolve(L); var mk = M != null ? Resolve(M) : null;
+        if (c.Filter != null && c.Filter.Blur) px = Blur(px, c.Filter.Sigma * _k);
+        // the area laid back (the filter region): pixel centres inside it
+        float rx0 = c.RX0 * _k + _ox, ry0 = c.RY0 * _k + _oy, rx1 = c.RX1 * _k + _ox, ry1 = c.RY1 * _k + _oy;
         for (int y = 0; y < H; y++)
             for (int x = 0; x < W; x++)
             {
-                int p = y * W + x; float r = 0, g = 0, b = 0, a = 0;
-                for (int k = 0; k < S; k++) { int q = (p * S + k) * 4; r += L.C[q]; g += L.C[q + 1]; b += L.C[q + 2]; a += L.C[q + 3]; }
+                if (x + 0.5f < rx0 || x + 0.5f > rx1 || y + 0.5f < ry0 || y + 0.5f > ry1) continue;
+                int p = y * W + x;
+                float a = px[p * 4 + 3];
                 if (a <= 0) continue;
-                var col = new RigColor(r / S, g / S, b / S, a / S);
-                if (c.Filter != null)
+                var col = new RigColor(px[p * 4], px[p * 4 + 1], px[p * 4 + 2], a);
+                if (mk != null) { float m = RigDisplay.Luminance(new RigColor(mk[p * 4], mk[p * 4 + 1], mk[p * 4 + 2], mk[p * 4 + 3])); col = new RigColor(col.R * m, col.G * m, col.B * m, col.A * m); }
+                if (c.Filter != null && !c.Filter.Blur)
                 {
                     float rx = (x + 0.5f - _ox) / _k, ry = (y + 0.5f - _oy) / _k;
                     col = RigDisplay.Fabric(col, Grain((rx - c.Filter.X) / c.Filter.W, (ry - c.Filter.Y) / c.Filter.H));
@@ -101,22 +136,25 @@ sealed class RigRaster
         C[q] = s.R + C[q] * k; C[q + 1] = s.G + C[q + 1] * k; C[q + 2] = s.B + C[q + 2] * k; C[q + 3] = s.A + C[q + 3] * k;
     }
 
-    void Box(RigMesh m, out int x0, out int y0, out int x1, out int y1)
+    void Box(RigMesh m, RigXf xf, out int x0, out int y0, out int x1, out int y1)
     {
-        x0 = Math.Max(0, (int)Math.Floor(m.MinX * _k + _ox) - 1); y0 = Math.Max(0, (int)Math.Floor(m.MinY * _k + _oy) - 1);
-        x1 = Math.Min(W - 1, (int)Math.Ceiling(m.MaxX * _k + _ox) + 1); y1 = Math.Min(H - 1, (int)Math.Ceiling(m.MaxY * _k + _oy) + 1);
+        float a0 = float.MaxValue, b0 = float.MaxValue, a1 = float.MinValue, b1 = float.MinValue;
+        foreach (var (u, v) in new[] { (m.MinX, m.MinY), (m.MaxX, m.MinY), (m.MaxX, m.MaxY), (m.MinX, m.MaxY) })
+        { var q = xf.Apply(u, v); a0 = Math.Min(a0, q.x); b0 = Math.Min(b0, q.y); a1 = Math.Max(a1, q.x); b1 = Math.Max(b1, q.y); }
+        x0 = Math.Max(0, (int)Math.Floor(a0 * _k + _ox) - 1); y0 = Math.Max(0, (int)Math.Floor(b0 * _k + _oy) - 1);
+        x1 = Math.Min(W - 1, (int)Math.Ceiling(a1 * _k + _ox) + 1); y1 = Math.Min(H - 1, (int)Math.Ceiling(b1 * _k + _oy) + 1);
     }
 
-    void ForBox(RigMesh m, Action<int> f)
+    void ForBox(RigMesh m, RigXf xf, Action<int> f)
     {
-        Box(m, out int x0, out int y0, out int x1, out int y1);
+        Box(m, xf, out int x0, out int y0, out int x1, out int y1);
         for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) for (int k = 0; k < S; k++) f((y * W + x) * S + k);
     }
 
     /// <summary>The cover pass: where this level's low bits say "inside", shade and clear them.</summary>
-    void Cover(Target T, RigMesh m, byte lvl, Func<float, float, RigColor> shade)
+    void Cover(Target T, RigMesh m, RigXf xf, byte lvl, Func<float, float, RigColor> shade)
     {
-        Box(m, out int x0, out int y0, out int x1, out int y1);
+        Box(m, xf, out int x0, out int y0, out int x1, out int y1);
         for (int y = y0; y <= y1; y++)
             for (int x = x0; x <= x1; x++)
             {
@@ -129,13 +167,14 @@ sealed class RigRaster
     }
 
     /// <summary>The stencil pass: count windings (or mark, for a union) in the low bits, inside the current clip level.</summary>
-    void Fan(Target T, RigMesh m, int level)
+    void Fan(Target T, RigMesh m, RigXf xf, int level)
     {
         byte lv = (byte)(level << 4);
         for (int t = 0; t < m.NT; t += 3)
         {
             int ia = m.T[t], ib = m.T[t + 1], ic = m.T[t + 2];
-            double ax = m.V[ia * 2] * _k + _ox, ay = m.V[ia * 2 + 1] * _k + _oy, bx = m.V[ib * 2] * _k + _ox, by = m.V[ib * 2 + 1] * _k + _oy, cx = m.V[ic * 2] * _k + _ox, cy = m.V[ic * 2 + 1] * _k + _oy;
+            var A = xf.Apply(m.V[ia * 2], m.V[ia * 2 + 1]); var B = xf.Apply(m.V[ib * 2], m.V[ib * 2 + 1]); var Cc = xf.Apply(m.V[ic * 2], m.V[ic * 2 + 1]);
+            double ax = A.x * _k + _ox, ay = A.y * _k + _oy, bx = B.x * _k + _ox, by = B.y * _k + _oy, cx = Cc.x * _k + _ox, cy = Cc.y * _k + _oy;
             double area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
             if (area == 0) continue;
             int dir = area > 0 ? 1 : -1;

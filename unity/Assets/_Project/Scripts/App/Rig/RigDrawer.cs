@@ -16,7 +16,7 @@ namespace PlushCrush.App.Rig
 {
     public sealed class RigDrawer : IDisposable
     {
-        const int PFanNonzero = 0, PFanUnion = 1, PCover = 2, PClipSet = 3, PClipPopDecr = 4, PClearLow = 5, PComposite = 6, PStraight = 7;
+        const int PFanNonzero = 0, PFanUnion = 1, PCover = 2, PClipSet = 3, PClipPopDecr = 4, PClearLow = 5, PComposite = 6, PStraight = 7, PBlur = 8;
 
         /// <summary>The drawing, straight alpha, for a UI background.</summary>
         public RenderTexture Output { get; private set; }
@@ -32,6 +32,7 @@ namespace PlushCrush.App.Rig
         readonly CommandBuffer _cmd = new CommandBuffer { name = "Rig" };
         readonly int[] _level = new int[16];
         Mesh _quad;
+        RenderTexture _blurA, _blurB;   // a blur's two passes (plain textures)
         RenderTextureDescriptor _desc;
         float _k, _ox, _oy;
 
@@ -39,7 +40,9 @@ namespace PlushCrush.App.Rig
             IdBox = Shader.PropertyToID("_Box"), IdPaintType = Shader.PropertyToID("_PaintType"), IdColor = Shader.PropertyToID("_Color"), IdAlpha = Shader.PropertyToID("_Alpha"),
             IdGBox = Shader.PropertyToID("_GBox"), IdGUser = Shader.PropertyToID("_GUser"), IdGRad = Shader.PropertyToID("_GRad"), IdGLin = Shader.PropertyToID("_GLin"),
             IdGOff = Shader.PropertyToID("_GOff"), IdGN = Shader.PropertyToID("_GN"), IdLayer = Shader.PropertyToID("_Layer"), IdOpacity = Shader.PropertyToID("_Opacity"),
-            IdFabric = Shader.PropertyToID("_Fabric"), IdGrain = Shader.PropertyToID("_Grain"), IdGrainRect = Shader.PropertyToID("_GrainRect"), IdRef = Shader.PropertyToID("_Ref");
+            IdFabric = Shader.PropertyToID("_Fabric"), IdGrain = Shader.PropertyToID("_Grain"), IdGrainRect = Shader.PropertyToID("_GrainRect"), IdRef = Shader.PropertyToID("_Ref"),
+            IdXf0 = Shader.PropertyToID("_Xf0"), IdXf1 = Shader.PropertyToID("_Xf1"), IdGInv0 = Shader.PropertyToID("_GInv0"), IdGInv1 = Shader.PropertyToID("_GInv1"),
+            IdMask = Shader.PropertyToID("_Mask"), IdUseMask = Shader.PropertyToID("_UseMask"), IdBlurDir = Shader.PropertyToID("_BlurDir");
         static readonly int[] IdGCol = { Shader.PropertyToID("_GCol0"), Shader.PropertyToID("_GCol1"), Shader.PropertyToID("_GCol2"), Shader.PropertyToID("_GCol3") };
 
         public RigDrawer(Shader shader, Texture grain)
@@ -112,15 +115,22 @@ namespace PlushCrush.App.Rig
         Vector4 MeshBox(RigMesh m) => new Vector4(m.MinX, m.MinY, m.MaxX, m.MaxY);
         Vector4 FullBox => new Vector4(-_ox / _k, -_oy / _k, (Width - _ox) / _k, (Height - _oy) / _k);
 
-        void Quad(int pass, int stencilRef, Vector4 box)
+        void Xf(RigXf x)
         {
-            _p.SetFloat(IdUseBox, 1); _p.SetVector(IdBox, box);
+            _p.SetVector(IdXf0, new Vector4(x.A, x.C, x.E, 0)); _p.SetVector(IdXf1, new Vector4(x.B, x.D, x.F, 0));
+        }
+
+        void Quad(int pass, int stencilRef, Vector4 box) => Quad(pass, stencilRef, box, RigXf.Identity);
+
+        void Quad(int pass, int stencilRef, Vector4 box, RigXf xf)
+        {
+            _p.SetFloat(IdUseBox, 1); _p.SetVector(IdBox, box); Xf(xf);
             _cmd.DrawMesh(_quad, Matrix4x4.identity, Mat(stencilRef), 0, pass, _p);
         }
 
-        void Fan(RigMesh m, int level)
+        void Fan(RigMesh m, int level, RigXf xf)
         {
-            _p.Clear(); _p.SetFloat(IdUseBox, 0);
+            _p.Clear(); _p.SetFloat(IdUseBox, 0); Xf(xf);
             _cmd.DrawMesh(Upload(m), Matrix4x4.identity, Mat(m.Union ? (level << 4) | 1 : level << 4), 0, m.Union ? PFanUnion : PFanNonzero, _p);
         }
 
@@ -131,6 +141,7 @@ namespace PlushCrush.App.Rig
             if (p.Grad == null) { _p.SetFloat(IdPaintType, 0); _p.SetVector(IdColor, new Vector4(p.Color.R, p.Color.G, p.Color.B, p.Color.A)); return; }
             var g = p.Grad;
             _p.SetFloat(IdPaintType, g.Radial ? 1 : 2);
+            _p.SetVector(IdGInv0, new Vector4(g.Inv.A, g.Inv.C, g.Inv.E, 0)); _p.SetVector(IdGInv1, new Vector4(g.Inv.B, g.Inv.D, g.Inv.F, 0));
             _p.SetVector(IdGBox, new Vector4(c.GX0, c.GY0, c.GX1, c.GY1));
             _p.SetFloat(IdGUser, g.UserSpace ? 1 : 0);
             _p.SetVector(IdGRad, new Vector4(g.Cx, g.Cy, g.R, 0));
@@ -162,33 +173,43 @@ namespace PlushCrush.App.Rig
                 switch (c.Kind)
                 {
                     case RigCmdKind.Draw:
-                        Fan(c.Mesh, L);
-                        _p.Clear(); Paint(c); Quad(PCover, L << 4, MeshBox(c.Mesh));
+                        Fan(c.Mesh, L, c.Xf);
+                        _p.Clear(); Paint(c); Quad(PCover, L << 4, MeshBox(c.Mesh), c.Xf);
                         break;
                     case RigCmdKind.PushClip:
                         if (L >= 15) throw new InvalidOperationException("RigDrawer: clips nested past 15");
-                        Fan(c.Mesh, L);
-                        _p.Clear(); Quad(PClipSet, (L + 1) << 4, MeshBox(c.Mesh));
+                        Fan(c.Mesh, L, c.Xf);
+                        _p.Clear(); Quad(PClipSet, (L + 1) << 4, MeshBox(c.Mesh), c.Xf);
                         _level[d] = L + 1;
                         break;
                     case RigCmdKind.PopClip:
-                        _p.Clear(); Quad(PClipPopDecr, L << 4, MeshBox(c.Mesh)); Quad(PClearLow, (L - 1) << 4, MeshBox(c.Mesh));
+                        _p.Clear(); Quad(PClipPopDecr, L << 4, MeshBox(c.Mesh), c.Xf); Quad(PClearLow, (L - 1) << 4, MeshBox(c.Mesh), c.Xf);
                         _level[d] = L - 1;
                         break;
                     case RigCmdKind.PushLayer:
+                    case RigCmdKind.MaskBegin:
                         d++; _level[d] = 0;
                         Begin(Target(d));
                         break;
                     case RigCmdKind.PopLayer:
+                    {
+                        RenderTexture mask = null;
+                        if (c.Masked) { mask = Target(d); d--; _cmd.ResolveAntiAliasedSurface(mask); }
                         var layer = Target(d); d--;
                         _cmd.ResolveAntiAliasedSurface(layer);
+                        Texture src = layer;
+                        if (c.Filter != null && c.Filter.Blur) src = Blur(layer, c.Filter.Sigma * _k);
                         Resume(Target(d));
-                        _cmd.SetGlobalTexture(IdLayer, layer);
+                        _cmd.SetGlobalTexture(IdLayer, src);
                         _p.Clear(); _p.SetFloat(IdOpacity, c.Opacity);
-                        _p.SetFloat(IdFabric, c.Filter != null ? 1 : 0);
-                        if (c.Filter != null) _p.SetVector(IdGrainRect, new Vector4(c.Filter.X, c.Filter.Y, c.Filter.W, c.Filter.H));
-                        Quad(PComposite, _level[d] << 4, FullBox);
+                        _p.SetFloat(IdUseMask, mask != null ? 1 : 0);
+                        if (mask != null) _cmd.SetGlobalTexture(IdMask, mask);
+                        bool fabric = c.Filter != null && !c.Filter.Blur;
+                        _p.SetFloat(IdFabric, fabric ? 1 : 0);
+                        if (fabric) _p.SetVector(IdGrainRect, new Vector4(c.Filter.X, c.Filter.Y, c.Filter.W, c.Filter.H));
+                        Quad(PComposite, _level[d] << 4, new Vector4(c.RX0, c.RY0, c.RX1, c.RY1));   // the filter region
                         break;
+                    }
                 }
             }
             var main = Target(0);
@@ -201,6 +222,24 @@ namespace PlushCrush.App.Rig
         }
 
         // multisampled surfaces are kept (Store) when another target is drawn into, and resolved when sampled
+        /// <summary>A Gaussian blur of a resolved layer (sigma in pixels): horizontal into one texture, vertical into another.</summary>
+        Texture Blur(RenderTexture src, float sigmaPx)
+        {
+            if (_blurA == null)
+            {
+                var d = new RenderTextureDescriptor(Width, Height, GraphicsFormat.R8G8B8A8_UNorm, 0) { msaaSamples = 1, useMipMap = false };
+                _blurA = new RenderTexture(d) { name = "RigBlurA", filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp }; _blurA.Create();
+                _blurB = new RenderTexture(d) { name = "RigBlurB", filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp }; _blurB.Create();
+            }
+            _cmd.SetRenderTarget(_blurA); _cmd.ClearRenderTarget(false, true, Color.clear);
+            _cmd.SetGlobalTexture(IdLayer, src);
+            _p.Clear(); _p.SetVector(IdBlurDir, new Vector4(1f / Width, 0, sigmaPx, 0)); Quad(PBlur, 0, FullBox);
+            _cmd.SetRenderTarget(_blurB); _cmd.ClearRenderTarget(false, true, Color.clear);
+            _cmd.SetGlobalTexture(IdLayer, _blurA);
+            _p.Clear(); _p.SetVector(IdBlurDir, new Vector4(0, 1f / Height, sigmaPx, 0)); Quad(PBlur, 0, FullBox);
+            return _blurB;
+        }
+
         void Begin(RenderTexture rt)
         {
             _cmd.SetRenderTarget(rt, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
@@ -214,6 +253,8 @@ namespace PlushCrush.App.Rig
         {
             foreach (var t in _targets) if (t != null) { t.Release(); UnityEngine.Object.Destroy(t); }
             _targets.Clear();
+            foreach (var t in new[] { _blurA, _blurB }) if (t != null) { t.Release(); UnityEngine.Object.Destroy(t); }
+            _blurA = _blurB = null;
             if (Output != null) { Output.Release(); UnityEngine.Object.Destroy(Output); Output = null; }
             Width = Height = 0;
         }
