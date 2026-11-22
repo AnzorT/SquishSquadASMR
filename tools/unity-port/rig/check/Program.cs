@@ -3,6 +3,7 @@
 // geometry, also draws each frame with RigRender and compares every attribute the game wrote to its drawing and the
 // parts' stacking order (path numbers: the game rounds to hundredths, so a value a hair from a half can round the other
 // way - those are counted apart; anything further off is a difference).
+// A generic creature's geometry (record-generic.mjs: "generic": true) is drawn with RigGeneric instead (Generic.cs).
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -35,14 +36,16 @@ static class Program
         var data = RigData.FromJson(File.ReadAllText(args[0]));
         var trace = (Dictionary<string, object>)MiniJson.Parse(File.ReadAllText(args[1]));
         string key = (string)trace["key"];
+        var geoRoot = args.Length > 2 ? (Dictionary<string, object>)MiniJson.Parse(File.ReadAllText(args[2])) : null;
+        RigGeneric Gn = geoRoot != null && RigGenericGeo.IsGeneric(geoRoot) ? Generic.Make(data, geoRoot, args[2], key) : null;
         double t0 = (double)trace["t0"], fps = (double)trace["fps"];
         var script = ((List<object>)trace["script"]).Cast<List<object>>().ToDictionary(e => (int)(double)e[0], e => (string)e[1]);
         var frames = ((List<object>)trace["frames"]).Cast<Dictionary<string, object>>().ToList();
         var rnd = new RigRandom(0x1f2e3d4c);
         int draws = 0;
-        var R = new RigEngine(data, key, t0, () => { draws++; return rnd.Next(); }) { Generic = false };
+        var R = new RigEngine(data, key, t0, () => { draws++; return rnd.Next(); }) { Generic = Gn != null };
         int bad = 0; double worst = 0; string worstAt = "";
-        RigGeo geo = args.Length > 2 ? RigGeo.FromJson(File.ReadAllText(args[2])) : null;
+        RigGeo geo = geoRoot != null && Gn == null ? RigGeo.FromJson(File.ReadAllText(args[2])) : null;
         // RIG_PARTIAL=1: while porting, draw what's ported and report the rest instead of refusing the creature
         RigRender.AllowPartial = Environment.GetEnvironmentVariable("RIG_PARTIAL") == "1";
         if (geo != null && RigRender.Unported(geo) is string why) Console.WriteLine((RigRender.AllowPartial ? "partial: " : "") + "not ported yet: " + why);
@@ -52,6 +55,11 @@ static class Program
         var shotFrames = shots != null ? new HashSet<int>(((List<object>)shots["frames"]).Select(o => (int)(double)o)) : new HashSet<int>();
         Shots shooter = shots != null && Rd != null && Environment.GetEnvironmentVariable("RIG_NOSHOTS") != "1" ? Shots.Make(shots, geo, Rd, Path.GetDirectoryName(Path.GetFullPath(args[1])), key, Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[2])), "fabric.png")) : null;
         if (Rd != null) R.FromM = Rd.FromM;
+        if (Gn != null) { R.FromM = Gn.FromM; if (shots != null && Environment.GetEnvironmentVariable("RIG_NOSHOTS") != "1") shooter = Shots.Make(shots, geoRoot, Gn, Path.GetDirectoryName(Path.GetFullPath(args[1])), key, Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[2])), "fabric.png")); }
+        var gc = Gn != null ? new Generic(Gn) : null;
+        // the generic rig's mount ticks before its art has loaded (nothing drawn): the trace's 'pre'
+        if (Gn != null && trace.TryGetValue("pre", out var pre0) && pre0 is List<object> pre)
+            foreach (Dictionary<string, object> pr in pre) bad += Generic.Pose("pre", R.Tick(t0, 0.016), pr["P"] as Dictionary<string, object>);
         var dc = new DrawCheck();
         int dbgFrame = Environment.GetEnvironmentVariable("HULL_FRAME") is string hf ? int.Parse(hf) : -1, curF = 0;
         if (Rd != null && dbgFrame >= 0) Rd.EarPointsHook = (ear, pts) =>
@@ -101,23 +109,34 @@ static class Program
             if ((ms == null) != (R.Ms == null)) { if (bad++ < 12) Console.WriteLine($"frame {f}: stretch {(R.Ms == null ? "missing in mine" : "only in mine")}"); }
             else if (ms != null) { Cmp("ms.s", R.Ms.S, ms["s"]); Cmp("ms.c", R.Ms.C, ms["c"]); Cmp("ms.n", R.Ms.N, ms["n"]); }
             bool hasDraw = fr.TryGetValue("draw", out var dw) && dw is Dictionary<string, object>;
+            if (Gn != null)
+            {   // the generic rig: drawn every frame, as in the game (render() keeps state: I._lt, I.dj); every drawn frame
+                // compared, frame 0 too (its first frame: setup() draws it at once)
+                Gn.Render(P, R, now);
+                if (hasDraw) gc.Frame(f, R.CurName, dc, (Dictionary<string, object>)dw, fr);
+                if (shooter != null) shooter.Track();
+                if (shooter != null && shotFrames.Contains(f)) shooter.Frame(f, R, now);
+                continue;
+            }
             // frame 0 is drawn too (the game's mount runs a frame; pools write everything on their first frame), not compared
             if (Rd != null && (f == 0 || hasDraw || shotFrames.Contains(f))) Rd.Render(P, R, now);
             if (Rd != null && f > 0 && hasDraw) dc.Frame(f, R.CurName, Rd, (Dictionary<string, object>)dw, fr.TryGetValue("order", out var od) ? od as string : null);
             if (shooter != null && Rd != null && f > 0 && (hasDraw || shotFrames.Contains(f))) shooter.Track();
             if (shooter != null && shotFrames.Contains(f)) shooter.Frame(f, R, Rd, now);
         }
-        if (Rd != null) dc.Report();
+        if (Rd != null || Gn != null) dc.Report();
+        if (gc != null) bad += gc.Report();
         if (Rd != null && Environment.GetEnvironmentVariable("RIG_PERF") == "1") Perf(data, key, geo, t0, fps);
+        if (Gn != null && Environment.GetEnvironmentVariable("RIG_PERF") == "1") Generic.Perf(data, key, geoRoot, t0, fps);
         shooter?.Report();
-        if (Rd != null && dc.Bad > 0) bad += dc.Bad;
+        if ((Rd != null || Gn != null) && dc.Bad > 0) bad += dc.Bad;
         Console.WriteLine($"{frames.Count} frames, {bad} differences beyond 1e-7; largest: {worst:E2} at {worstAt}");
         return bad > 0 ? 1 : 0;
     }
 }
 
 /// <summary>Compares RigRender's drawing with the game's recorded attribute writes.</summary>
-sealed class DrawCheck
+sealed partial class DrawCheck
 {
     public int Bad, Frames, Attrs, Exact, Flips, Orders, OrderBad;
     public double WorstFlip, WorstTie; public int NearTies; public string WorstTieAt;
@@ -127,16 +146,19 @@ sealed class DrawCheck
 
     readonly SortedDictionary<string, SortedSet<int>> _badAt = new SortedDictionary<string, SortedSet<int>>();
     int _f; string _el;
+    public void Say(string m, string el, int f) { _el = el; _f = f; Say(m); }
     void Say(string m)
     {
         if (_el != null) { if (!_badAt.TryGetValue(_el, out var l)) _badAt[_el] = l = new SortedSet<int>(); l.Add(_f); }
         if (_shown++ < 25) Console.WriteLine(m);
     }
 
-    public void Frame(int f, string state, RigRender R, Dictionary<string, object> draw, string order)
+    public void Frame(int f, string state, RigRender R, Dictionary<string, object> draw, string order) => Frame(f, state, R.All, draw, order, R.OrderKey);
+
+    public void Frame(int f, string state, List<RigEl> all, Dictionary<string, object> draw, string order, string orderKey)
     {
         Frames++; _f = f;
-        var mine = R.All.ToDictionary(e => e.Name);
+        var mine = all.ToDictionary(e => e.Name);
         foreach (var kv in draw)
         {
             _el = kv.Key;
@@ -147,6 +169,12 @@ sealed class DrawCheck
                 Attrs++;
                 string theirs = (string)a.Value;
                 int bit = Bit(a.Key);
+                if (theirs == null)
+                {   // removed (the generic rig: removeAttribute): mine sets it to null
+                    if (!e.StrWritten.Contains(a.Key) || e.Str[a.Key] != null) { Bad++; Say($"frame {f} ({state}) {kv.Key}.{a.Key}: the game removed it, mine didn't"); }
+                    else Exact++;
+                    continue;
+                }
                 if (bit == 0)
                 {   // a string attribute (transform, fill, offset...): compared token by token, numbers to a rounding step
                     if (!e.StrWritten.Contains(a.Key)) { Bad++; Say($"frame {f} ({state}) {kv.Key}.{a.Key}: the game wrote '{Short(theirs)}', mine didn't"); continue; }
@@ -158,16 +186,16 @@ sealed class DrawCheck
                 else CmpNum(f, state, kv.Key + "." + a.Key, Val(e, a.Key), theirs);
             }
         }
-        foreach (var e in R.All)
+        foreach (var e in all)
             foreach (var an in e.StrWritten)
                 if (!(draw.TryGetValue(e.Name, out var at2) && ((Dictionary<string, object>)at2).ContainsKey(an)))
                 { _el = e.Name; Bad++; Say($"frame {f} ({state}) {e.Name}.{an}: mine wrote it, the game didn't"); }
-        foreach (var e in R.All)
+        foreach (var e in all)
             foreach (var an in new[] { "d", "opacity", "stroke-width", "cx", "cy", "rx", "ry" })
                 if ((e.Written & Bit(an)) != 0 && !(draw.TryGetValue(e.Name, out var at) && ((Dictionary<string, object>)at).ContainsKey(an)))
                 { _el = e.Name; Bad++; Say($"frame {f} ({state}) {e.Name}.{an}: mine wrote it, the game didn't"); }
         _el = "order";
-        if (order != null) { Orders++; if (order != R.OrderKey) { OrderBad++; Bad++; Say($"frame {f} ({state}) order: mine {R.OrderKey}, the game {order}"); } }
+        if (order != null) { Orders++; if (order != orderKey) { OrderBad++; Bad++; Say($"frame {f} ({state}) order: mine {orderKey}, the game {order}"); } }
     }
 
     static int Bit(string a) => a == "d" ? RigEl.AD : a == "opacity" ? RigEl.AOpacity : a == "stroke-width" ? RigEl.AStroke
@@ -283,7 +311,7 @@ sealed class DrawCheck
 }
 
 /// <summary>Draws the screenshot frames with RigDisplay + RigRaster and compares them with Chrome's.</summary>
-sealed class Shots
+sealed partial class Shots
 {
     readonly RigDisplay _d; readonly RigRaster _r; readonly string _dir, _key; readonly int _w, _h;
     readonly List<string> _lines = new List<string>();
@@ -313,6 +341,11 @@ sealed class Shots
     public void Frame(int f, RigEngine E, RigRender R, double now)
     {
         _fx.Build(E.CurName, now - E.CurT0, R.TopW);
+        Compare(f);
+    }
+
+    void Compare(int f)
+    {
         _d.Build();
         var mine = _r.Play(_d.Cmds);
         string mp = Path.Combine(_dir, $"mine-{_key}-{f}.png"); RigRaster.SavePng(mp, mine, _w, _h);

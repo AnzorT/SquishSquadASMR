@@ -156,7 +156,9 @@ namespace PlushCrush.Core.Rig
         public float X, Y, W, H;             // a rect's geometry
         public RigPaint DynFill, DynStroke;  // fills / strokes the rig writes as attributes
         public bool Hidden;
-        public float Cx, Cy, Rx, Ry;          // an ellipse's static geometry
+        public float Cx, Cy, Rx, Ry;          // an ellipse's (or a circle's) static geometry
+        public RigPath StaticD;              // a path's own outline in the tree (the generic rig's art), drawn while the rig hasn't written one
+        public string StaticDBad;            // ... or why it can't be (commands the rig's parsePath doesn't read)
 
         public string Attr(string k) => A.TryGetValue(k, out var v) ? v : null;
     }
@@ -182,14 +184,21 @@ namespace PlushCrush.Core.Rig
         public static RigTree FromGeo(RigGeo geo, RigRender render)
         {
             if (!geo.Root.TryGetValue("tree", out var t) || !(t is Dictionary<string, object> td)) throw new FormatException("geo has no drawing tree (re-run record-rig.mjs)");
+            return FromTree(td, render.All);
+        }
+
+        /// <summary>A drawing's element tree (geo-<key>.json's "tree"), bound by name to the elements the rig writes to. The
+        /// creature is drawn from 'shadow' and 'root' (the hand-made rigs) or 'art' (the generic rig's group).</summary>
+        public static RigTree FromTree(Dictionary<string, object> td, IEnumerable<RigEl> all)
+        {
             var T = new RigTree();
             T.Svg = Read(td, null, T);
             foreach (var kv in T.ById) ReadDef(T, kv.Key, kv.Value);
             foreach (var kv in T.Gradients) { kv.Value.Node = T.ById[kv.Key]; if (kv.Value.Node.Attr("gradientTransform") is string gt) kv.Value.Inv = RigXf.Parse(gt).Inverse(); }
             var els = new Dictionary<string, RigEl>();
-            foreach (var e in render.All) els[e.Name] = e;
+            foreach (var e in all) els[e.Name] = e;
             foreach (var kv in T.ByName) if (els.TryGetValue(kv.Key, out var el)) kv.Value.El = el;
-            T.ByName.TryGetValue("shadow", out T.Shadow); T.ByName.TryGetValue("root", out T.Root);
+            T.ByName.TryGetValue("shadow", out T.Shadow); if (!T.ByName.TryGetValue("root", out T.Root)) T.ByName.TryGetValue("art", out T.Root);
             Cascade(T, T.Svg, null);
             return T;
         }
@@ -200,6 +209,7 @@ namespace PlushCrush.Core.Rig
             if (o.TryGetValue("n", out var nm)) { n.Name = (string)nm; T.ByName[n.Name] = n; }
             if (o.TryGetValue("a", out var a) && a is Dictionary<string, object> ad) foreach (var kv in ad) n.A[kv.Key] = kv.Value as string;
             if (n.A.TryGetValue("id", out var id)) { n.Id = id; T.ById[id] = n; }
+            if (n.Tag == "path" && n.A.TryGetValue("d", out var d)) StaticPath(n, d);
             if (o.TryGetValue("c", out var c) && c is List<object> cl) foreach (Dictionary<string, object> k in cl) n.C.Add(Read(k, n, T));
             return n;
         }
@@ -238,6 +248,15 @@ namespace PlushCrush.Core.Rig
                 float F(string k) => float.Parse(img.Attr(k), CultureInfo.InvariantCulture);
                 T.Filters[id] = Region(n, new RigFilter { Image = img.Attr("href"), X = F("x"), Y = F("y"), W = F("width"), H = F("height") });
             }
+        }
+
+        /// <summary>A path's d as the tree has it (absolute and relative M L Q C Z, numbers as written).</summary>
+        static void StaticPath(RigNode n, string d)
+        {
+            foreach (var c in d) if ("AaHhVvSsTt".IndexOf(c) >= 0) { n.StaticDBad = "path commands " + d.Substring(0, Math.Min(40, d.Length)); return; }
+            var p = new RigPath();
+            foreach (var g in RigGeometry.ParsePath(d)) { p.C(g.C); p.V.AddRange(g.P); }
+            n.StaticD = p;
         }
 
         static RigFilter Region(RigNode n, RigFilter f)
@@ -284,6 +303,7 @@ namespace PlushCrush.Core.Rig
             n.StaticOpacity = F("opacity", 1);
             n.Hidden = n.Attr("display") == "none";
             if (n.Tag == "ellipse") { n.Cx = F("cx", 0); n.Cy = F("cy", 0); n.Rx = F("rx", 0); n.Ry = F("ry", 0); }
+            if (n.Tag == "circle") { n.Cx = F("cx", 0); n.Cy = F("cy", 0); n.Rx = n.Ry = F("r", 0); }
             if (n.Tag == "rect") { n.X = F("x", 0); n.Y = F("y", 0); n.W = F("width", 0); n.H = F("height", 0); }
             n.Dash = p?.Dash;
             if (n.Attr("stroke-dasharray") is string da)
@@ -299,7 +319,7 @@ namespace PlushCrush.Core.Rig
                 if (id == null || !T.ById.TryGetValue(id, out var cn) || cn.C.Count != 1 || cn.C[0].Tag != "path") throw new NotSupportedException("RigTree: clip-path " + cp + " not ported yet");
                 n.ClipPath = cn.C[0];
             }
-            if (n.Attr("filter") is string fl)
+            if (n.Attr("filter") is string fl && fl.Trim() != "none")
             {
                 var id = Ref(fl);
                 if (id == null || !T.Filters.TryGetValue(id, out n.Filter)) throw new NotSupportedException("RigTree: filter " + fl + " not ported yet");

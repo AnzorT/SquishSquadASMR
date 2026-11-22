@@ -5,7 +5,8 @@
 //
 // RigLibrary loads what the rig needs once: its moves (Rig/rig-states.json, 12 MB, parsed on a worker thread), each
 // creature's geometry (Rig/geo-<key>.json) and the fabric grain (Rig/fabric.png), all exported from the game by
-// tools/unity-port/rig/record-rig.mjs.
+// tools/unity-port/rig/record-rig.mjs. A creature of the generic rig (record-generic.mjs) is drawn by RigGeneric
+// (RigView.Generic.cs).
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -15,7 +16,7 @@ using UnityEngine.UIElements;
 
 namespace PlushCrush.App.Rig
 {
-    public static class RigLibrary
+    public static partial class RigLibrary
     {
         static Task<RigData> _loading;
         static RigData _data;
@@ -53,7 +54,7 @@ namespace PlushCrush.App.Rig
         {
             if (_geo.TryGetValue(key, out var g)) return g;
             var ta = Resources.Load<TextAsset>("Rig/geo-" + key);
-            g = ta != null ? RigGeo.FromJson(ta.text) : null;
+            g = ta != null && !IsGeneric(key, ta.text) ? RigGeo.FromJson(ta.text) : null;   // (a generic one: GenericGeo)
             _geo[key] = g;
             return g;
         }
@@ -65,7 +66,7 @@ namespace PlushCrush.App.Rig
         public static string Unsupported(string key)
         {
             var g = Geo(key);
-            if (g == null) return "no geometry exported for " + key;
+            if (g == null) return GenericGeo(key) is RigGenericGeo gg ? RigGeneric.Unported(gg) : "no geometry exported for " + key;
             return RigRender.Unported(g);
         }
     }
@@ -94,7 +95,7 @@ namespace PlushCrush.App.Rig
         }
     }
 
-    public sealed class RigView : VisualElement
+    public sealed partial class RigView : VisualElement
     {
         // the area drawn round the 100 x 100 box, in rig units (a hop, the tail, the ears and the shadow fit)
         const float X0 = -40, Y0 = -45, X1 = 140, Y1 = 115;
@@ -117,15 +118,21 @@ namespace PlushCrush.App.Rig
         {
             Key = key;
             pickingMode = PickingMode.Ignore;
-            var geo = RigLibrary.Geo(key) ?? throw new InvalidOperationException("RigView: no geometry for " + key);
+            var geo = RigLibrary.Geo(key);
+            if (geo == null && RigLibrary.GenericGeo(key) == null) throw new InvalidOperationException("RigView: no geometry for " + key);
             var data = RigLibrary.Data ?? throw new InvalidOperationException("RigView: the rig's moves aren't loaded yet");
             double now = Now();
             Engine = new RigEngine(data, key, now, () => _rnd.NextDouble());
-            _render = new RigRender(geo, key);
-            Engine.FromM = _render.FromM;
-            _display = new RigDisplay(RigTree.FromGeo(geo, _render), _render) { Fx = _fx };
-            // mounting runs one frame (dt 0.016), as the game's mount() does
-            var P = Engine.Tick(now, 0.016); _render.Render(P, Engine, now); _last = now;
+            if (geo == null) _display = MountGeneric(key, now);   // the generic rig (RigView.Generic.cs)
+            else
+            {
+                _render = new RigRender(geo, key);
+                Engine.FromM = _render.FromM;
+                _display = new RigDisplay(RigTree.FromGeo(geo, _render), _render) { Fx = _fx };
+                // mounting runs one frame (dt 0.016), as the game's mount() does
+                var P = Engine.Tick(now, 0.016); _render.Render(P, Engine, now);
+            }
+            _last = now;
 
             _img = new VisualElement { name = "rig-drawing", pickingMode = PickingMode.Ignore };
             _img.style.position = Position.Absolute;
@@ -160,8 +167,8 @@ namespace PlushCrush.App.Rig
             double now = Now();
             double dt = Math.Max(0.001, Math.Min(0.05, (now - _last) / 1000.0)); _last = now;
             var P = Engine.Tick(now, dt);
-            _render.Render(P, Engine, now);
-            _fx.Build(Engine.CurName, now - Engine.CurT0, _render.TopW);
+            if (_generic != null) _generic.Render(P, Engine, now); else _render.Render(P, Engine, now);
+            _fx.Build(Engine.CurName, now - Engine.CurT0, _generic != null ? _generic.TopW : _render.TopW);
             if (_drawer == null || _drawer.Output == null) return;
             _display.Build();
             _drawer.Draw(_display.Cmds);

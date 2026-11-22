@@ -125,7 +125,7 @@ namespace PlushCrush.Core.Rig
         /// <summary>The children in the order the game's DOM has them this frame.</summary>
         List<RigNode> Children(RigNode n)
         {
-            if (n == _t.Root)
+            if (n == _t.Root && _r != null)
             {   // the parts the depth sort appends, in its order; the ones it doesn't sort stay first
                 _rootOrder.Clear();
                 foreach (var k in n.C) if (k.Name == null || !k.Name.StartsWith("pg.") || !_r.Order.Contains(k.Name.Substring(3))) _rootOrder.Add(k);
@@ -176,7 +176,7 @@ namespace PlushCrush.Core.Rig
                 var b = _boxes[_depth++]; b[0] = b[1] = float.MaxValue; b[2] = b[3] = float.MinValue;
             }
 
-            if (n.Tag == "path" || n.Tag == "ellipse" || n.Tag == "rect") Shape(n, layer ? 1 : alpha, xf);
+            if (n.Tag == "path" || n.Tag == "ellipse" || n.Tag == "circle" || n.Tag == "rect") Shape(n, layer ? 1 : alpha, xf);
             else foreach (var k in Children(n)) Walk(k, layer ? 1 : alpha, xf);
 
             if (layer)
@@ -204,7 +204,7 @@ namespace PlushCrush.Core.Rig
         int Paints(RigNode n, int have)
         {
             if (have > 1 || n.Hidden || n.Tag == "defs" || n.Tag == "clipPath" || n.Tag == "mask" || !(Opacity(n) > 0)) return have;
-            if (n.Tag == "path" || n.Tag == "ellipse" || n.Tag == "rect")
+            if (n.Tag == "path" || n.Tag == "ellipse" || n.Tag == "circle" || n.Tag == "rect")
             {
                 if (!HasGeometry(n)) return have;
                 if (!FillOf(n).IsNone) have++;
@@ -216,7 +216,9 @@ namespace PlushCrush.Core.Rig
             return have;
         }
 
-        static bool HasGeometry(RigNode n) => n.Tag != "path" || (n.El != null && !n.El.D.Empty);
+        static bool HasGeometry(RigNode n) => n.Tag != "path" || (PathOf(n) is RigPath p && !p.Empty);
+        /// <summary>A path's outline: the one the rig wrote last, else the tree's own (the generic rig's art, never written).</summary>
+        static RigPath PathOf(RigNode n) => n.El != null && (n.El.D.Version > 0 || n.StaticD == null) ? n.El.D : n.StaticD;
         static float StrokeWidth(RigNode n) => n.El != null && !double.IsNaN(n.El.StrokeWidth) ? (float)n.El.StrokeWidth : n.StrokeWidth;
 
         /// <summary>The fill / stroke: the one the rig writes as an attribute (collar segments), else the cascaded one.</summary>
@@ -235,7 +237,7 @@ namespace PlushCrush.Core.Rig
         void Shape(RigNode n, float alpha, RigXf xf)
         {
             var e = n.El;
-            if (n.Tag == "ellipse")
+            if (n.Tag == "ellipse" || n.Tag == "circle")
             {
                 float cx = e != null && !double.IsNaN(e.Cx) ? (float)e.Cx : n.Cx, cy = e != null && !double.IsNaN(e.Cy) ? (float)e.Cy : n.Cy,
                       rx = e != null && !double.IsNaN(e.Rx) ? (float)e.Rx : n.Rx, ry = e != null && !double.IsNaN(e.Ry) ? (float)e.Ry : n.Ry;
@@ -248,8 +250,9 @@ namespace PlushCrush.Core.Rig
             }
             else
             {
-                if (e == null) throw new NotSupportedException("RigDisplay: a path the rig doesn't write (" + (n.Name ?? n.Tag) + ")");
-                RigTess.Flatten(e.D, Tolerance / PxPerUnit, _c);
+                var d = PathOf(n);
+                if (d == null) throw new NotSupportedException("RigDisplay: a path the rig doesn't write (" + (n.Name ?? n.Tag) + ")" + (n.StaticDBad != null ? ": " + n.StaticDBad : ""));
+                RigTess.Flatten(d, Tolerance / PxPerUnit, _c);
             }
             if (_c.Empty) return;
             var fill = FillOf(n);
