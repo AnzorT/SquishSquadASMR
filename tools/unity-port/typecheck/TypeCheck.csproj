@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Type-checks the Unity project's game code (Scripts/**) with the C# compiler, against Unity's reference assemblies
+       (UnityEngine.Modules from NuGet: 2021.3, the newest there). APIs that only Unity 6 has are listed in check.sh and
+       reported apart; anything else that fails is a real error. The editor scripts aren't checked (no UnityEditor). -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DefineConstants>UNITY_EDITOR;ENABLE_LEGACY_INPUT_MANAGER</DefineConstants>
+    <NoWarn>CS0649;CS0414;CS0169;CS0067</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../unity/Assets/_Project/Scripts/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" />
+  </ItemGroup>
+</Project>

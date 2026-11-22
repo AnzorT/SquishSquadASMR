@@ -75,7 +75,8 @@ console.log(`rig data: ${Object.keys(data.STATES).length} states, ${data.FIDGETS
 const FPS = 60, N = SECONDS * FPS;
 // [frame, what]: moves by name, a hold (press) and its release, a sideways drag (spin) and its release
 const SCRIPT = [[600, 'play:hop'], [1100, 'play:look'], [1600, 'press'], [1750, 'release'], [1900, 'play:happy'], [2300, 'drag:40'], [2330, 'drag:120'], [2360, 'dragEnd']];
-const trace = await page.evaluate(({ key, N, FPS, SCRIPT }) => {
+const DRAWN = +(args.includes('--draw-frames') ? args[args.indexOf('--draw-frames') + 1] : 600); // frames whose drawing is kept
+const trace = await page.evaluate(({ key, N, FPS, SCRIPT, DRAWN }) => {
   const host = document.createElement('div'); host.style.cssText = 'position:fixed;left:0;top:0;width:169px;height:169px;'; document.body.appendChild(host);
   // the rig reads performance.now() itself (mount, play): it answers the frame's exact time
   let NOW = performance.now(); performance.now = () => NOW;
@@ -86,10 +87,30 @@ const trace = await page.evaluate(({ key, N, FPS, SCRIPT }) => {
   window.__rr = () => { draws++; seed ^= seed << 13; seed >>>= 0; seed ^= seed >>> 17; seed ^= seed << 5; seed >>>= 0; return seed / 4294967296; };
   let cur = null, I = null;
   window.__rigP = (I2, P, now, dt) => { if (!I || I2 === I) cur = Object.assign({}, P); };
+  // every attribute the rig writes to its drawing, per frame (the drawing's check), with each element named by its
+  // role in the rig (I.E's keys: body, head, earL, cr.segs.3 …) or else its place in the drawing (svg/g.1/path.4)
+  const writes = new Map(); let rec = false;
+  const sa = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function (a, v) { if (rec && host.contains(this)) { let m = writes.get(this); if (!m) writes.set(this, m = {}); m[a] = String(v); } return sa.call(this, a, v); };
+  const names = new Map();
+  const nameAll = I => {
+    const walk = (o, at) => { if (!o) return; if (o instanceof Element) { if (!names.has(o)) names.set(o, at); return; }
+      if (Array.isArray(o)) { o.forEach((v, i) => walk(v, at + '.' + i)); return; } if (typeof o === 'object') for (const k in o) walk(o[k], at ? at + '.' + k : k); };
+    walk(I.E, ''); walk(I.pg, 'pg'); if (I.shadow) names.set(I.shadow, 'shadow'); if (I.root) names.set(I.root, 'root');
+  };
+  const domPath = e => { const p = []; while (e && e !== host) { const par = e.parentNode; p.unshift(e.tagName + '.' + (par ? [...par.children].indexOf(e) : 0)); e = par; } return p.join('/'); };
+  const nameOf = e => names.get(e) || domPath(e);
+  const drawn = () => { const o = {}; writes.forEach((m, e) => { o[nameOf(e)] = m; }); writes.clear(); return o; };
+  rec = true;
   const c = window.RiveRig.mount(host, key, {}); I = c._I;   // (mounting runs one frame: dt 0.016 at t0)
+  nameAll(I);
   const sc = new Map(SCRIPT.map(([f, w]) => [f, w]));
   const keep = I => ({ rr: draws, hs: I.hs, ed: I.ed, ld: I.ld, spTw: I.spTw, spF: I.spF, ms: I.ms, dent: I.dent, state: I.cur.name, spinOff: I.spinOff });
-  frames.push({ f: 0, now: 0, P: cur, ...keep(I) });
+  frames.push({ f: 0, now: 0, P: cur, ...keep(I), draw: drawn() });
+  // the creature's rig as mounted (data for the C# renderer: its definition D, the geometry mount() precomputes from it
+  // (I.RG: parsed outlines, ear sections, fur rings…), a few derived numbers, and the drawing's element tree)
+  const geo = JSON.parse(JSON.stringify({ D: I.D, RG: I.RG, hkx: I.hkx == null ? null : I.hkx, generic: !!I.generic,
+    furH: I.furH || null, furB: I.furB || null, svg: host.innerHTML }, (k, v) => typeof v === 'function' ? undefined : v));
   for (let f = 1; f <= N; f++) {
     const now = t0 + f * 1000 / FPS, dt = 1 / FPS;
     NOW = now;
@@ -103,10 +124,13 @@ const trace = await page.evaluate(({ key, N, FPS, SCRIPT }) => {
     }
     cur = null;
     window.RiveRig.__tick(I, now, dt);
-    frames.push({ f, now: now - t0, P: cur, ...keep(I) });
+    frames.push({ f, now: now - t0, P: cur, ...keep(I), draw: f <= DRAWN ? drawn() : (writes.clear(), undefined) });
   }
-  return { key, t0, fps: FPS, script: SCRIPT, mount: { glAt: null }, frames };
-}, { key, N, FPS, SCRIPT });
+  return { key, t0, fps: FPS, script: SCRIPT, geo, frames };
+}, { key, N, FPS, SCRIPT, DRAWN });
+fs.writeFileSync(path.join(OUT_DATA, `geo-${key}.json`), JSON.stringify(trace.geo));
+console.log(`geometry: ${path.relative(REPO, path.join(OUT_DATA, `geo-${key}.json`))}`);
+delete trace.geo;
 fs.mkdirSync(OUT_TRACE, { recursive: true });
 fs.writeFileSync(path.join(OUT_TRACE, `trace-${key}.json`), JSON.stringify(trace));
 const states = [...new Set(trace.frames.map(f => f.state))];
