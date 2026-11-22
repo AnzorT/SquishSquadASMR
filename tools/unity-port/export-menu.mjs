@@ -19,7 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { PNG, REPO, BUILT, MENU_OUT as OUT, W, H, K, SCENE_SCALE, needBuild, launch, openMenu, openScenePage, shootScene, shootVignette, shootPark, shootPart, showAll, sceneAt } from './lib/menu-page.mjs';
+import { PNG, REPO, BUILT, MENU_OUT as OUT, W, H, K, SCENE_SCALE, needBuild, launch, openMenu, openScenePage, drawScene, shootScene, shootVignette, shootPark, shootPart, showAll, sceneAt } from './lib/menu-page.mjs';
 
 const CHECK = path.join(REPO, 'webgame/test/out/unity-menu-check');
 
@@ -59,9 +59,8 @@ const layout = { screen: { width: W, height: H, scale: K }, defaults: { creature
   const { ctx, page, shift } = await openScenePage(browser);
   const vig = await shootVignette(page);
   fs.writeFileSync(path.join(OUT, 'vignette.png'), vig);
-  await page.reload(); await page.waitForTimeout(8000);
-  for (let t = 0; t < 9000; t += 500) { await page.clock.runFor(500); await page.waitForTimeout(100); }
-  await page.evaluate(() => { const x = window.SquishMenu._x; x.scene.classList.remove('sq-pic-on', 'sq-pic-hh'); x.scene.querySelectorAll('rect[fill$="Vig)"]').forEach(r => r.remove()); });
+  // (the menu's own drawing, redrawn by the same code, without its vignette; matched exactly when checked)
+  await drawScene(page, 1, 'rainy');
   const buf = await shootScene(page);
   const png = PNG.sync.read(buf);
   fs.writeFileSync(path.join(OUT, 'scene-L1-rainy.png'), buf);
