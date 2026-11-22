@@ -16,6 +16,10 @@ namespace PlushCrush.Core.Rig
     public sealed class RigEl
     {
         public const int AD = 1, AOpacity = 2, AStroke = 4, ACx = 8, ACy = 16, ARx = 32, ARy = 64;
+        /// <summary>Other attributes, as the game writes them (transform, fill, stroke, offset, gradientTransform...).</summary>
+        public readonly Dictionary<string, string> Str = new Dictionary<string, string>();
+        public readonly HashSet<string> StrWritten = new HashSet<string>();
+        public void Set(string attr, string value) { Str[attr] = value; StrWritten.Add(attr); }
         public readonly string Name;
         public readonly RigPath D = new RigPath();
         public double Opacity = double.NaN, StrokeWidth = double.NaN, Cx = double.NaN, Cy = double.NaN, Rx = double.NaN, Ry = double.NaN; // NaN = never written
@@ -23,7 +27,7 @@ namespace PlushCrush.Core.Rig
         public RigEl(string name) { Name = name; }
     }
 
-    public sealed class RigRender
+    public sealed partial class RigRender
     {
         const double TAU = Math.PI * 2;
         const int ZSurf = 0, ZBack = 1, ZGiven = 2;   // sph()'s zm: undefined, 'b', a number
@@ -56,11 +60,17 @@ namespace PlushCrush.Core.Rig
         readonly bool mouthOne, tail3, hasTail, hasNoseHL;
         readonly double armD, tailK, tailW, tailHLW, tailWag;
 
+        /// <summary>For the check while porting: draw what's ported and skip the rest instead of refusing the creature.</summary>
+        public static bool AllowPartial;
+
+        RigEl El(string n) { var e = new RigEl(n); All.Add(e); return e; }
+        RigEl[] Els(string f, int n) { var a = new RigEl[n]; for (int i = 0; i < n; i++) a[i] = El(string.Format(f, i)); return a; }
+
         public RigRender(RigGeo geo, string key)
         {
             _g = geo; _key = key;
             var missing = Unported(geo);
-            if (missing != null) throw new NotSupportedException("RigRender: " + key + " uses " + missing + ", not ported yet (RIG_PORT.md step 4)");
+            if (missing != null && !AllowPartial) throw new NotSupportedException("RigRender: " + key + " uses " + missing + ", not ported yet (RIG_PORT.md step 4)");
 
             G = geo.N("G"); Hh = G - geo.N("top");
             var head = geo.A("head"); HX = head[0]; HY = head[1]; HR = head[2];
@@ -85,8 +95,8 @@ namespace PlushCrush.Core.Rig
             tailK = geo.Or("tailK", 7); tailW = geo.Or("tailW", 7); tailHLW = geo.Or("tailHLW", 0.3); tailWag = geo.Or("tailWag", 1.3);
             hasNoseHL = geo.Has("noseHL");
 
-            RigEl el(string n) { var e = new RigEl(n); All.Add(e); return e; }
-            RigEl[] els(string f, int n) { var a = new RigEl[n]; for (int i = 0; i < n; i++) a[i] = el(string.Format(f, i)); return a; }
+            RigEl el(string n) => El(n);
+            RigEl[] els(string f, int n) => Els(f, n);
             Body = el("body"); BodyG = el("bodyG");
             Skull = el("skull"); Clip = el("clip"); TintR = el("tintR"); TintG = el("tintG");
             FeetF = els("feet.{0}.f", 2); FeetClip = els("feet.{0}.clip", 2); FeetP = els("feet.{0}.p", 2);
@@ -104,6 +114,7 @@ namespace PlushCrush.Core.Rig
             Wh = els("wh.{0}", geo.Wh.Count);
             Shadow = el("shadow");
 
+            InitBody(); InitLimbs(); InitTail(); InitFace(); InitExtras();
             _glob = Glob; _headT = HeadT; _face = Face; _hFPuff = HFPuff; _back = (x, y) => Sph(x, y, ZBack); _earN = EarNMap; _eye = EyeMap; _whisker = WhiskerMap;
             _sp3 = geo.Tail != null ? new (double x, double y)[geo.Tail.Length] : new (double x, double y)[0];
             _tailHL = new List<(double x, double y)>(_sp3.Length);
@@ -113,15 +124,23 @@ namespace PlushCrush.Core.Rig
         public static string Unported(RigGeo g)
         {
             if (g.Generic) return "the generic rig (rive-generic.js)";
-            if (g.FurH) return "fur rings on the head (furH)";
-            if (g.FurB) return "fur rings on the body (furB)";
-            foreach (var k in new[] { "body3", "lumps", "neck3", "web", "crest", "wing", "tailTaper", "tufts", "faceExtra", "snout", "hugCheeks", "eyeDome",
-                                      "spots3", "belly", "bellyD", "bellyTurn", "mane", "headExtra", "crown", "pup", "collar", "hideBody" })
-                if (g.Has(k)) return "D." + k;
-            foreach (var e in g.Ears) if (e.Lobe != null) return "lobe ears";
+            foreach (var k in Needs)
+                if ((k == "ear:lobe" ? Array.Exists(g.Ears, e => e.Lobe != null) : g.Has(k)) && !Ported(k)) return k == "ear:lobe" ? "lobe ears" : "D." + k;
             if (g.Ears.Length > 2) return "more than two ears";
             return null;
         }
+
+        // the parts of D that need a branch of render() beyond Mittens'; each feature file lists the ones it draws
+        static readonly string[] Needs = { "body3", "bodyD", "headD", "lumps", "neck3", "web", "crest", "wing", "ear:lobe", "tailTaper", "tufts", "faceExtra",
+            "snout", "hugCheeks", "eyeDome", "spots3", "belly", "bellyD", "mane", "headExtra", "crown", "pup", "collar" };
+        static bool Ported(string k) => Array.IndexOf(BodyFeatures, k) >= 0 || Array.IndexOf(LimbFeatures, k) >= 0 || Array.IndexOf(TailFeatures, k) >= 0
+            || Array.IndexOf(FaceFeatures, k) >= 0 || Array.IndexOf(ExtraFeatures, k) >= 0;
+
+        // set by the features for the drawing's order (the game moves these elements in its DOM as they turn)
+        /// <summary>D.lumps: each lump drawn just over the body (true) or behind it (false).</summary>
+        public readonly List<bool> LumpFront = new List<bool>();
+        /// <summary>D.snout.occlude: the snout's elements moved behind the skull.</summary>
+        public bool SnoutBehind;
 
         static double[][] Rows(object v)
         {
@@ -133,6 +152,9 @@ namespace PlushCrush.Core.Rig
 
         // ---- the frame's pose, as render()'s locals ----
         RigPose P;
+        double _ied, _ild;   // I.ed, I.ld (|| 0)
+        RigPath _skD;        // the skull's outline this frame (skD)
+        string _cur = "idle";   // the move playing (I.cur.name)
         double yb, yh, ya, cya, sya, cyb, syb, cyh, syh, cp, sp, bnd, sq, sy, ct, stt, hs, chr, shr, hyo, pf;
         double Px, Plift, Plean;
         bool hasMS, hasDn; double MSs, MSc, MSn, MAx, MAy, dnx, dny, dna;
@@ -219,12 +241,12 @@ namespace PlushCrush.Core.Rig
         }
 
         /// <summary>One frame: the pose (after tick()) and the engine's extras for the drawing.</summary>
-        public void Render(RigPose pose, RigEngine eng, double now) => Render(pose, eng.Hs, eng.Ed, eng.Ld, eng.Ms, eng.Dent, eng.St?.PropZ, now);
+        public void Render(RigPose pose, RigEngine eng, double now) => Render(pose, eng.Hs, eng.Ed, eng.Ld, eng.Ms, eng.Dent, eng.St?.PropZ, now, eng.CurName);
 
-        public void Render(RigPose pose, double ihs, double ied, double ild, RigStretch ms, RigDent dent, double? propZ, double now)
+        public void Render(RigPose pose, double ihs, double ied, double ild, RigStretch ms, RigDent dent, double? propZ, double now, string cur = "idle")
         {
-            P = pose;
-            foreach (var e in All) e.Written = 0;
+            P = pose; _cur = cur ?? "idle";
+            foreach (var e in All) { e.Written = 0; if (e.StrWritten.Count > 0) e.StrWritten.Clear(); }
             Px = P["x"]; Plift = P["lift"]; Plean = P["lean"];
             yb = (P["spin"] + P["turn"] * 40) * D2R; yh = yb + (Or0(P["hyaw"]) + Or0(P["twist"])) * 40 * D2R; ya = yb + Or0(P["twist"]) * 24 * D2R;
             cya = Math.Cos(ya); sya = Math.Sin(ya);
@@ -243,10 +265,11 @@ namespace PlushCrush.Core.Rig
             W.Clear();
 
             // body, head
-            RigGeometry.ToD(Dp(Body), _g.Body, _glob);
+            if (_g.Has("body3")) Body3(); else if (_g.FurB) BodyFur(); else RigGeometry.ToD(Dp(Body), _g.Body, _glob);
+            Lumps(); Neck3();
             pf = Clamp(P["puff"], -0.5, 1.2);
             RigMap hF = Truthy(pf) ? _hFPuff : _headT;
-            var skD = Dp(Skull); RigGeometry.ToD(skD, _g.Skull, hF);
+            var skD = _skD = Dp(Skull); if (_g.FurH) HeadFur(skD, hF); else RigGeometry.ToD(skD, _g.Skull, hF);
             Dp(Clip).CopyFrom(skD);
             double rd = Clamp(P["red"], 0, 1), gr = Clamp(P["green"], 0, 1);
             Dp(TintR).CopyFrom(skD); Op(TintR, R2(rd * 0.34)); Dp(TintG).CopyFrom(skD); Op(TintG, R2(gr * 0.26));
@@ -261,6 +284,7 @@ namespace PlushCrush.Core.Rig
                 var f = _g.Feet[i];
                 double st = Clamp(Or0(P["sit"]), 0, 1), cy = f.y - (i == 1 ? P["footR"] : P["footL"]) + st * 4.6, z = (footZ ?? 8) + st * 7,
                     X = 50 + (f.x - 50) * (1 + st * 0.3) * cyb + z * syb, fsd = f.x < 50 ? 1 : -1;
+                if (_g.Has("web")) { FootWeb(i, f.x, f.y, st, cy, z, X); continue; }
                 double FS0 = footS[0] * (1 + st * 0.06), FS1 = footS[1] * (1 + st * 0.75), FS2 = footS[2];
                 var fd = Dp(FeetF[i]); RigGeometry.EllAx(fd, X, cy, FS0 * cyb, 0, fsd * st * FS1 * 0.28 * cyb, FS1, FS2 * syb, 0, _glob);
                 Dp(FeetClip[i]).CopyFrom(fd);
@@ -276,11 +300,13 @@ namespace PlushCrush.Core.Rig
                 W[i == 1 ? "footR" : "footL"] = Glob(X, cy);
             }
 
+            Crest();
             // ears: rounded cones whose roots sit on the curved head, bent from the root; parts buried in the head are dropped
             for (int i = 0; i < _g.Ears.Length; i++)
             {
                 var e = _g.Ears[i];
                 double a = (e.Flop ? (e.Side < 0 ? P["earL"] : -P["earR"]) * 0.9 : (e.Side < 0 ? -P["earL"] : P["earR"])) * D2R, px = e.Pivot[0], py = e.Pivot[1];
+                if (e.Lobe != null) { EarLobe(i, e, a, skD); continue; }
                 _pts.Clear();
                 foreach (var q in e.Secs)
                 {
@@ -320,8 +346,9 @@ namespace PlushCrush.Core.Rig
             }
 
             // paws: ellipsoids that swing around the body and stay round, on a tube from the shoulder
-            double Ied = Or0(ied);
-            for (int i = 0; i < _g.Arms.Length && i < 2; i++)
+            double Ied = Or0(ied); _ied = Ied; _ild = Or0(ild);
+            if (_g.Has("wing")) Wings();
+            else for (int i = 0; i < _g.Arms.Length && i < 2; i++)
             {
                 var A = _g.Arms[i]; bool Lf = A.Side < 0;
                 double av = Lf ? P["armL"] : P["armR"], bse = Lf ? 20 : -20, wr = SM(Math.Abs(av) / 45), ang = ((Lf ? P["armL"] : -P["armR"]) + (bse - A.E[4]) * wr) * D2R,
@@ -368,6 +395,7 @@ namespace PlushCrush.Core.Rig
                 RigGeometry.SmoothD(Dp(Tail), _sp3); Sw(Tail, R2(tw * tailW / 7));
                 _tailHL.Clear(); for (int i = 0; i < _sp3.Length - 1; i++) _tailHL.Add((_sp3[i].x - tw * 0.16, _sp3[i].y - tw * 0.18));
                 RigGeometry.SmoothD(Dp(TailH), _tailHL); Sw(TailH, R2(tw * tailW / 7 * tailHLW));
+                TailTaper(_sp3, tw);
                 if (TailT != null)
                 {
                     RigGeometry.SmoothD(Dp(TailT[0]), _sp3, Math.Min(6, _sp3.Length)); Sw(TailT[0], R2(tw * 1.55));
@@ -384,8 +412,10 @@ namespace PlushCrush.Core.Rig
 
             // face, painted on the head sphere
             RigGeometry.ToD(Dp(Muzzle), _g.Muzzle, _face); Op(Muzzle, R2(Zc(muzzleAt[0], muzzleAt[1])));
+            Tufts(); FaceExtra();
             RigGeometry.ToD(Dp(Stripes), _g.Stripes, _face); Op(Stripes, R2(Zc(50, 21)));
             RigGeometry.ToD(Dp(Back), _g.Back, _back); Op(Back, R2(Zc(backAt != null ? backAt[0] : 50, backAt != null ? backAt[1] : 23, ZBack)));
+            Snout();
             RigGeometry.ToD(Dp(Nose), _g.Nose, _face); Op(Nose, R2(Zc(noseAt[0], noseAt[1])));
             if (NoseHL != null) { RigGeometry.ToD(Dp(NoseHL), _g.NoseHL, _face); Op(NoseHL, R2(0.7 * Zc(noseAt[0], noseAt[1]))); }
             double sm = Clamp(P["smile"], 0, 1);
@@ -403,15 +433,16 @@ namespace PlushCrush.Core.Rig
             {
                 double c = Clamp(Math.Max(P["close"], i > 0 ? P["winkR"] : P["winkL"]), 0, 1) * (1 - SM(hh * 1.6)), dir = i > 0 ? -1 : 1,
                     cx = eyes[i][0] + ox + dir * crs, cy = eyes[i][1] + oy - hh * 0.8, r = eyeR * ws;
+                var face = _eyeFace = EyeFace(i);
                 _ecx = cx; _ecy = cy; _ec = c; _esl = Clamp(P["sl"], 0, 1) * 0.32; _eout = i > 0 ? 1 : -1; _eh = hh; _eqz = qz; _edir = dir; _er = r;
                 var eD = Dp(EyeE[i]); RigGeometry.EllS(eD, cx, cy, r, r, 0, 8, _eye); Dp(EyeClip[i]).CopyFrom(eD);
                 Sw(EyeE[i], R2(1.3 * Math.Max(Math.Max(SM((c - 0.5) / 0.45), SM((hh - 0.5) / 0.45)), SM(qz * 1.6))));
                 double ha = (1 - SM((c - 0.4) / 0.25)) * (1 - SM((hh - 0.12) / 0.3)) * (1 - SM(qz * 2.5)), hk = ws * (1 + tyr * 0.4), hd = c * r * 0.7;
-                RigGeometry.EllS(Dp(EyeH1[i]), cx - 1.7 * ws, cy - 1.9 * ws + hd, 1.8 * hk, 1.8 * hk, 0, 6, _face);
-                RigGeometry.EllS(Dp(EyeH2[i]), cx + 1.8 * ws, cy + 1.6 * ws, 0.7 * hk, 0.7 * hk, 0, 6, _face);
-                RigGeometry.EllS(Dp(EyeTp[i]), cx, cy + r * 0.8, r, r * 0.42, 0, 8, _face); Op(EyeTp[i], R2(tyr * 0.85 * (1 - qz) * (1 - SM(c * 1.5))));
+                RigGeometry.EllS(Dp(EyeH1[i]), cx - 1.7 * ws, cy - 1.9 * ws + hd, 1.8 * hk, 1.8 * hk, 0, 6, face);
+                RigGeometry.EllS(Dp(EyeH2[i]), cx + 1.8 * ws, cy + 1.6 * ws, 0.7 * hk, 0.7 * hk, 0, 6, face);
+                RigGeometry.EllS(Dp(EyeTp[i]), cx, cy + r * 0.8, r, r * 0.42, 0, 8, face); Op(EyeTp[i], R2(tyr * 0.85 * (1 - qz) * (1 - SM(c * 1.5))));
                 Op(EyeH1[i], R2(ha)); Op(EyeH2[i], R2(ha * 0.9)); Op(EyeG[i], R2(Zc(cx, cy)));
-                EyeW[i] = Face(cx, cy); W[i > 0 ? "eyeR" : "eyeL"] = EyeW[i];
+                EyeW[i] = face(cx, cy); W[i > 0 ? "eyeR" : "eyeL"] = EyeW[i];
             }
 
             // mouth: the little 'w' (or one wide grin), opening into a mouth with a tongue
@@ -433,7 +464,7 @@ namespace PlushCrush.Core.Rig
                 Op(Tout, R2(mv * SM(tg * 3)));
                 if (tg > 0.02) RigGeometry.EllS(Dp(Tout), MX0, y0 + (1.3 + tg * 1.9) * mk0, 2.2 * (1 + tg * 0.15) * mk0, (1 + tg * 1.7) * mk0, 0, 8, _face);
             }
-            W["mouth"] = Face(mouthAt[0], mouthAt[1]); W["nose"] = Face(noseAt[0], noseAt[1]);
+            W["mouth"] = Face(mouthAt[0], mouthAt[1]); if (!_g.Has("snout")) W["nose"] = Face(noseAt[0], noseAt[1]);
             W["body"] = Glob(50, 78); W["belly"] = Glob(50, 83); W["sideL"] = Glob(30, 78); W["sideR"] = Glob(70, 78);
 
             // whiskers (wsk folds them to about half length and fans them apart)
@@ -448,6 +479,7 @@ namespace PlushCrush.Core.Rig
                 Op(Wh[i], R2(0.8 * Zc(i < 2 ? 36 : 64, 56) * far));
             }
 
+            Belly(); Mane(now); HeadExtra(); Crown(); Pup(now); Collars(now);
             TopW = HeadT(50, _g.N("top")); W["head"] = TopW;
 
             // ground shadow, shrinking as the creature leaves the floor
@@ -499,7 +531,7 @@ namespace PlushCrush.Core.Rig
             return Sph(bx, by, ZGiven, EarZm(e, bx, by) - hd * 0.15 + hd * 0.85);
         }
 
-        double _ecx, _ecy, _ec, _esl, _eout, _eh, _eqz, _edir, _er;
+        double _ecx, _ecy, _ec, _esl, _eout, _eh, _eqz, _edir, _er; RigMap _eyeFace;
         (double x, double y) EyeMap(double x, double y)
         {
             double dy = y - _ecy, ce = Clamp(_ec + _esl * (0.5 + 0.5 * _eout * (x - _ecx) / _er), 0, 1), X = x, Y = _ecy + dy * (dy < 0 ? 1 - 2 * ce : 1 - 2 * _eh);
@@ -508,7 +540,7 @@ namespace PlushCrush.Core.Rig
                 double cu = Clamp((x - _ecx) / _er, -1, 1), u = _edir > 0 ? (cu + 1) / 2 : (1 - cu) / 2;
                 X = Lerp(X, _ecx + _edir * (-0.8 + u * 1.4) * _er, _eqz); Y = Lerp(Y, _ecy + JsSign(dy) * (1 - u) * 0.6 * _er, _eqz);
             }
-            return Face(X, Y);
+            return _eyeFace(X, Y);
         }
 
         bool _wFold; double _wr0x, _wr0y, _wca, _wsa, _wk;

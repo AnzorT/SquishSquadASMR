@@ -19,7 +19,7 @@ import { pathToFileURL } from 'node:url';
 const args = process.argv.slice(2);
 const key = args.find(a => !a.startsWith('--')) || 'mittens';
 const SECONDS = +(args.includes('--seconds') ? args[args.indexOf('--seconds') + 1] : 40);
-const TEST = path.join(REPO, 'webgame/test/out/rigtest');
+const TEST = path.join(REPO, 'webgame/test/out/rigtest-' + key);   // one test copy per creature: recordings can run side by side
 const OUT_DATA = path.join(REPO, 'unity/Assets/_Project/Art/Generated/Resources/Rig'); // 12 MB: every creature's moves (not in git)
 const OUT_TRACE = path.join(REPO, 'tools/unity-port/rig/out');
 needBuild();
@@ -101,7 +101,13 @@ await page.evaluate(({ key, N, FPS, SCRIPT, DRAWN, HOST, SHOT }) => {
   const nameAll = I => {
     const walk = (o, at) => { if (!o) return; if (o instanceof Element) { if (!names.has(o)) names.set(o, at); return; }
       if (Array.isArray(o)) { o.forEach((v, i) => walk(v, at + '.' + i)); return; } if (typeof o === 'object') for (const k in o) walk(o[k], at ? at + '.' + k : k); };
-    walk(I.E, ''); walk(I.pg, 'pg'); if (I.shadow) names.set(I.shadow, 'shadow'); if (I.root) names.set(I.root, 'root');
+    walk(I.E, ''); walk(I.pg, 'pg'); if (I.shadow) names.set(I.shadow, 'shadow'); if (I.root) names.set(I.root, 'root'); if (I.fxG) names.set(I.fxG, 'fx');
+    // defs by their id (the mount's uid suffix dropped: '#tfg0'), then every unnamed element inside a named one by its
+    // place there ('coat.back.3/path.0', '#tfg0/stop.1'), so pools and gradient stops have steady names
+    const svg = host.querySelector('svg');
+    svg.querySelectorAll('[id]').forEach(e => { if (!names.has(e)) names.set(e, '#' + e.id.split(I.u).join('')); });
+    const sub = (e, at) => [...e.children].forEach((c, i) => { let n = names.get(c); if (!n) { n = at + '/' + c.tagName + '.' + i; names.set(c, n); } sub(c, n); });
+    [...names.entries()].forEach(([e, n]) => sub(e, n));
   };
   const domPath = e => { const p = []; while (e && e !== host) { const par = e.parentNode; p.unshift(e.tagName + '.' + (par ? [...par.children].indexOf(e) : 0)); e = par; } return p.join('/'); };
   const nameOf = e => names.get(e) || domPath(e);

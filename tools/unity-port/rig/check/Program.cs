@@ -43,11 +43,14 @@ static class Program
         var R = new RigEngine(data, key, t0, () => { draws++; return rnd.Next(); }) { Generic = false };
         int bad = 0; double worst = 0; string worstAt = "";
         RigGeo geo = args.Length > 2 ? RigGeo.FromJson(File.ReadAllText(args[2])) : null;
+        // RIG_PARTIAL=1: while porting, draw what's ported and report the rest instead of refusing the creature
+        RigRender.AllowPartial = Environment.GetEnvironmentVariable("RIG_PARTIAL") == "1";
+        if (geo != null && RigRender.Unported(geo) is string why) Console.WriteLine((RigRender.AllowPartial ? "partial: " : "") + "not ported yet: " + why);
         RigRender Rd = geo != null ? new RigRender(geo, key) : null;
         // with screenshots in the trace: draw those frames in software (the GPU's list) and compare with Chrome's pixels
         var shots = trace.TryGetValue("shots", out var so) && so is Dictionary<string, object> sd ? sd : null;
         var shotFrames = shots != null ? new HashSet<int>(((List<object>)shots["frames"]).Select(o => (int)(double)o)) : new HashSet<int>();
-        Shots shooter = shots != null && Rd != null ? new Shots(shots, geo, Rd, Path.GetDirectoryName(Path.GetFullPath(args[1])), key, Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[2])), "fabric.png")) : null;
+        Shots shooter = shots != null && Rd != null && Environment.GetEnvironmentVariable("RIG_NOSHOTS") != "1" ? Shots.Make(shots, geo, Rd, Path.GetDirectoryName(Path.GetFullPath(args[1])), key, Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[2])), "fabric.png")) : null;
         var dc = new DrawCheck();
         int dbgFrame = Environment.GetEnvironmentVariable("HULL_FRAME") is string hf ? int.Parse(hf) : -1, curF = 0;
         if (Rd != null && dbgFrame >= 0) Rd.EarPointsHook = (ear, pts) =>
@@ -140,12 +143,21 @@ sealed class DrawCheck
                 Attrs++;
                 string theirs = (string)a.Value;
                 int bit = Bit(a.Key);
-                if (bit == 0) { Bad++; Say($"frame {f} ({state}) {kv.Key}.{a.Key}: attribute not handled by mine"); continue; }
+                if (bit == 0)
+                {   // a string attribute (transform, fill, offset...): compared token by token, numbers to a rounding step
+                    if (!e.StrWritten.Contains(a.Key)) { Bad++; Say($"frame {f} ({state}) {kv.Key}.{a.Key}: the game wrote '{Short(theirs)}', mine didn't"); continue; }
+                    CmpStr(f, state, kv.Key + "." + a.Key, e.Str[a.Key], theirs);
+                    continue;
+                }
                 if ((e.Written & bit) == 0) { Bad++; Say($"frame {f} ({state}) {kv.Key}.{a.Key}: the game wrote '{Short(theirs)}', mine didn't"); continue; }
                 if (a.Key == "d") CmpPath(f, state, kv.Key, e.D, theirs);
                 else CmpNum(f, state, kv.Key + "." + a.Key, Val(e, a.Key), theirs);
             }
         }
+        foreach (var e in R.All)
+            foreach (var an in e.StrWritten)
+                if (!(draw.TryGetValue(e.Name, out var at2) && ((Dictionary<string, object>)at2).ContainsKey(an)))
+                { _el = e.Name; Bad++; Say($"frame {f} ({state}) {e.Name}.{an}: mine wrote it, the game didn't"); }
         foreach (var e in R.All)
             foreach (var an in new[] { "d", "opacity", "stroke-width", "cx", "cy", "rx", "ry" })
                 if ((e.Written & Bit(an)) != 0 && !(draw.TryGetValue(e.Name, out var at) && ((Dictionary<string, object>)at).ContainsKey(an)))
@@ -171,6 +183,14 @@ sealed class DrawCheck
     {
         double t = double.TryParse(theirs, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : double.NaN;
         One(f, state, what, mine, t);
+    }
+
+    void CmpStr(int f, string state, string what, string mine, string theirs)
+    {
+        if (mine == theirs) { Exact++; return; }
+        var A = RigGeometry.Tokens(mine); var B = RigGeometry.Tokens(theirs);
+        if (A.Count != B.Count || !SameNumbers(A, B)) { Bad++; Say($"frame {f} ({state}) {what}: mine '{Short(mine)}', the game '{Short(theirs)}'"); return; }
+        for (int i = 0; i < A.Count; i++) if (!char.IsLetter(A[i][0])) One(f, state, what + " #" + i, double.Parse(A[i], System.Globalization.CultureInfo.InvariantCulture), double.Parse(B[i], System.Globalization.CultureInfo.InvariantCulture));
     }
 
     void CmpPath(int f, string state, string name, RigPath mine, string theirs)
@@ -258,6 +278,12 @@ sealed class Shots
 {
     readonly RigDisplay _d; readonly RigRaster _r; readonly string _dir, _key; readonly int _w, _h;
     readonly List<string> _lines = new List<string>();
+
+    public static Shots Make(Dictionary<string, object> s, RigGeo geo, RigRender R, string dir, string key, string fabric)
+    {
+        try { return new Shots(s, geo, R, dir, key, fabric); }
+        catch (NotSupportedException e) { Console.WriteLine("pixels: not drawn (" + e.Message + ")"); return null; }
+    }
 
     public Shots(Dictionary<string, object> s, RigGeo geo, RigRender R, string dir, string key, string fabric)
     {
