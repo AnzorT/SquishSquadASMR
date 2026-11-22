@@ -61,7 +61,9 @@ namespace PlushCrush.App
             ReferenceOverlay.Install(Root); // editor-only tool, drawn above everything (see ReferenceOverlay.cs)
 
             Router = new ScreenRouter(this, screenLayer);
-            Router.Show(new SetupCheckScreen());
+            // The Main Menu once its pictures are exported (tools/unity-port/export-menu.mjs); the setup check before.
+            if (MainMenu.MenuLayout.Exists) Router.Show(new MainMenu.MainMenuScreen());
+            else Router.Show(new SetupCheckScreen());
         }
 
         void Update()
@@ -70,6 +72,25 @@ namespace PlushCrush.App
 #if ENABLE_LEGACY_INPUT_MANAGER
             if (Input.GetKeyDown(KeyCode.Escape)) Router.Back();
 #endif
+        }
+
+        /// <summary>A short message at the top of the screen.</summary>
+        public void Toast(string text, float seconds = 2f)
+        {
+            var t = new Label(text).Use(Fonts.Nunito800);
+            t.pickingMode = PickingMode.Ignore;
+            t.style.position = Position.Absolute;
+            t.style.top = 10;
+            t.style.left = Length.Percent(50);
+            t.style.translate = new Translate(Length.Percent(-50), 0);
+            t.style.backgroundColor = new Color(0.1f, 0.05f, 0.15f, 0.85f);
+            t.style.color = Color.white;
+            t.style.fontSize = 13;
+            t.style.paddingLeft = 14; t.style.paddingRight = 14; t.style.paddingTop = 6; t.style.paddingBottom = 6;
+            t.style.borderTopLeftRadius = 14; t.style.borderTopRightRadius = 14;
+            t.style.borderBottomLeftRadius = 14; t.style.borderBottomRightRadius = 14;
+            PopupLayer.Add(t);
+            t.schedule.Execute(() => t.RemoveFromHierarchy()).StartingIn((long)(seconds * 1000));
         }
 
         static VisualElement FullLayer(string name)

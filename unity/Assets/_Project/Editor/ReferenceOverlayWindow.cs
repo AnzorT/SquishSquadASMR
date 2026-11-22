@@ -59,6 +59,8 @@ namespace PlushCrush.EditorTools
             EditorGUI.BeginChangeCheck();
             _on = EditorGUILayout.Toggle("Show overlay", _on);
             _opacity = EditorGUILayout.Slider("Opacity", _opacity, 0f, 1f);
+            ReferenceOverlay.FreezeAnimations = EditorGUILayout.Toggle(
+                new GUIContent("Freeze animations", "Hold animations (rain…) where the screenshots hold them"), ReferenceOverlay.FreezeAnimations);
             using (new EditorGUILayout.HorizontalScope())
             {
                 if (GUILayout.Button("◀ Prev")) _index = (_index - 1 + _paths.Length) % _paths.Length;

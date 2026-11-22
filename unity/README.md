@@ -21,13 +21,15 @@ Plan, decisions and progress: [`PORT_PLAN.md`](PORT_PLAN.md).
      `Assets/_Project/Scenes/Main.unity`;
    - makes URP the render pipeline once it's installed.
 5. In the **Game** view, add a resolution of **2340 × 1080** (the Galaxy A15) and pick it.
-6. Open `Assets/_Project/Scenes/Main.unity` and press **Play**. The first screen is a setup check: every dot should
-   be green. Send a screenshot of it, plus anything red in the Console.
+6. Open `Assets/_Project/Scenes/Main.unity` and press **Play**. The game starts on the Main Menu. Send a screenshot,
+   plus anything red in the Console. Menu **PlushCrush > Screens > Setup Check** shows the setup check (every dot
+   should be green).
 
 ## Checking a screen against the original
 
-Press Play, open **PlushCrush > Reference Overlay**, tick **Show overlay** and pick a screenshot. It's laid over the
-game, half see-through; move the opacity slider to compare.
+Press Play, open **PlushCrush > Reference Overlay**, tick **Show overlay** and pick a screenshot (`game/menu.jpg`
+for the Main Menu). It's laid over the game, half see-through; move the opacity slider to compare. Tick **Freeze
+animations** to hold the rain where the screenshot has it.
 
 ## Layout
 

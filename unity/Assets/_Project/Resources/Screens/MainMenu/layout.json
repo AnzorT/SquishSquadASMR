@@ -1,0 +1,702 @@
+{
+ "screen": {
+  "width": 832,
+  "height": 384,
+  "scale": 2.8125
+ },
+ "scene": {
+  "image": "scene-L1-rainy",
+  "viewBox": [
+   1000,
+   460
+  ],
+  "align": "xMidYMax slice",
+  "pixels": [
+   2348,
+   1080
+  ],
+  "subpixelShift": 0.087,
+  "level": 1,
+  "season": "rainy"
+ },
+ "parts": [
+  {
+   "name": "creature",
+   "image": "creature",
+   "anchor": "scene",
+   "layer": "world",
+   "value": null,
+   "x": 366.9333,
+   "y": 195.5556,
+   "w": 104.5333,
+   "h": 163.2,
+   "px": [
+    1032,
+    550,
+    294,
+    459
+   ],
+   "sceneAt": [
+    503.8333,
+    429.7593
+   ]
+  },
+  {
+   "name": "nameplate",
+   "image": "nameplate",
+   "anchor": "bottom-center",
+   "layer": "world",
+   "value": null,
+   "x": 344.1778,
+   "y": 339.9111,
+   "w": 143.2889,
+   "h": 43.7333,
+   "px": [
+    968,
+    956,
+    403,
+    123
+   ]
+  },
+  {
+   "name": "name-mittens",
+   "image": "name-mittens",
+   "anchor": "bottom-center",
+   "layer": "world",
+   "value": "name",
+   "x": 380.4444,
+   "y": 351.6444,
+   "w": 70.7556,
+   "h": 19.2,
+   "px": [
+    1070,
+    989,
+    199,
+    54
+   ]
+  },
+  {
+   "name": "tab-house",
+   "image": "tab-house",
+   "anchor": "top-left",
+   "layer": "hud",
+   "value": null,
+   "x": 1.7778,
+   "y": 0,
+   "w": 150.0444,
+   "h": 63.2889,
+   "px": [
+    5,
+    0,
+    422,
+    178
+   ]
+  },
+  {
+   "name": "tab-characters",
+   "image": "tab-characters",
+   "anchor": "top-left",
+   "layer": "hud",
+   "value": null,
+   "x": 131.5556,
+   "y": 6.7556,
+   "w": 156.0889,
+   "h": 55.1111,
+   "px": [
+    370,
+    19,
+    439,
+    155
+   ]
+  },
+  {
+   "name": "tab-shop",
+   "image": "tab-shop",
+   "anchor": "top-left",
+   "layer": "hud",
+   "value": null,
+   "x": 275.2,
+   "y": 6.7556,
+   "w": 107.3778,
+   "h": 55.1111,
+   "px": [
+    774,
+    19,
+    302,
+    155
+   ]
+  },
+  {
+   "name": "pill-coins",
+   "image": "pill-coins",
+   "anchor": "top-right",
+   "layer": "hud",
+   "value": null,
+   "x": 494.5778,
+   "y": 4.6222,
+   "w": 99.9111,
+   "h": 58.3111,
+   "px": [
+    1391,
+    13,
+    281,
+    164
+   ]
+  },
+  {
+   "name": "pill-gems",
+   "image": "pill-gems",
+   "anchor": "top-right",
+   "layer": "hud",
+   "value": null,
+   "x": 602.3111,
+   "y": 5.6889,
+   "w": 97.7778,
+   "h": 57.2444,
+   "px": [
+    1694,
+    16,
+    275,
+    161
+   ]
+  },
+  {
+   "name": "orb-trophies",
+   "image": "orb-trophies",
+   "anchor": "top-right",
+   "layer": "hud",
+   "value": null,
+   "x": 696.1778,
+   "y": 2.4889,
+   "w": 63.6444,
+   "h": 63.6444,
+   "px": [
+    1958,
+    7,
+    179,
+    179
+   ]
+  },
+  {
+   "name": "orb-settings",
+   "image": "orb-settings",
+   "anchor": "top-right",
+   "layer": "hud",
+   "value": null,
+   "x": 752,
+   "y": 2.4889,
+   "w": 63.2889,
+   "h": 63.6444,
+   "px": [
+    2115,
+    7,
+    178,
+    179
+   ]
+  },
+  {
+   "name": "play",
+   "image": "play",
+   "anchor": "bottom-left",
+   "layer": "hud",
+   "value": null,
+   "x": 2.8444,
+   "y": 289.0667,
+   "w": 236.8,
+   "h": 92.0889,
+   "px": [
+    8,
+    813,
+    666,
+    259
+   ]
+  },
+  {
+   "name": "crest",
+   "image": "crest",
+   "anchor": "bottom-right",
+   "layer": "hud",
+   "value": null,
+   "x": 700.8,
+   "y": 272.3556,
+   "w": 124.4444,
+   "h": 107.0222,
+   "px": [
+    1971,
+    766,
+    350,
+    301
+   ]
+  },
+  {
+   "name": "crest-level-1",
+   "image": "crest-level-1",
+   "anchor": "bottom-right",
+   "layer": "hud",
+   "value": "level",
+   "x": 755.2,
+   "y": 316.4444,
+   "w": 15.2889,
+   "h": 24.1778,
+   "px": [
+    2124,
+    890,
+    43,
+    68
+   ]
+  },
+  {
+   "name": "crest-spark-0",
+   "image": "crest-spark-0",
+   "anchor": "bottom-right",
+   "layer": "hud",
+   "value": null,
+   "x": 709.3333,
+   "y": 290.1333,
+   "w": 12.8,
+   "h": 13.1556,
+   "px": [
+    1995,
+    816,
+    36,
+    37
+   ]
+  }
+ ],
+ "texts": [
+  {
+   "key": "coins",
+   "parent": "pill-coins",
+   "anchor": "top-right",
+   "text": "100",
+   "x": 543.8931274414062,
+   "y": 20.030534744262695,
+   "w": 22.4122314453125,
+   "h": 16.610685348510742,
+   "font": "Fredoka",
+   "weight": 700,
+   "size": 14,
+   "color": "rgb(255, 246, 226)",
+   "letterSpacing": 0.6,
+   "shadows": [
+    {
+     "color": "rgb(107, 68, 38)",
+     "x": 0,
+     "y": 1.6,
+     "blur": 0
+    },
+    {
+     "color": "rgb(107, 68, 38)",
+     "x": 1.2,
+     "y": 0,
+     "blur": 0
+    },
+    {
+     "color": "rgb(107, 68, 38)",
+     "x": -1.2,
+     "y": 0,
+     "blur": 0
+    },
+    {
+     "color": "rgb(107, 68, 38)",
+     "x": 0,
+     "y": -1.2,
+     "blur": 0
+    },
+    {
+     "color": "rgb(107, 68, 38)",
+     "x": 1,
+     "y": 1,
+     "blur": 0
+    },
+    {
+     "color": "rgb(107, 68, 38)",
+     "x": -1,
+     "y": 1,
+     "blur": 0
+    }
+   ]
+  },
+  {
+   "key": "gems",
+   "parent": "pill-gems",
+   "anchor": "top-right",
+   "text": "600",
+   "x": 647.4046020507812,
+   "y": 20.030534744262695,
+   "w": 24.35113525390625,
+   "h": 16.610685348510742,
+   "font": "Fredoka",
+   "weight": 700,
+   "size": 14,
+   "color": "rgb(255, 246, 226)",
+   "letterSpacing": 0.6,
+   "shadows": [
+    {
+     "color": "rgb(107, 68, 38)",
+     "x": 0,
+     "y": 1.6,
+     "blur": 0
+    },
+    {
+     "color": "rgb(107, 68, 38)",
+     "x": 1.2,
+     "y": 0,
+     "blur": 0
+    },
+    {
+     "color": "rgb(107, 68, 38)",
+     "x": -1.2,
+     "y": 0,
+     "blur": 0
+    },
+    {
+     "color": "rgb(107, 68, 38)",
+     "x": 0,
+     "y": -1.2,
+     "blur": 0
+    },
+    {
+     "color": "rgb(107, 68, 38)",
+     "x": 1,
+     "y": 1,
+     "blur": 0
+    },
+    {
+     "color": "rgb(107, 68, 38)",
+     "x": -1,
+     "y": 1,
+     "blur": 0
+    }
+   ]
+  }
+ ],
+ "weather": {
+  "season": "rainy",
+  "f": 0,
+  "level": 1,
+  "bandHeight": 115,
+  "bands": [
+   -1,
+   0,
+   1,
+   2,
+   3
+  ],
+  "rain": {
+   "drops": [
+    {
+     "x": 45.1,
+     "y": 61.8,
+     "opacity": 0.5
+    },
+    {
+     "x": 818,
+     "y": 34.3,
+     "opacity": 0.4
+    },
+    {
+     "x": 917.8,
+     "y": 24.9,
+     "opacity": 0.5
+    },
+    {
+     "x": 1019.2,
+     "y": 19.4,
+     "opacity": 0.7
+    },
+    {
+     "x": 208.1,
+     "y": 31.4,
+     "opacity": 0.6
+    },
+    {
+     "x": 977.1,
+     "y": 33.5,
+     "opacity": 0.5
+    },
+    {
+     "x": -21.9,
+     "y": 79.2,
+     "opacity": 0.4
+    },
+    {
+     "x": 467.2,
+     "y": 28.7,
+     "opacity": 0.6
+    },
+    {
+     "x": 974.3,
+     "y": 107.6,
+     "opacity": 0.5
+    },
+    {
+     "x": 98,
+     "y": 111.1,
+     "opacity": 0.5
+    },
+    {
+     "x": 142.2,
+     "y": 107,
+     "opacity": 0.7
+    },
+    {
+     "x": 192.6,
+     "y": 4.1,
+     "opacity": 0.4
+    },
+    {
+     "x": 922.9,
+     "y": 48.9,
+     "opacity": 0.4
+    },
+    {
+     "x": 747.4,
+     "y": 59.6,
+     "opacity": 0.5
+    },
+    {
+     "x": 451.6,
+     "y": 62.4,
+     "opacity": 0.5
+    },
+    {
+     "x": 123.3,
+     "y": 85.5,
+     "opacity": 0.6
+    },
+    {
+     "x": 774.4,
+     "y": 92.8,
+     "opacity": 0.4
+    },
+    {
+     "x": 646.2,
+     "y": 57.8,
+     "opacity": 0.6
+    },
+    {
+     "x": 315.3,
+     "y": 32.6,
+     "opacity": 0.4
+    },
+    {
+     "x": 470.8,
+     "y": 44,
+     "opacity": 0.5
+    },
+    {
+     "x": 435.5,
+     "y": 88.4,
+     "opacity": 0.4
+    },
+    {
+     "x": 986.1,
+     "y": 60.3,
+     "opacity": 0.6
+    },
+    {
+     "x": 218.1,
+     "y": 7.8,
+     "opacity": 0.5
+    },
+    {
+     "x": 563.9,
+     "y": 97.3,
+     "opacity": 0.6
+    },
+    {
+     "x": 442.5,
+     "y": 24.6,
+     "opacity": 0.6
+    },
+    {
+     "x": 299.2,
+     "y": 80.9,
+     "opacity": 0.5
+    },
+    {
+     "x": 969.2,
+     "y": 84.2,
+     "opacity": 0.4
+    },
+    {
+     "x": 937.9,
+     "y": 26.3,
+     "opacity": 0.6
+    }
+   ],
+   "line": [
+    -4,
+    14
+   ],
+   "color": "#e8f2ff",
+   "width": 1,
+   "from": [
+    4,
+    -115
+   ],
+   "to": [
+    0,
+    0
+   ],
+   "ms": 225
+  },
+  "snow": {
+   "flakes": [
+    {
+     "x": 652.4,
+     "y": 99.2,
+     "r": 1.1,
+     "opacity": 0.6
+    },
+    {
+     "x": 20.8,
+     "y": 46.7,
+     "r": 2,
+     "opacity": 0.6
+    },
+    {
+     "x": 621.9,
+     "y": 38.5,
+     "r": 1.7,
+     "opacity": 0.6
+    },
+    {
+     "x": 304.9,
+     "y": 46.8,
+     "r": 1.9,
+     "opacity": 0.7
+    },
+    {
+     "x": 502.5,
+     "y": 86,
+     "r": 1.5,
+     "opacity": 0.8
+    },
+    {
+     "x": 554.5,
+     "y": 22.1,
+     "r": 2,
+     "opacity": 0.7
+    },
+    {
+     "x": 806.6,
+     "y": 0.9,
+     "r": 1.4,
+     "opacity": 0.7
+    },
+    {
+     "x": 64.3,
+     "y": 19,
+     "r": 1.2,
+     "opacity": 0.7
+    },
+    {
+     "x": 463.3,
+     "y": 23.5,
+     "r": 1.5,
+     "opacity": 0.8
+    },
+    {
+     "x": 588.7,
+     "y": 26.5,
+     "r": 1.1,
+     "opacity": 0.8
+    },
+    {
+     "x": 428.2,
+     "y": 100.3,
+     "r": 1.3,
+     "opacity": 0.9
+    },
+    {
+     "x": 869.3,
+     "y": 111.4,
+     "r": 2,
+     "opacity": 0.6
+    },
+    {
+     "x": 666.6,
+     "y": 9.6,
+     "r": 1.8,
+     "opacity": 1
+    },
+    {
+     "x": 890.9,
+     "y": 13.2,
+     "r": 1.1,
+     "opacity": 0.7
+    },
+    {
+     "x": 247.3,
+     "y": 87.2,
+     "r": 2.6,
+     "opacity": 0.8
+    },
+    {
+     "x": 743.9,
+     "y": 97.2,
+     "r": 2.1,
+     "opacity": 0.8
+    },
+    {
+     "x": 979.1,
+     "y": 76,
+     "r": 1.1,
+     "opacity": 0.6
+    },
+    {
+     "x": 89.5,
+     "y": 15.2,
+     "r": 2.6,
+     "opacity": 1
+    },
+    {
+     "x": 727.3,
+     "y": 74.5,
+     "r": 1.9,
+     "opacity": 0.9
+    },
+    {
+     "x": 3.2,
+     "y": 58.3,
+     "r": 1.3,
+     "opacity": 0.7
+    },
+    {
+     "x": 605.3,
+     "y": 95.5,
+     "r": 1.3,
+     "opacity": 0.8
+    },
+    {
+     "x": 220.2,
+     "y": 9,
+     "r": 2.3,
+     "opacity": 0.8
+    },
+    {
+     "x": 296.8,
+     "y": 45.1,
+     "r": 1.4,
+     "opacity": 0.8
+    }
+   ],
+   "color": "#ffffff",
+   "from": [
+    0,
+    -115
+   ],
+   "to": [
+    3.5,
+    0
+   ],
+   "ms": 3500
+  },
+  "frozenOffset": [
+   3.339,
+   -96
+  ]
+ }
+}

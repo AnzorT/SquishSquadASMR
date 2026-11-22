@@ -45,7 +45,7 @@ namespace PlushCrush.App
             left.Add(Check("Screen", $"{Screen.width} x {Screen.height} px  ·  1 dp = {scale:0.###} px", true));
             left.Add(Check("UI units", $"{AppRoot.RefWidth} x {AppRoot.RefHeight} dp at the A15's shape (2340 x 1080 px)",
                 Mathf.Abs(Screen.width / (float)Screen.height - 2340f / 1080f) < 0.02f));
-            left.Add(Check("Color space", QualitySettings.activeColorSpace.ToString(), QualitySettings.activeColorSpace == ColorSpace.Linear));
+            left.Add(Check("Color space", QualitySettings.activeColorSpace.ToString(), QualitySettings.activeColorSpace == ColorSpace.Gamma));
 
             int missing = 0;
             foreach (var f in Fonts.All) if (Fonts.Get(f) == null) missing++;

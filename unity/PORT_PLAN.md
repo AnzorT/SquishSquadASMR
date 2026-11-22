@@ -11,7 +11,9 @@ game natively in Unity. The goal is a 1:1 match with the app as it is today: sam
 | Prototype screens (menu, house, park, chest smash) | Rebuilt natively in Unity, not a WebView | User's choice; a WebView would keep the web performance cost |
 | Still art | Rendered by Chromium from the game's own files → PNG | Pixel-identical. Unity's SVG importer can't draw the blurs, blend modes and the fabric-texture filter the art uses |
 | UI | UI Toolkit, built in C# | Flexbox, like React Native; text-based, reviewable |
-| UI units | 1 unit = 1 dp; 832 × 384 (Galaxy A15 landscape), scaled by screen height | Same numbers as the React Native styles |
+| UI units | 1 unit = 1 dp; 832 × 384 (Galaxy A15 landscape), scaled by screen height | Same numbers as the React Native styles; the game's pages scale their HUD by height too (measured) |
+| Color space | **Gamma** | The browser blends semi-transparent edges, shadows and glows in gamma (sRGB); Unity must blend the same way to match |
+| Screens from the prototype | Taken apart by the browser into pieces + `layout.json`, put back together by Unity | Every piece pixel-identical; positions measured in the game, anchored to the same edges as the page |
 | App id | `com.plushcrush.app` | `google-services.json` is keyed to it. A Unity build replaces the React Native app on a phone |
 | Backend | Unchanged: Firebase (Auth, Firestore, Storage, Functions) | Unity only replaces the client |
 
@@ -24,8 +26,13 @@ game natively in Unity. The goal is a 1:1 match with the app as it is today: sam
    screenshot, and slide the opacity. A rebuilt screen is done when nothing moves as the overlay fades in and out.
 3. Animations: the same frozen captures at several moments (0 s, 0.5 s, 1 s…) compared with Unity at the same moments.
 
-Known sources of small differences, each checked on the first screen: text drawn by Unity's text engine instead of
-the browser's; semi-transparent edges blended in linear color (switch the project to Gamma if they differ visibly).
+Each exporter also checks itself: it puts its pieces back together in the browser and compares with the real screen.
+Main Menu: 0.57% of pixels differ by more than 2/255, 0.095% clearly; almost all of the clear ones are the coin and gem
+numbers (drawn as text, by Unity in the end), the rest blur-filter noise in the scene.
+
+The one known source of difference left: text Unity draws itself (the coin and gem numbers) goes through Unity's
+text engine, not the browser's. Lettering that can't be drawn natively (the creature's name, the level number) is
+exported as pictures instead.
 
 ## What the app is (the port's scope)
 
@@ -64,7 +71,7 @@ Game Park carousel), Level Pass, Squad House v6 (8 rooms with animated creatures
 | Phase | What | Status |
 |---|---|---|
 | 0 | Project, first-open setup, reference screenshots, art export | **Done** (this session) |
-| 1 | Main Menu, still: scene at level 1 + HUD, checked 1:1 against `menu.jpg` | Next |
+| 1 | Main Menu, still: scene at level 1 + HUD, checked 1:1 against `menu.jpg` | **Written** (2026-11-22), waiting for its first run in Unity |
 | 2 | Main Menu, alive: weather, the creature rig, PLAY → Game Park | |
 | 3 | Characters, Shop, Settings, Achievements, Level road | |
 | 4 | Squish Time (3D) | |
@@ -74,6 +81,16 @@ Game Park carousel), Level Pass, Squad House v6 (8 rooms with animated creatures
 
 Game logic (economy, XP, levels, achievements) is ported into `PlushCrush.Core` as plain C# with tests, alongside
 whichever screen first needs it.
+
+## Phase 1 notes (Main Menu, still)
+
+- Pieces: the scene (whole 1000 × 460 drawing at the A15's scale, with the page's 0.087 px offset drawn in so it lands
+  on whole pixels), the creature, name plate, the name (a picture per creature), 3 tabs, 2 pills (numbers drawn by
+  Unity), 2 round buttons, PLAY, the crest, its level number (a picture per level), a sparkle.
+- Rain is drawn by Unity from menu.js's own numbers (`MenuWeather.cs`); snow too. Birds (sunny, later levels): phase 2.
+- Only one state exported so far: level 1, rainy, Mittens. Other creatures' names, other levels' numbers and scenes
+  come when the exporter loops over them (phase 2), then the delivery plan above.
+- Buttons answer with a "comes in phase N" message until their screens exist.
 
 ## What needs you
 
@@ -89,4 +106,5 @@ whichever screen first needs it.
 node webgame/build.mjs --out webgame/test/out/webgame   # the game pages, as the phone has them
 node tools/unity-port/capture-references.mjs            # reference screenshots -> Assets/_Project/Reference/game
 node tools/unity-port/export-art.mjs                    # creature art -> Assets/_Project/Art/Generated (not in git)
+node tools/unity-port/export-menu.mjs                   # Main Menu pieces + layout.json -> Resources/Screens/MainMenu
 ```

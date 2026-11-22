@@ -26,6 +26,24 @@ namespace PlushCrush.App
 
         static readonly Dictionary<string, Font> Cache = new Dictionary<string, Font>();
 
+        /// <summary>The font file for a CSS family and weight, e.g. ("Fredoka", 700) -> Fredoka_700Bold.</summary>
+        public static string For(string family, float weight)
+        {
+            string w;
+            switch (Mathf.RoundToInt(weight / 100f) * 100)
+            {
+                case 400: w = "400Regular"; break;
+                case 500: w = "500Medium"; break;
+                case 600: w = "600SemiBold"; break;
+                case 800: w = "800ExtraBold"; break;
+                case 900: w = "900Black"; break;
+                default: w = "700Bold"; break;
+            }
+            string f = (family ?? "").Replace(" ", "");
+            if (f == "Baloo2" || f == "Baloo") f = "Baloo2";
+            return f + "_" + w;
+        }
+
         public static Font Get(string name)
         {
             if (!Cache.TryGetValue(name, out var font))

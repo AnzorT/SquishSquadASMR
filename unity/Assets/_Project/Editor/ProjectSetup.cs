@@ -4,7 +4,7 @@
 // the first time the project opens:
 //   1. Packages: added by name through the Package Manager, so each resolves to the version that fits this Editor
 //      (nothing is guessed in Packages/manifest.json). Runs on every load but only asks for what's missing.
-//   2. Player settings: app id, name, landscape, Android IL2CPP + ARM64, linear color. Applied once; the marker file
+//   2. Player settings: app id, name, landscape, Android IL2CPP + ARM64, gamma color (as the browser blends). Applied once; the marker file
 //      ProjectSettings/PlushCrushSetup.json records it, so a later change made by hand in Player Settings sticks.
 //   3. The main scene, saved and put in Build Settings (the app builds its own screens from code, see AppRoot).
 // URP's pipeline asset is made by UrpSetup.cs (its own assembly, compiled only once URP is installed).
@@ -40,7 +40,7 @@ namespace PlushCrush.EditorTools
         const string CompanyName = "PlushCrush";
         const string MainScenePath = "Assets/_Project/Scenes/Main.unity";
         const string MarkerPath = "ProjectSettings/PlushCrushSetup.json";
-        const int SetupVersion = 1;
+        const int SetupVersion = 2;
 
         static AddAndRemoveRequest _request;
         static double _deadline;
@@ -164,7 +164,9 @@ namespace PlushCrush.EditorTools
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
 
-            PlayerSettings.colorSpace = ColorSpace.Linear;
+            // Gamma, not Linear: the game's art is blended by the browser in gamma (sRGB) space, so semi-transparent
+            // edges, shadows and glows only come out the same when Unity blends the same way.
+            PlayerSettings.colorSpace = ColorSpace.Gamma;
             PlayerSettings.SplashScreen.backgroundColor = new Color32(0x2A, 0x16, 0x08, 0xFF); // app.json splash color
 
             AssetDatabase.SaveAssets();

@@ -9,6 +9,10 @@ namespace PlushCrush.App
     {
         static VisualElement _overlay;
 
+        /// <summary>Hold animations where the reference screenshots hold them (the screenshots are frozen at their
+        /// first frame), so a screen can be compared with them still. Set from the Reference Overlay window.</summary>
+        public static bool FreezeAnimations;
+
         public static bool IsInstalled => _overlay != null && _overlay.panel != null;
 
         internal static void Install(VisualElement root)
