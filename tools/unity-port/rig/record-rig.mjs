@@ -105,7 +105,7 @@ const trace = await page.evaluate(({ key, N, FPS, SCRIPT, DRAWN }) => {
   const c = window.RiveRig.mount(host, key, {}); I = c._I;   // (mounting runs one frame: dt 0.016 at t0)
   nameAll(I);
   const sc = new Map(SCRIPT.map(([f, w]) => [f, w]));
-  const keep = I => ({ rr: draws, hs: I.hs, ed: I.ed, ld: I.ld, spTw: I.spTw, spF: I.spF, ms: I.ms, dent: I.dent, state: I.cur.name, spinOff: I.spinOff });
+  const keep = I => ({ rr: draws, order: I.order, hs: I.hs, ed: I.ed, ld: I.ld, spTw: I.spTw, spF: I.spF, ms: I.ms, dent: I.dent, state: I.cur.name, spinOff: I.spinOff });
   frames.push({ f: 0, now: 0, P: cur, ...keep(I), draw: drawn() });
   // the creature's rig as mounted (data for the C# renderer: its definition D, the geometry mount() precomputes from it
   // (I.RG: parsed outlines, ear sections, fur rings…), a few derived numbers, and the drawing's element tree)

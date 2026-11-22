@@ -151,6 +151,7 @@ namespace PlushCrush.Core.Rig
         public double Hs, Ed, Ld, SpTw, SpF;
         public RigStretch Ms;
         public RigDent Dent;
+        public RigState St;   // the move tick() ended on (render reads its propZ)
 
         public RigEngine(RigData data, string key, double now, Func<double> random)
         {
@@ -406,6 +407,7 @@ namespace PlushCrush.Core.Rig
             else Ms = null;
             double sk = P["sk"], dv = P["dv"];
             if (Truthy(sk) || Truthy(dv)) P["lift"] -= (Truthy(sk) ? sk : 0) + (Truthy(dv) ? dv : 0) * 30;
+            St = st;
             return P;
         }
 

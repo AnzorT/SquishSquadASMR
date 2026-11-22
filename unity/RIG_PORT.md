@@ -18,15 +18,18 @@ and touches. It writes:
   (parsed outlines, ear sections, fur rings: data, so not ported), and its drawing's element tree
 - `tools/unity-port/rig/out/trace-<key>.json`: per frame, the pose and the drawing's attribute writes
 
-`tools/unity-port/rig/check` (.NET 8; `dotnet run -c Release -- <rig-states.json> <trace.json>`) compiles the Unity
-rig files exactly as they are and replays the trace.
+`tools/unity-port/rig/check` (.NET 8; `dotnet run -c Release -- <rig-states.json> <trace.json> [<geo.json>]`) compiles
+the Unity rig files exactly as they are and replays the trace: every pose channel, and with the geometry, every
+attribute the game wrote to the drawing (path numbers, opacities, stroke widths, ellipses) and the parts' stacking order.
+Record with `--draw-frames 2400` to check the drawing over all 40 s (the trace is then ~44 MB, in `rig/out/`, not in git).
+`HULL_FRAME=<n>` prints the near-ties in the ear outlines at that frame.
 
 ## Steps
 
 | Step | What | Status |
 |---|---|---|
 | 1 | Pose engine: tick() up to render (moves, blends, fidgets, gaze, blinks, touch, shots, springs, soft body) | **Done**, matches exactly (2401 frames, largest difference 3e-16) |
-| 2 | Built-in renderer for Mittens: render() -> every path / attribute of his drawing | In progress |
+| 2 | Built-in renderer for Mittens: render() -> every path / attribute of his drawing | **Done**: 2400 frames, 229k attributes, 6.2M numbers exact, stacking order the same every frame (see the ears note) |
 | 3 | Unity drawing: the element tree (fills, gradients, clips, masks, the fabric texture, outline) as vector meshes | |
 | 4 | The other 19 built-in rigs (their own branches of render(): web feet, crests, lobe ears, wings, …) | |
 | 5 | The generic rig (rive-generic.js, ~835 KB of code) for the other 98 creatures | |
@@ -37,5 +40,14 @@ rig files exactly as they are and replays the trace.
 - Quirks of the game are kept (1:1 with what the app does): the soft body's two spring steps are commented out in
   the game (they never move); a quick tap on a creature does nothing (the poke branch is inside a comment).
 - The rig's own random draws come through a delegate: the game's Math.random in the app, a seeded generator in tests.
-- Number formatting matters for the drawing check: the game writes coordinates rounded to 2 decimals (r2) as JS
-  number strings; the C# formats them the same way ("12.5", "0", never "-0").
+- The renderer (RigRender) writes paths as commands plus numbers already rounded the game's way (r2, JS Math.round),
+  not as strings, so a phone isn't making garbage every frame; RigPath.ToString() prints the game's string form for checks.
+- Math.hypot is V8's algorithm (scaled, Kahan-summed), so lengths match to the bit.
+- The ears' outlines are convex hulls round ~170 points on the ear's surface, and many pairs of those points lie a hair
+  (1e-15) apart. Which one of a pair the hull keeps depends on the last bit of sin / pow, and that differs between maths
+  libraries (Chrome's and .NET's, and in the game itself between phones' WebViews). In 118 of 4800 ear outlines the
+  C# keeps a different one than this Chrome did; the drawn curves are then at most 0.22 rig units apart (about one
+  phone pixel, at the ear's root, for a frame). The check measures those curves' distance (limit 0.25) instead of
+  comparing numbers.
+- Rigs using a branch of render() not ported yet are refused by RigRender's constructor with the feature's name
+  (RigRender.Unported), so nothing is drawn wrong by accident.

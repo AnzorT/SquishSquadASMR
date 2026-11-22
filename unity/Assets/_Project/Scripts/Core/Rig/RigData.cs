@@ -20,7 +20,7 @@ namespace PlushCrush.Core.Rig
         public string Name;
         public double Loop, Dur, Blend;           // 0 = not set
         public bool Look, NoBlink, Whip;
-        public double? Soft, Stretch, Breathe;
+        public double? Soft, Stretch, Breathe, PropZ;
         public string Next;
         public List<string> Seq;
         public List<RigEvent> Ev;
@@ -78,6 +78,7 @@ namespace PlushCrush.Core.Rig
             if (o.TryGetValue("soft", out v) && v != null) s.Soft = Num(v);
             if (o.TryGetValue("stretch", out v) && v != null) s.Stretch = Num(v);
             if (o.TryGetValue("breathe", out v) && v != null) s.Breathe = Num(v);
+            if (o.TryGetValue("propZ", out v) && v != null) s.PropZ = Num(v);
             if (o.TryGetValue("next", out v)) s.Next = v as string;
             if (o.TryGetValue("seq", out v) && v is List<object> seq) { s.Seq = new List<string>(); foreach (var x in seq) s.Seq.Add((string)x); }
             if (o.TryGetValue("tap", out v) && v is List<object> tap && tap.Count >= 2) s.Tap = new[] { Num(tap[0]), Num(tap[1]) };
