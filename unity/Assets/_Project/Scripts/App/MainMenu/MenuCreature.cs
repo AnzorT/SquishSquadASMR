@@ -1,6 +1,8 @@
 // What the menu asks of its creature (the rig in the page: RiveRig, menu.js walk()): play a move, turn side-on
 // (spinOff, degrees: -90 faces left, 90 right), and walk in place while the menu moves it.
+using System;
 using PlushCrush.App.Motion;
+using PlushCrush.App.Rig;
 using UnityEngine.UIElements;
 
 namespace PlushCrush.App.MainMenu
@@ -42,6 +44,62 @@ namespace PlushCrush.App.MainMenu
             _walking = on;
             if (on) _bob.Trigger(); else _bob.Hold = CssPose.Identity;
             if (on) _bob.Hold = null;
+        }
+    }
+
+    /// <summary>The creature live: the game's rig (RigView), in the page's stage box. Its still picture shows until the
+    /// rig's moves have loaded (a worker thread parses them). Walking, the box bobs as the page's .mm-stage.walk > div
+    /// (mmBob), and the menu's turns go to the rig's spinOff, as main-menu.js sets I.spinOff.</summary>
+    public sealed class LiveCreature : IMenuCreature
+    {
+        readonly VisualElement _host, _picture;
+        readonly StillCreature _still;
+        readonly string _key;
+        readonly Action<VisualElement, Action<float>> _place;
+        RigView _rig;
+        CssAnimator _bob;
+        float _spin, _ppu = 2.8125f;
+        bool _walking;
+
+        public static bool Possible(string key) => RigLibrary.Unsupported(key) == null;   // (no moves file: the still picture stays)
+
+        public LiveCreature(VisualElement host, VisualElement picture, string key, Action<VisualElement, Action<float>> placeBox)
+        {
+            _host = host; _picture = picture; _key = key; _place = placeBox;
+            _still = new StillCreature(picture, 169f);
+            RigLibrary.Preload();
+            host.schedule.Execute(TrySwap).Every(50).Until(() => _rig != null);
+        }
+
+        void TrySwap()
+        {
+            if (_rig != null || !RigLibrary.Ready) return;
+            var rig = new RigView(_key);
+            _place(rig, ppu => { _ppu = ppu; rig.PixelsPerUnit = ppu; });
+            rig.PixelsPerUnit = _ppu;
+            _host.Add(rig);
+            if (_picture != null) _picture.style.display = DisplayStyle.None;
+            rig.Engine.SpinOff = _spin;
+            _rig = rig;
+            var bob = new CssAnimation { Duration = 0.32f, Iterations = float.PositiveInfinity, Timing = Easing.EaseInOut };
+            bob.Key(new CssKeyframe(0f).Move(0, 0).Rot(-2f));
+            bob.Key(new CssKeyframe(0.5f).Move(0, -0.05f * 168.96f).Rot(2f));   // -5% of the box (0.44 of the 384-unit-tall UI)
+            bob.Key(new CssKeyframe(1f).Move(0, 0).Rot(-2f));
+            _bob = new CssAnimator(rig, "50% 50%", autostart: false, inReference: false).Play(bob);
+            if (_walking) { _bob.Trigger(); _bob.Hold = null; }
+        }
+
+        public void Play(string move) { if (_rig != null) _rig.Play(move); }
+
+        public void SpinOff(float degrees) { _spin = degrees; if (_rig != null) _rig.Engine.SpinOff = degrees; }
+
+        public void Walking(bool on, float facing)
+        {
+            _still.Walking(on, facing);
+            if (on == _walking) return;
+            _walking = on;
+            if (_bob == null) return;
+            if (on) { _bob.Trigger(); _bob.Hold = null; } else _bob.Hold = CssPose.Identity;
         }
     }
 }

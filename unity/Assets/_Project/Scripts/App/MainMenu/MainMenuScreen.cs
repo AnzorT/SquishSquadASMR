@@ -6,6 +6,7 @@
 // The pictures follow the player's state (MenuState: creature, level, season, coins, gems, XP, prizes waiting); the HUD
 // moves as in the game (MenuHud); PLAY walks to the Game Park (EnterPark). Still to come: the creature's rig (it's a
 // still picture here) and real player data (Firebase).
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using PlushCrush.App.Motion;
@@ -58,6 +59,7 @@ namespace PlushCrush.App.MainMenu
         // the page's layers: the world (scene, vignette, the Game Park's picture, creature, name plate: the camera pans
         // it), the weather over it (fixed to the screen), the HUD on top (fades while the creature walks)
         VisualElement _world, _hud, _vignette, _creatureEl, _nameEl, _park;
+        MenuLayout.PartSpec _creatureSpec;
         IMenuCreature _creature;
         bool _busy;
         ParkWalk _walk;
@@ -107,8 +109,11 @@ namespace PlushCrush.App.MainMenu
                 _creatureEl.style.backgroundImage = new StyleBackground(StyleKeyword.None);
                 _creatureEl.Add(pic);
             }
-            // until the rig is ported: the still picture (it turns and walks in the page); the stage is 169 dp tall
-            _creature = new StillCreature(pic, 169f);
+            // the live rig where it's ported (the still picture until its moves have loaded, and for creatures not ported
+            // yet); its 100 x 100 box sits where the page puts .mm-stage
+            if (_creatureEl != null && _creatureSpec != null && LiveCreature.Possible(_state.CreatureKey))
+                _creature = new LiveCreature(_creatureEl, pic, _state.CreatureKey, PlaceStage);
+            else _creature = new StillCreature(pic, 169f);
             root.Add(new MenuWeather(_layout.weather, _state.SeasonNow(), W, H));
             if (MenuBirds.Shown(_state.SeasonNow(), _state.Level)) root.Add(new MenuBirds());
 
@@ -373,6 +378,7 @@ namespace PlushCrush.App.MainMenu
             // pieces that depend on a value: one picture per value, each with its own box (from that value's index)
             var tex = PictureFor(part, out var spec);
             if (tex == null) return;
+            if (part.name == "creature") _creatureSpec = spec;
 
             var e = new VisualElement { name = part.name };
             Place(e, spec.anchor, spec, W, H);
@@ -494,6 +500,28 @@ namespace PlushCrush.App.MainMenu
                 e.style.right = StyleKeyword.Auto; e.style.bottom = StyleKeyword.Auto; e.style.marginLeft = 0;
             }
             root.RegisterCallback<GeometryChangedEvent>(_ => Layout());
+        }
+
+        /// <summary>The rig's 100 x 100 box where main-menu.js puts .mm-stage (S = 0.44 of the frame's height, its feet on
+        /// the path's pad at scene (500, 421), 95.5% down the box), inside the creature's picture box (which follows the
+        /// scene the same way); and the screen's pixels per UI unit.</summary>
+        void PlaceStage(VisualElement box, Action<float> pixelsPerUnit)
+        {
+            var p = _creatureSpec;
+            float w = p.px != null && p.px.Length == 4 ? p.px[2] / 2.8125f : p.w, h = p.px != null && p.px.Length == 4 ? p.px[3] / 2.8125f : p.h;
+            void Layout()
+            {
+                float Wu = View.layout.width, Hu = View.layout.height;
+                if (float.IsNaN(Wu) || Wu <= 0 || Hu <= 0) return;
+                float s = Mathf.Max(Wu / 1000f, Hu / 460f), sx0 = (Wu - 1000f * s) / 2f, sy0 = Hu - 460f * s, S = Hu * 0.44f;
+                float cl = sx0 + p.sceneAt[0] * s - w / 2f, ct = sy0 + p.sceneAt[1] * s - h;
+                box.style.position = Position.Absolute;
+                box.style.left = sx0 + 500f * s - S / 2f - cl; box.style.top = sy0 + 421f * s - 0.955f * S - ct;
+                box.style.width = S; box.style.height = S;
+                pixelsPerUnit(Screen.height / Hu);
+            }
+            View.RegisterCallback<GeometryChangedEvent>(_ => Layout());
+            Layout();
         }
 
         static void Fill(VisualElement e)

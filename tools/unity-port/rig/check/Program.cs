@@ -11,6 +11,25 @@ using PlushCrush.Core.Rig;
 
 static class Program
 {
+    /// <summary>What one frame costs on this machine: tick, outlines, the draw list (tessellation), and its size.</summary>
+    static void Perf(RigData data, string key, RigGeo geo, double t0, double fps)
+    {
+        var rnd = new RigRandom(7); var E = new RigEngine(data, key, t0, () => rnd.Next());
+        var R = new RigRender(geo, key); var D = new RigDisplay(RigTree.FromGeo(geo, R), R) { PxPerUnit = 4.753125f };
+        var sw = new System.Diagnostics.Stopwatch(); long tick = 0, render = 0, build = 0; int n = 1200, verts = 0, tris = 0, cmds = 0;
+        for (int f = 0; f < n; f++)
+        {
+            double now = t0 + f * 1000 / fps; if (f == 300) E.Play("hop", now); if (f == 700) E.Play("happy", now);
+            sw.Restart(); var P = E.Tick(now, 1 / fps); tick += sw.ElapsedTicks;
+            sw.Restart(); R.Render(P, E, now); render += sw.ElapsedTicks;
+            sw.Restart(); D.Build(); build += sw.ElapsedTicks;
+            if (f >= 200) { cmds += D.Cmds.Count; foreach (var c in D.Cmds) if (c.Mesh != null && c.Kind != RigCmdKind.PopClip) { verts += c.Mesh.NV; tris += c.Mesh.NT / 3; } }
+        }
+        double ms(long t) => t * 1000.0 / System.Diagnostics.Stopwatch.Frequency / n;
+        int m = n - 200;
+        Console.WriteLine($"per frame (this machine): tick {ms(tick):F3} ms, outlines {ms(render):F3} ms, draw list {ms(build):F3} ms; {cmds / m} commands, {verts / m} vertices, {tris / m} triangles");
+    }
+
     static int Main(string[] args)
     {
         var data = RigData.FromJson(File.ReadAllText(args[0]));
@@ -23,7 +42,12 @@ static class Program
         int draws = 0;
         var R = new RigEngine(data, key, t0, () => { draws++; return rnd.Next(); }) { Generic = false };
         int bad = 0; double worst = 0; string worstAt = "";
-        RigRender Rd = args.Length > 2 ? new RigRender(RigGeo.FromJson(File.ReadAllText(args[2])), key) : null;
+        RigGeo geo = args.Length > 2 ? RigGeo.FromJson(File.ReadAllText(args[2])) : null;
+        RigRender Rd = geo != null ? new RigRender(geo, key) : null;
+        // with screenshots in the trace: draw those frames in software (the GPU's list) and compare with Chrome's pixels
+        var shots = trace.TryGetValue("shots", out var so) && so is Dictionary<string, object> sd ? sd : null;
+        var shotFrames = shots != null ? new HashSet<int>(((List<object>)shots["frames"]).Select(o => (int)(double)o)) : new HashSet<int>();
+        Shots shooter = shots != null && Rd != null ? new Shots(shots, geo, Rd, Path.GetDirectoryName(Path.GetFullPath(args[1])), key, Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[2])), "fabric.png")) : null;
         var dc = new DrawCheck();
         int dbgFrame = Environment.GetEnvironmentVariable("HULL_FRAME") is string hf ? int.Parse(hf) : -1, curF = 0;
         if (Rd != null && dbgFrame >= 0) Rd.EarPointsHook = (ear, pts) =>
@@ -72,13 +96,14 @@ static class Program
             var ms = fr["ms"] as Dictionary<string, object>;
             if ((ms == null) != (R.Ms == null)) { if (bad++ < 12) Console.WriteLine($"frame {f}: stretch {(R.Ms == null ? "missing in mine" : "only in mine")}"); }
             else if (ms != null) { Cmp("ms.s", R.Ms.S, ms["s"]); Cmp("ms.c", R.Ms.C, ms["c"]); Cmp("ms.n", R.Ms.N, ms["n"]); }
-            if (Rd != null && f > 0 && fr.TryGetValue("draw", out var dw) && dw is Dictionary<string, object> draw)
-            {
-                Rd.Render(P, R, now);
-                dc.Frame(f, R.CurName, Rd, draw, fr.TryGetValue("order", out var od) ? od as string : null);
-            }
+            bool hasDraw = fr.TryGetValue("draw", out var dw) && dw is Dictionary<string, object>;
+            if (Rd != null && f > 0 && (hasDraw || shotFrames.Contains(f))) Rd.Render(P, R, now);
+            if (Rd != null && f > 0 && hasDraw) dc.Frame(f, R.CurName, Rd, (Dictionary<string, object>)dw, fr.TryGetValue("order", out var od) ? od as string : null);
+            if (shooter != null && shotFrames.Contains(f)) shooter.Frame(f);
         }
         if (Rd != null) dc.Report();
+        if (Rd != null && Environment.GetEnvironmentVariable("RIG_PERF") == "1") Perf(data, key, geo, t0, fps);
+        shooter?.Report();
         if (Rd != null && dc.Bad > 0) bad += dc.Bad;
         Console.WriteLine($"{frames.Count} frames, {bad} differences beyond 1e-7; largest: {worst:E2} at {worstAt}");
         return bad > 0 ? 1 : 0;
@@ -226,4 +251,53 @@ sealed class DrawCheck
         foreach (var kv in _badAt) Console.WriteLine($"  {kv.Key}: {kv.Value.Count} frames ({string.Join(" ", kv.Value.Take(30))}{(kv.Value.Count > 30 ? " …" : "")})");
         Console.WriteLine($"drawing: {Frames} frames, {Attrs} attributes; numbers exact {Exact}, a rounding step off {Flips} (largest {WorstFlip:F4}); order {Orders - OrderBad}/{Orders} frames the same; {Bad} differences");
     }
+}
+
+/// <summary>Draws the screenshot frames with RigDisplay + RigRaster and compares them with Chrome's.</summary>
+sealed class Shots
+{
+    readonly RigDisplay _d; readonly RigRaster _r; readonly string _dir, _key; readonly int _w, _h;
+    readonly List<string> _lines = new List<string>();
+
+    public Shots(Dictionary<string, object> s, RigGeo geo, RigRender R, string dir, string key, string fabric)
+    {
+        _dir = dir; _key = key;
+        double dsf = (double)s["dsf"]; var host = (Dictionary<string, object>)s["host"]; var clip = (Dictionary<string, object>)s["clip"];
+        double hs = (double)host["s"];
+        float k = (float)(hs / 100 * dsf), ox = (float)(((double)host["x"] - (double)clip["x"]) * dsf), oy = (float)(((double)host["y"] - (double)clip["y"]) * dsf);
+        _w = (int)Math.Round((double)clip["width"] * dsf); _h = (int)Math.Round((double)clip["height"] * dsf);
+        float[] grain = null; int gw = 0, gh = 0;
+        if (File.Exists(fabric)) { var px = RigRaster.LoadPng(fabric, out gw, out gh); grain = new float[gw * gh]; for (int i = 0; i < grain.Length; i++) grain[i] = px[i * 4 + 3] / 255f; }
+        _d = new RigDisplay(RigTree.FromGeo(geo, R), R) { PxPerUnit = k };
+        _r = new RigRaster(_w, _h, k, ox, oy, grain, gw, gh);
+    }
+
+    public void Frame(int f)
+    {
+        _d.Build();
+        var mine = _r.Play(_d.Cmds);
+        string mp = Path.Combine(_dir, $"mine-{_key}-{f}.png"); RigRaster.SavePng(mp, mine, _w, _h);
+        string sp = Path.Combine(_dir, $"shot-{_key}-{f}.png");
+        if (!File.Exists(sp)) { _lines.Add($"frame {f}: no screenshot"); return; }
+        var shot = RigRaster.LoadPng(sp, out int sw, out int sh);
+        if (sw != _w || sh != _h) { _lines.Add($"frame {f}: screenshot {sw}x{sh}, mine {_w}x{_h}"); return; }
+        // both over one background colour, then per-pixel differences (0..255)
+        double sum = 0; int over8 = 0, over32 = 0, n = 0; int maxd = 0;
+        float[] bg = { 60 / 255f, 92 / 255f, 60 / 255f };
+        for (int p = 0; p < _w * _h; p++)
+        {
+            float sa = shot[p * 4 + 3] / 255f, ma = mine[p * 4 + 3];
+            if (sa == 0 && ma == 0) continue;
+            n++; int dmax = 0;
+            for (int ch = 0; ch < 3; ch++)
+            {
+                float a = shot[p * 4 + ch] / 255f * sa + bg[ch] * (1 - sa), b = mine[p * 4 + ch] + bg[ch] * (1 - ma);
+                int d = (int)Math.Round(Math.Abs(a - b) * 255); sum += d; if (d > dmax) dmax = d;
+            }
+            if (dmax > 8) over8++; if (dmax > 32) over32++; if (dmax > maxd) maxd = dmax;
+        }
+        _lines.Add($"frame {f}: {n} pixels drawn; mean difference {sum / Math.Max(1, n * 3):F2}/255, off by more than 8: {100.0 * over8 / Math.Max(1, n):F2}%, by more than 32: {100.0 * over32 / Math.Max(1, n):F2}%, largest {maxd}");
+    }
+
+    public void Report() { Console.WriteLine("pixels (software copy of the GPU drawing vs Chrome):"); foreach (var l in _lines) Console.WriteLine("  " + l); }
 }

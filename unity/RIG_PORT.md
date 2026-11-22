@@ -30,10 +30,29 @@ Record with `--draw-frames 2400` to check the drawing over all 40 s (the trace i
 |---|---|---|
 | 1 | Pose engine: tick() up to render (moves, blends, fidgets, gaze, blinks, touch, shots, springs, soft body) | **Done**, matches exactly (2401 frames, largest difference 3e-16) |
 | 2 | Built-in renderer for Mittens: render() -> every path / attribute of his drawing | **Done**: 2400 frames, 229k attributes, 6.2M numbers exact, stacking order the same every frame (see the ears note) |
-| 3 | Unity drawing: the element tree (fills, gradients, clips, masks, the fabric texture, outline) as vector meshes | |
+| 3 | Unity drawing: the element tree (fills, gradients, clips, the fabric grain) on the GPU; live in the menu | **Done for Mittens**: the draw list, played in software, matches Chrome's screenshots (11 frames: mean 0.7/255, 2% of pixels more than 8/255 off, at outline edges); GPU drawer written, first run in Unity pending |
 | 4 | The other 19 built-in rigs (their own branches of render(): web feet, crests, lobe ears, wings, …) | |
 | 5 | The generic rig (rive-generic.js, ~835 KB of code) for the other 98 creatures | |
 | 6 | Walking gaits (house-walk.js), the light / look / outline layers, particles | |
+
+## The drawing (step 3)
+
+- `RigTree` reads the drawing's element tree the game builds in mount() (exported by the recorder: tags, names, static
+  attributes; styles cascade the SVG way), bound to RigRender's elements by name.
+- `RigDisplay` walks it each frame in the game's painting order (the parts stacked as render() sorted them) into a
+  draw list: Draw (a mesh and a paint), PushClip / PopClip, PushLayer / PopLayer (group opacity, the fabric filter).
+  `RigTess` turns outlines into triangles: fills as fans (nonzero rule through the stencil), strokes as quads + joins +
+  caps (a union, so nothing blends twice).
+- `RigDrawer` (App/Rig) plays the list on the GPU with `Resources/Shaders/RigFill.shader`: stencil fills and nested
+  clips, radial / linear gradients on the shape's box (stops interpolated premultiplied, as Chrome), layers in their
+  own multisampled textures (8x where the phone has it), the fabric grain multiplied in linear RGB (as Chrome runs
+  filters), the result in straight alpha for the UI. `RigView` is the live creature in a VisualElement.
+- The check plays the same list in software (`rig/check/RigRaster.cs`: the shader's steps, 4 samples a pixel) and
+  compares with Chrome's screenshots of the same frames (`record-rig.mjs --shots 1,450,...`, at the A15's 2.8125 px per
+  dp): what's left is anti-aliasing at outline edges, and the sparkles of the happy move (particles: step 6).
+- Cost (desktop, one core): tick 0.01 ms, outlines 0.12 ms, draw list 0.10 ms a frame; ~50 commands, ~5,500 vertices.
+- To do: the moves file is 12 MB of JSON parsed into objects at start (a worker thread); a compact per-creature export
+  would save memory and time on phones.
 
 ## Notes
 

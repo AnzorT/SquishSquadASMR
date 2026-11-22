@@ -12,6 +12,11 @@ Plan, decisions and progress: [`PORT_PLAN.md`](PORT_PLAN.md).
    npx playwright install chromium
    node webgame/build.mjs --out webgame/test/out/webgame
    node tools/unity-port/export-art.mjs
+   # the menu's other states (scenes, parks, creatures, crest numbers) and the Game Park's creatures
+   node tools/unity-port/export-menu-states.mjs
+   node tools/unity-port/export-game-park.mjs creatures
+   # the live creature: the rig's moves, Mittens' geometry, the fabric grain (Art/Generated/Resources/Rig)
+   node tools/unity-port/rig/record-rig.mjs mittens
    ```
 3. Unity Hub → **Add** → **Add project from disk** → pick this `unity` folder. Open it.
 4. On first open the project sets itself up (menu **PlushCrush > Setup** to run it again):

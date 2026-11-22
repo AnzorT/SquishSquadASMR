@@ -109,9 +109,10 @@ whichever screen first needs it.
   turn (380 ms), walk with the camera following (2300 ms, EOUT / EIOC exactly as menu.js), turn back, the games; back:
   340 / 2100 / 340 ms. The park's picture lands on whole pixels like the house's. The games carousel and the Level
   Pass are separate pieces (GameParkOverlay, LevelPassScreen).
-- **The creature is its still picture** for now: it doesn't breathe, blink, look around, play moves or turn side-on
-  as in the game; walking it does the page's own fallback bob (mmBob). Taps on it do nothing (in the game a quick tap
-  does nothing either, a bug there: rive-rig.js:1373; holding squeezes it, dragging spins it).
+- **The creature is live** where its rig is ported (Mittens so far, see `RIG_PORT.md`): the game's rig in C#
+  (breathes, blinks, looks round, idle fidgets, the menu's moves and side-on turns), drawn on the GPU. Creatures not
+  ported yet show their still picture, as does Mittens for the moment the rig's moves take to load. Walking, the box
+  does the page's bob (mmBob). The menu's stage takes no taps, as in the page (.mm-stage: pointer-events none).
 
 ## The creature rig: what porting it means
 

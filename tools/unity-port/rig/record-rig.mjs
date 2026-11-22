@@ -46,8 +46,12 @@ fs.writeFileSync(path.join(TEST, 'rive-rig.js'), src);
 const RR = `(() => { let s = 0x1f2e3d4c; window.__rr = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; })();`;
 const SEED = `(() => { let s = 0x2f6b9a1; Math.random = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; })();`;
 
+// --shots 1,700,…: screenshots of the creature at those frames, at the Galaxy A15's density (2.8125 px per dp), on a
+// transparent background, for the Unity drawing's check (rig/out/shot-<key>-<frame>.png)
+const SHOTS = args.includes('--shots') ? args[args.indexOf('--shots') + 1].split(',').map(Number).sort((a, b) => a - b) : [];
+const DSF = 2.8125, HOST = { x: 128, y: 80, s: 169 }, CLIP = { x: 48, y: 0, width: 352, height: 336 }; // multiples of 16 css px: whole device pixels at 45/16
 const browser = await launch();
-const ctx = await browser.newContext({ viewport: { width: 832, height: 384 } });
+const ctx = await browser.newContext({ viewport: { width: 832, height: 384 }, deviceScaleFactor: SHOTS.length ? DSF : 1 });
 const page = await ctx.newPage();
 await page.route(/^(https?|wss?):/, r => r.abort());
 await page.addInitScript(SEED);
@@ -76,8 +80,9 @@ const FPS = 60, N = SECONDS * FPS;
 // [frame, what]: moves by name, a hold (press) and its release, a sideways drag (spin) and its release
 const SCRIPT = [[600, 'play:hop'], [1100, 'play:look'], [1600, 'press'], [1750, 'release'], [1900, 'play:happy'], [2300, 'drag:40'], [2330, 'drag:120'], [2360, 'dragEnd']];
 const DRAWN = +(args.includes('--draw-frames') ? args[args.indexOf('--draw-frames') + 1] : 600); // frames whose drawing is kept
-const trace = await page.evaluate(({ key, N, FPS, SCRIPT, DRAWN }) => {
-  const host = document.createElement('div'); host.style.cssText = 'position:fixed;left:0;top:0;width:169px;height:169px;'; document.body.appendChild(host);
+await page.evaluate(({ key, N, FPS, SCRIPT, DRAWN, HOST, SHOT }) => {
+  const host = document.createElement('div'); host.id = 'rigHost'; host.style.cssText = `position:fixed;left:${HOST.x}px;top:${HOST.y}px;width:${HOST.s}px;height:${HOST.s}px;z-index:2147483647;`; document.body.appendChild(host);
+  if (SHOT) { const st = document.createElement('style'); st.textContent = 'html,body{background:transparent!important} body>*:not(#rigHost){visibility:hidden!important}'; document.head.appendChild(st); }
   // the rig reads performance.now() itself (mount, play): it answers the frame's exact time
   let NOW = performance.now(); performance.now = () => NOW;
   const t0 = NOW, frames = [];
@@ -109,9 +114,16 @@ const trace = await page.evaluate(({ key, N, FPS, SCRIPT, DRAWN }) => {
   frames.push({ f: 0, now: 0, P: cur, ...keep(I), draw: drawn() });
   // the creature's rig as mounted (data for the C# renderer: its definition D, the geometry mount() precomputes from it
   // (I.RG: parsed outlines, ear sections, fur rings…), a few derived numbers, and the drawing's element tree)
+  // the drawing's element tree as data: each element's tag, its name in the rig (when it has one), its attributes
+  // (paths' d left out: the renderer writes those) and children; images as their data URL (the fabric grain)
+  const tree = e => { const o = { t: e.tagName }, n = names.get(e); if (n) o.n = n; const a = {};
+    for (const at of e.attributes) if (!(at.name === 'd' && e.tagName === 'path')) a[at.name] = at.value;
+    if (e.style && e.style.display === 'none') a.display = 'none';
+    if (Object.keys(a).length) o.a = a; if (e.children.length) o.c = [...e.children].map(tree); return o; };
   const geo = JSON.parse(JSON.stringify({ D: I.D, RG: I.RG, hkx: I.hkx == null ? null : I.hkx, generic: !!I.generic,
-    furH: I.furH || null, furB: I.furB || null, svg: host.innerHTML }, (k, v) => typeof v === 'function' ? undefined : v));
-  for (let f = 1; f <= N; f++) {
+    furH: I.furH || null, furB: I.furB || null, tree: tree(host.querySelector('svg')), svg: host.innerHTML.replace(/data:image\/png;base64,[A-Za-z0-9+/=]+/g, 'DATA') }, (k, v) => typeof v === 'function' ? undefined : v));
+  let f = 0;
+  const step = to => { for (f++; f <= to; f++) {
     const now = t0 + f * 1000 / FPS, dt = 1 / FPS;
     NOW = now;
     const w = sc.get(f);
@@ -125,13 +137,25 @@ const trace = await page.evaluate(({ key, N, FPS, SCRIPT, DRAWN }) => {
     cur = null;
     window.RiveRig.__tick(I, now, dt);
     frames.push({ f, now: now - t0, P: cur, ...keep(I), draw: f <= DRAWN ? drawn() : (writes.clear(), undefined) });
-  }
-  return { key, t0, fps: FPS, script: SCRIPT, geo, frames };
-}, { key, N, FPS, SCRIPT, DRAWN });
+  } f--; };
+  window.__R = { step, done: () => ({ key, t0, fps: FPS, script: SCRIPT, geo, frames }) };
+}, { key, N, FPS, SCRIPT, DRAWN, HOST, SHOT: SHOTS.length > 0 });
+fs.mkdirSync(OUT_TRACE, { recursive: true });
+for (const s of SHOTS) {
+  await page.evaluate(to => window.__R.step(to), s);
+  await page.screenshot({ path: path.join(OUT_TRACE, `shot-${key}-${s}.png`), clip: CLIP, omitBackground: true });
+}
+await page.evaluate(to => window.__R.step(to), N);
+const trace = await page.evaluate(() => window.__R.done());
+trace.shots = SHOTS.length ? { frames: SHOTS, dsf: DSF, host: HOST, clip: CLIP } : null;
+// the fabric grain (a seeded noise tile the rig bakes into a PNG) as its own file for Unity
+const fab = JSON.stringify(trace.geo.tree).match(/data:image\/png;base64,([A-Za-z0-9+/=]+)/);
+if (fab) { fs.writeFileSync(path.join(OUT_DATA, 'fabric.png'), Buffer.from(fab[1], 'base64')); console.log('fabric grain: ' + path.relative(REPO, path.join(OUT_DATA, 'fabric.png'))); }
+const strip = o => { if (o.a && o.a.href && o.a.href.startsWith('data:')) o.a.href = 'fabric.png'; (o.c || []).forEach(strip); };
+strip(trace.geo.tree);
 fs.writeFileSync(path.join(OUT_DATA, `geo-${key}.json`), JSON.stringify(trace.geo));
 console.log(`geometry: ${path.relative(REPO, path.join(OUT_DATA, `geo-${key}.json`))}`);
 delete trace.geo;
-fs.mkdirSync(OUT_TRACE, { recursive: true });
 fs.writeFileSync(path.join(OUT_TRACE, `trace-${key}.json`), JSON.stringify(trace));
 const states = [...new Set(trace.frames.map(f => f.state))];
 console.log(`trace: ${trace.frames.length} frames of ${key}, states seen: ${states.join(', ')}`);

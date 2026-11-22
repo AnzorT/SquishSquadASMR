@@ -11,5 +11,6 @@
   <ItemGroup>
     <Compile Include="../../../../unity/Assets/_Project/Scripts/Core/Rig/*.cs" />
     <Compile Include="Program.cs" />
+    <Compile Include="RigRaster.cs" />
   </ItemGroup>
 </Project>

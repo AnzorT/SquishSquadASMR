@@ -21,6 +21,7 @@ namespace PlushCrush.Core.Rig
 
     public sealed class RigGeo
     {
+        public Dictionary<string, object> Root;   // the whole file (D, RG, tree...)
         public Dictionary<string, object> D;
         public Dictionary<string, object> RGRaw;
         public List<RigSeg> Body, Skull, Muzzle, Nose, NoseHL, Stripes, Back;
@@ -37,6 +38,7 @@ namespace PlushCrush.Core.Rig
             var root = (Dictionary<string, object>)MiniJson.Parse(json);
             var g = new RigGeo
             {
+                Root = root,
                 D = (Dictionary<string, object>)root["D"],
                 RGRaw = (Dictionary<string, object>)root["RG"],
                 Hkx = root.TryGetValue("hkx", out var hk) && hk is double h ? h : 0,
