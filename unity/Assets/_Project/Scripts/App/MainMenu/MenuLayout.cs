@@ -11,12 +11,16 @@ namespace PlushCrush.App.MainMenu
         public const string Folder = "Screens/MainMenu/";
 
         public ScreenSpec screen;
+        public DefaultsSpec defaults;
         public SceneSpec scene;
         public PartSpec[] parts;
         public TextSpec[] texts;
         public WeatherSpec weather;
 
         [Serializable] public sealed class ScreenSpec { public float width, height, scale; }
+
+        /// <summary>The state the default pictures show: the reference screenshots' (level 1, rainy, Mittens).</summary>
+        [Serializable] public sealed class DefaultsSpec { public string creature, season; public int level; }
 
         [Serializable]
         public sealed class SceneSpec
@@ -80,6 +84,44 @@ namespace PlushCrush.App.MainMenu
         }
 
         [Serializable] public sealed class FlakeSpec { public float x, y, r, opacity; }
+
+        /// <summary>Where each picture of a value goes (Names/index.json, Levels/index.json, creatures.json).</summary>
+        [Serializable]
+        public sealed class ValueIndex
+        {
+            public ValueItem[] items;
+            public ValueItem Find(string key)
+            {
+                if (items != null) foreach (var it in items) if (it.key == key) return it;
+                return null;
+            }
+        }
+
+        [Serializable]
+        public sealed class ValueItem
+        {
+            public string key, name;
+            public int rar;
+            public int[] px;
+            public float[] sceneAt;
+        }
+
+        static ValueIndex _names, _levels, _creatures;
+        public static ValueIndex Names => _names ??= LoadIndex(Folder + "Names/index");
+        public static ValueIndex Levels => _levels ??= LoadIndex(Folder + "Levels/index");
+        public static ValueIndex Creatures => _creatures ??= LoadIndex(Folder + "creatures");
+
+        static ValueIndex LoadIndex(string path)
+        {
+            var json = Resources.Load<TextAsset>(path);
+            if (json == null) return new ValueIndex();
+            try { return JsonUtility.FromJson<ValueIndex>(json.text) ?? new ValueIndex(); }
+            catch (Exception e) { Debug.LogWarning("[PlushCrush] " + path + ".json unreadable: " + e.Message); return new ValueIndex(); }
+        }
+
+        /// <summary>A picture anywhere under a Resources folder (the generated ones live in Art/Generated/Resources).
+        /// Null, quietly, when it isn't there: callers fall back to the committed default.</summary>
+        public static Texture2D Optional(string resourcesPath) => Resources.Load<Texture2D>(resourcesPath);
 
         public static MenuLayout Load()
         {

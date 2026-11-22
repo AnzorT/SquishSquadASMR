@@ -4,6 +4,11 @@
   "height": 384,
   "scale": 2.8125
  },
+ "defaults": {
+  "creature": "mittens",
+  "level": 1,
+  "season": "rainy"
+ },
  "scene": {
   "image": "scene-L1-rainy",
   "viewBox": [
@@ -25,7 +30,7 @@
    "image": "creature",
    "anchor": "scene",
    "layer": "world",
-   "value": null,
+   "value": "creature-still",
    "x": 366.9333,
    "y": 195.5556,
    "w": 104.5333,
@@ -43,36 +48,19 @@
   },
   {
    "name": "nameplate",
-   "image": "nameplate",
+   "image": "Names/nameplate-mittens",
    "anchor": "bottom-center",
    "layer": "world",
-   "value": null,
+   "value": "nameplate",
    "x": 344.1778,
    "y": 339.9111,
-   "w": 143.2889,
+   "w": 143.6444,
    "h": 43.7333,
    "px": [
     968,
     956,
-    403,
+    404,
     123
-   ]
-  },
-  {
-   "name": "name-mittens",
-   "image": "name-mittens",
-   "anchor": "bottom-center",
-   "layer": "world",
-   "value": "name",
-   "x": 380.4444,
-   "y": 351.6444,
-   "w": 70.7556,
-   "h": 19.2,
-   "px": [
-    1070,
-    989,
-    199,
-    54
    ]
   },
   {
@@ -229,8 +217,8 @@
    ]
   },
   {
-   "name": "crest-level-1",
-   "image": "crest-level-1",
+   "name": "crest-level",
+   "image": "Levels/crest-level-1",
    "anchor": "bottom-right",
    "layer": "hud",
    "value": "level",

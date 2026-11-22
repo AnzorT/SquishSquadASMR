@@ -19,7 +19,7 @@ namespace PlushCrush.App.MainMenu
         readonly float _frozenT;   // where the reference screenshot holds the cycle (0..1)
         readonly float _refScale;  // the scene's scale on the A15, to read frozenOffset
 
-        public MenuWeather(MenuLayout.WeatherSpec spec, float refWidth, float refHeight)
+        public MenuWeather(MenuLayout.WeatherSpec spec, string season, float refWidth, float refHeight)
         {
             _spec = spec;
             name = "weather";
@@ -27,8 +27,8 @@ namespace PlushCrush.App.MainMenu
             style.position = Position.Absolute;
             style.left = 0; style.top = 0; style.right = 0; style.bottom = 0;
 
-            _rain = spec != null && spec.season == "rainy" && spec.rain != null && spec.rain.drops != null;
-            _snow = spec != null && spec.season == "snowy" && spec.snow != null && spec.snow.flakes != null;
+            _rain = spec != null && season == "rainy" && spec.rain != null && spec.rain.drops != null;
+            _snow = spec != null && season == "snowy" && spec.snow != null && spec.snow.flakes != null;
             // TODO(phase 2): sunny birds (menu.js: three, when the house is past f > 0.3)
             if (!_rain && !_snow) { style.display = DisplayStyle.None; return; }
 

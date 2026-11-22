@@ -18,6 +18,16 @@ namespace PlushCrush.App.MainMenu
         public int Level = 1;
         public long Coins = 100;
         public long Gems = 600;
+        /// <summary>sunny, rainy or snowy; null = by the month, as main-menu-scene.js autoSeason() does.
+        /// (The React Native app can also set it from Firestore config/weather: wired with Firebase.)</summary>
+        public string Season;
+
+        public string SeasonNow()
+        {
+            if (Season == "sunny" || Season == "rainy" || Season == "snowy") return Season;
+            int mo = System.DateTime.Now.Month - 1; // JS months: 0 = January
+            return mo == 11 || mo <= 1 ? "snowy" : mo >= 4 && mo <= 8 ? "sunny" : "rainy";
+        }
     }
 
     public sealed class MainMenuScreen : AppScreen
@@ -45,7 +55,7 @@ namespace PlushCrush.App.MainMenu
             // 1. the scene: the whole drawing, cropped like preserveAspectRatio="xMidYMax slice"
             var scene = new VisualElement { name = "scene", pickingMode = PickingMode.Ignore };
             Fill(scene);
-            scene.style.backgroundImage = new StyleBackground(MenuLayout.Picture(_layout.scene.image));
+            scene.style.backgroundImage = new StyleBackground(ScenePicture());
             scene.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
             scene.style.backgroundPositionX = new BackgroundPosition(BackgroundPositionKeyword.Center);
             scene.style.backgroundPositionY = new BackgroundPosition(BackgroundPositionKeyword.Bottom);
@@ -53,7 +63,7 @@ namespace PlushCrush.App.MainMenu
 
             // 2. the world (creature, name plate, name), 3. the weather over it, 4. the HUD on top
             foreach (var part in _layout.parts) if (part.layer == "world") AddPart(root, part, W, H);
-            root.Add(new MenuWeather(_layout.weather, W, H));
+            root.Add(new MenuWeather(_layout.weather, _state.SeasonNow(), W, H));
             foreach (var part in _layout.parts)
             {
                 if (part.layer == "world") continue;
@@ -66,23 +76,62 @@ namespace PlushCrush.App.MainMenu
             return root;
         }
 
+        // The scene for the player's level (the drawing stops changing at 30) and the season; the level 1 rainy one,
+        // always in the project, when the generated ones haven't been made (tools/unity-port/export-menu-states.mjs).
+        Texture2D ScenePicture()
+        {
+            int L = Mathf.Clamp(_state.Level, 1, 30);
+            var d = _layout.defaults;
+            if (d != null && L == d.level && _state.SeasonNow() == d.season) return MenuLayout.Picture(_layout.scene.image);
+            return MenuLayout.Optional($"MenuScenes/scene-L{L}-{_state.SeasonNow()}") ?? MenuLayout.Picture(_layout.scene.image);
+        }
+
         void AddPart(VisualElement root, MenuLayout.PartSpec part, float W, float H)
         {
-            // pieces that depend on a value: one picture per value (the lettering is drawn by the game)
-            string image = part.image;
-            if (part.value == "name") image = "name-" + _state.CreatureKey;
-            else if (part.value == "level") image = "crest-level-" + _state.Level;
-            var tex = MenuLayout.Picture(image);
+            // pieces that depend on a value: one picture per value, each with its own box (from that value's index)
+            var tex = PictureFor(part, out var spec);
             if (tex == null) return;
 
             var e = new VisualElement { name = part.name };
-            Place(e, part.anchor, part, W, H);
-            if (part.anchor == "scene" && part.sceneAt != null && part.sceneAt.Length == 2) FollowScene(root, e, part);
+            Place(e, spec.anchor, spec, W, H);
+            if (spec.anchor == "scene" && spec.sceneAt != null && spec.sceneAt.Length == 2) FollowScene(root, e, spec);
             e.style.backgroundImage = new StyleBackground(tex);
             e.style.backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100));
             if (IsButton(part.name)) e.RegisterCallback<ClickEvent>(_ => Tapped(part.name));
             else e.pickingMode = PickingMode.Ignore;
             root.Add(e);
+        }
+
+        Texture2D PictureFor(MenuLayout.PartSpec part, out MenuLayout.PartSpec spec)
+        {
+            spec = part;
+            MenuLayout.ValueItem item = null;
+            Texture2D tex = null;
+            switch (part.value)
+            {
+                case "nameplate":
+                    item = MenuLayout.Names.Find(_state.CreatureKey);
+                    tex = item != null ? MenuLayout.Optional(MenuLayout.Folder + "Names/nameplate-" + item.key) : null;
+                    break;
+                case "level":
+                    item = MenuLayout.Levels.Find(_state.Level.ToString());
+                    tex = item != null ? MenuLayout.Optional(MenuLayout.Folder + "Levels/crest-level-" + item.key) : null;
+                    break;
+                case "creature-still":
+                    // until the rig is ported: the creature as the menu shows it at rest (generated, not in git).
+                    // The default creature keeps the picture taken at the reference screenshots' moment.
+                    if (_layout.defaults != null && _state.CreatureKey == _layout.defaults.creature) break;
+                    item = MenuLayout.Creatures.Find(_state.CreatureKey);
+                    tex = item != null ? MenuLayout.Optional("MenuCreatures/creature-" + item.key) : null;
+                    break;
+            }
+            if (tex != null && item != null && item.px != null && item.px.Length == 4)
+            {
+                spec = new MenuLayout.PartSpec { name = part.name, anchor = part.anchor, layer = part.layer, value = part.value,
+                    px = item.px, sceneAt = item.sceneAt ?? part.sceneAt };
+                return tex;
+            }
+            return MenuLayout.Picture(part.image); // the default state's picture
         }
 
         // Text the page draws as text (it changes): the same font, size, color and hard shadows, in the same box.
