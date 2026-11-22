@@ -49,6 +49,7 @@ import { listenForSocial } from './src/firebase/social';
 import { BY_ID, hiddenOf, isOut, lineup, owns, rainbowOf, setCopyCounts, setRainbowMode, setRewardsOf, stageOf, wallet as walletOf } from './src/squad/data';
 import { setLookConfig, withLooks } from './src/squad/looks';
 import { selectedId as selectedIdOf } from './src/squad/lobby';
+import { setWeatherConfig } from './src/weather';
 import {
   subscribeToUserProfile,
   subscribeToCreatures,
@@ -56,6 +57,7 @@ import {
   subscribeToOffers,
   subscribeToRoster,
   subscribeToLevels,
+  subscribeToWeather,
   setOfferSeen,
   addCoins,
   recordPress,
@@ -380,6 +382,16 @@ export default function App() {
       setLevelsCfg(cfg);
     });
   }, [authUser]);
+  // Which weathers the game may show (config/weather, src/weather.js): one, always that one; more, today's by the
+  // month. Into src/weather.js before the screens redraw; the menu's pages get today's in the game state below.
+  const [weatherCfg, setWeatherCfg] = useState(null);
+  useEffect(() => {
+    if (!authUser) return undefined;
+    return subscribeToWeather((cfg) => {
+      setWeatherConfig(cfg);
+      setWeatherCfg(cfg);
+    });
+  }, [authUser]);
   const setRewards = setRewardsOf(rosterCfg);
   // Rainbow chests earned once per group, or sold (config/roster { rainbow })
   const rainbow = rainbowOf(rosterCfg);
@@ -695,7 +707,7 @@ export default function App() {
     }
   }, []);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const gamePlayerNow = useMemo(() => gamePlayer(profile, { level: xpView(profile).level, hidden, rosterCfg }), [profile, hidden, levelsCfg, rosterCfg]);
+  const gamePlayerNow = useMemo(() => gamePlayer(profile, { level: xpView(profile).level, hidden, rosterCfg }), [profile, hidden, levelsCfg, rosterCfg, weatherCfg]);
 
   const handleLogout = useCallback(async () => {
     // closed, so the next sign-in doesn't open on it

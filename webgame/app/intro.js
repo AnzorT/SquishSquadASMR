@@ -2,7 +2,11 @@
 // the new one"): the designer's Desktop/squad-intro.js, copied here below this note, unchanged but for the changes marked
 // PERF (2026-11-16, the user: "the intro has very low FPS"; the look is the same), APP (2026-11-17: api.awake(), the
 // third squish, when the app starts its music) and FLICKER (2026-11-20: the UI flickered while the rooms lit up and in
-// the dawn, from the WebView running out of tile memory; the look is the same). It replaces the app's old
+// the dawn, from the WebView running out of tile memory; the look is the same), WEATHER (2026-11-21, the user: "the intro
+// is still raining, it should be affected by the weathers": the night and the morning are today's weather from the
+// app's config/weather, rain only when it rains, snow when it snows, and it keeps falling into the morning so the menu
+// after it has the same) and DOME (2026-11-21, the user: the Dance Room's light was an ellipse, not the room's shape:
+// its window is now the dome itself, a half disc, as main-menu-scene.js draws it). It replaces the app's old
 // splash screen (src/screens/SplashScreen.js, deleted): App.js asks for it once a launch, the first time the menu shows
 // (start data `intro`, src/game/GameScreen.js), and app/menu.js (SquishMenu.intro) hands it the menu's api it was written
 // for (the Nov 14 menu's startIntro; our menu is the Nov 13 one, so menu.js builds the same api from its insides).
@@ -30,18 +34,23 @@
   // so anything that moved in an intro layer (the rain, the box, the ring, the sparks, the window lights) repainted the house
   // under it every frame.
 
-  // the house's windows (main-menu-scene.js win() calls, open state): r = rect x y w h, a = arch x y w h, c = circle cx cy r, e = ellipse cx cy rx ry
+  // the house's windows (main-menu-scene.js win() calls, open state): r = rect x y w h, a = arch x y w h, c = circle cx cy r, e = ellipse cx cy rx ry,
+  // d = dome cx baseY r (a half disc standing on its base line)
   const WIN = {
     living: [['r', 434, 218, 36, 40], ['r', 530, 218, 36, 40]],
     bedroom: [['a', 298, 164, 42, 48], ['r', 366, 176, 30, 30]],
     bathroom: [['c', 629, 185, 17], ['r', 668, 164, 46, 44]],
     kitchen: [['r', 282, 246, 62, 36], ['c', 385, 265, 13]],
     movie: [['r', 604, 242, 92, 40], ['r', 712, 248, 16, 34]],
-    dance: [['e', 500, 140, 44, 33]] };
+    // DOME: the Dance Room's glass dome as the scene draws it (main-menu-scene.js: DX 500, DY 170, DR 46), was an
+    // ellipse (500, 140, 44 x 33) that lit the sky above the dome
+    dance: [['d', 500, 170, 46]] };
   const ORDER = ['living', 'bedroom', 'bathroom'], REST = ['kitchen', 'movie', 'dance'];
-  const box = w => w[0] === 'r' || w[0] === 'a' ? [w[1], w[2], w[3], w[4]] : w[0] === 'c' ? [w[1] - w[3], w[2] - w[3], 2 * w[3], 2 * w[3]] : [w[1] - w[3], w[2] - w[4], 2 * w[3], 2 * w[4]];
+  const box = w => w[0] === 'r' || w[0] === 'a' ? [w[1], w[2], w[3], w[4]] : w[0] === 'c' ? [w[1] - w[3], w[2] - w[3], 2 * w[3], 2 * w[3]] : w[0] === 'd' ? [w[1] - w[3], w[2] - w[3], 2 * w[3], w[3]] : [w[1] - w[3], w[2] - w[4], 2 * w[3], 2 * w[4]];
+  const dome = (cx, by, r) => 'M' + r1(cx - r) + ' ' + by + ' A' + r1(r) + ' ' + r1(r) + ' 0 0 1 ' + r1(cx + r) + ' ' + by + 'Z';
   const shape = (w, at) => w[0] === 'r' ? '<rect x="' + w[1] + '" y="' + w[2] + '" width="' + w[3] + '" height="' + w[4] + '" rx="1.5" ' + at + '/>'
     : w[0] === 'a' ? '<path d="M' + w[1] + ' ' + (w[2] + w[4]) + ' V' + (w[2] + w[3] / 2) + ' A' + (w[3] / 2) + ' ' + (w[3] / 2) + ' 0 0 1 ' + (w[1] + w[3]) + ' ' + (w[2] + w[3] / 2) + ' V' + (w[2] + w[4]) + 'Z" ' + at + '/>'
+    : w[0] === 'd' ? '<path d="' + dome(w[1], w[2], w[3]) + '" ' + at + '/>'
     : w[0] === 'c' ? '<circle cx="' + w[1] + '" cy="' + w[2] + '" r="' + w[3] + '" ' + at + '/>' : '<ellipse cx="' + w[1] + '" cy="' + w[2] + '" rx="' + w[3] + '" ry="' + w[4] + '" ' + at + '/>';
   // who peeks out at the end: [key, room, window index, creature centre x (null = window centre)] - Pet Shop, Snack Shack and Fruit only
   const PEEK = [['biscuit', 'living', 0], ['berri', 'living', 1], ['nibbles', 'bedroom', 0], ['appy', 'bedroom', 1], ['peachy', 'bathroom', 0], ['scoop', 'bathroom', 1],
@@ -95,8 +104,13 @@
     const tween = (ms, fn, ease) => new Promise(res => { const t0 = performance.now(), E = ease || easeIO; const step = () => { if (dead) return res(); const t = Math.min(1, (performance.now() - t0) / ms); fn(E(t), t); if (t < 1) requestAnimationFrame(step); else res(); }; requestAnimationFrame(step); });
     const ctrl = () => api.ctrl(), I = () => { const c = ctrl(); return c && c._I; }, play = s => { const c = ctrl(); if (c) c.play(s); };
     const noSigns = el => el.querySelectorAll('.mm-sign').forEach(e => e.remove());
-    // the house at night: level 1, rainy, every room's window open (no boards / lock signs: the story lights them up)
-    scene.innerHTML = api.sceneSvg({ level: 1, season: 'rainy' }); noSigns(scene);
+    // WEATHER: today's weather (the scene's own pick, which asks the app's config/weather first: app/bridge.js
+    // SquishWeatherNow); the design's night was always rainy
+    const WX = Sc.state({ level: 1 }).season;
+    // the house at night: level 1, today's weather, every room's window open (no boards / lock signs: the story lights them up)
+    scene.innerHTML = api.sceneSvg({ level: 1, season: WX }); noSigns(scene);
+    // (WEATHER: a sunny scene draws its sun, main-menu-scene.js: not at night, under the moon; the morning's scene has it)
+    scene.querySelectorAll('circle[cx="150"][cy="70"]').forEach(e => e.remove());
 
     // ---- layers in the world (they move with the camera) ----
     const back = svgEl('si-back'), boxB = svgEl('si-boxb'), boxF = svgEl('si-boxf'), top = svgEl('si-top');
@@ -129,7 +143,9 @@
     let holes = '', halos = '', panes = '';
     Object.keys(WIN).forEach(room => WIN[room].forEach(w => { const [x, y, ww, hh] = box(w), cx = x + ww / 2, cy = y + hh / 2, R = Math.max(ww, hh);
       holes += shape(w, 'class="h-' + room + '" fill="#000" opacity="0"');
-      halos += '<ellipse class="g-' + room + '" cx="' + r1(cx) + '" cy="' + r1(cy) + '" rx="' + r1(R * 1.3) + '" ry="' + r1(R * 1.1) + '" fill="url(#siGlow)" opacity="0"/>';
+      // (DOME: the dome's glow is a bigger half disc on the same base, lit from the middle of its base: it follows the dome)
+      halos += w[0] === 'd' ? '<path class="g-' + room + '" d="' + dome(w[1], w[2], w[3] * 1.35) + '" fill="url(#siGlowD)" opacity="0"/>'
+        : '<ellipse class="g-' + room + '" cx="' + r1(cx) + '" cy="' + r1(cy) + '" rx="' + r1(R * 1.3) + '" ry="' + r1(R * 1.1) + '" fill="url(#siGlow)" opacity="0"/>';
       panes += shape(w, 'class="p-' + room + '" fill="url(#siPane)" opacity="0"'); }));
     const VEIL = 'x="0" y="0" width="1000" height="460"';
     const veilFit = () => { const W = frame.clientWidth, H = frame.clientHeight; if (!W || !H) return; const s = Math.max(W / 1000, H / 460), w = W / s, h = H / s;
@@ -139,6 +155,7 @@
       + '<linearGradient id="siDawn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7a8a"/><stop offset="0.5" stop-color="#ffaa66"/><stop offset="1" stop-color="#ffd890"/></linearGradient>'
       + '<radialGradient id="siMoon"><stop offset="0" stop-color="#fff8dc" stop-opacity="0.9"/><stop offset="0.25" stop-color="#e8ecff" stop-opacity="0.35"/><stop offset="1" stop-color="#c8d4ff" stop-opacity="0"/></radialGradient>'
       + '<radialGradient id="siGlow"><stop offset="0" stop-color="#ffe7a6" stop-opacity="0.8"/><stop offset="0.45" stop-color="#ffc45a" stop-opacity="0.3"/><stop offset="1" stop-color="#ff9a2a" stop-opacity="0"/></radialGradient>'
+      + (([, dx, dy, dr]) => '<radialGradient id="siGlowD" gradientUnits="userSpaceOnUse" cx="' + dx + '" cy="' + dy + '" r="' + r1(dr * 1.35) + '"><stop offset="0" stop-color="#ffe7a6" stop-opacity="0.8"/><stop offset="0.5" stop-color="#ffc45a" stop-opacity="0.3"/><stop offset="1" stop-color="#ff9a2a" stop-opacity="0"/></radialGradient>')(WIN.dance[0])
       + '<linearGradient id="siPane" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2c0"/><stop offset="1" stop-color="#ffb347"/></linearGradient>'
       + '<mask id="siVeilM" class="si-veil" maskUnits="userSpaceOnUse" ' + VEIL + '><rect class="si-veil" ' + VEIL + ' fill="#fff"/>' + holes + '</mask>'
       + '</defs>'
@@ -161,25 +178,29 @@
     // PERF: the rain, drawn once: two layers of drops (near: brighter and faster; far: fainter and slower), each a band of
     // drops repeated down the screen (each row shifted along the drops' drift) that the compositor slides one band per loop.
     // About the old drop count, length, colour, slant and speed (80 drops falling 620 units in 0.55-0.88 s, drifting 26 left).
-    const rainAnims = [];
+    // WEATHER: only when it rains; when it snows the same layers carry snowflakes (rounder, slower, drifting); a sunny
+    // night has none
+    const rainAnims = [], SNOW = WX === 'snowy';
     function rainBuild() {
       rainAnims.forEach(a => { try { a.cancel(); } catch (e) { /* gone */ } }); rainAnims.length = 0; rainL.innerHTML = '';
+      if (WX !== 'rainy' && !SNOW) return;
       const W = frame.clientWidth, H = frame.clientHeight; if (!W || !H) return;
-      const s = Math.max(W / 1000, H / 460), B = Math.round(115 * s), rows = Math.ceil(H / B) + 1, DX = 26 / 620;
-      [[9, 1.4, 0.6, 900], [7, 1.1, 0.4, 680]].forEach(([n, sw, op, v], li) => {
+      const s = Math.max(W / 1000, H / 460), B = Math.round(115 * s), rows = Math.ceil(H / B) + 1, DX = SNOW ? 40 / 620 : 26 / 620;
+      (SNOW ? [[10, 2.6, 0.85, 70], [8, 1.8, 0.55, 45]] : [[9, 1.4, 0.6, 900], [7, 1.1, 0.4, 680]]).forEach(([n, sw, op, v], li) => {
         let band = '';
         for (let i = 0; i < n; i++) { const h = k => { const t = Math.sin((i + li * 50) * 12.9898 + k * 78.233) * 43758.5453; return t - Math.floor(t); };
-          band += 'M' + r1(h(1) * (W + 60 * s)) + ' ' + r1(h(2) * B) + 'l' + r1(-4 * s) + ' ' + r1(16 * s); }
+          // (a snowflake: a dot, a zero-length round-capped line as wide as the flake)
+          band += 'M' + r1(h(1) * (W + 60 * s)) + ' ' + r1(h(2) * B) + (SNOW ? 'l0 0.01' : 'l' + r1(-4 * s) + ' ' + r1(16 * s)); }
         let body = ''; for (let k = 0; k < rows; k++) body += '<path transform="translate(' + r1(-k * B * DX) + ' ' + (k * B) + ')" d="' + band + '"/>';
         const m = document.createElement('div'); m.style.cssText = 'position:absolute;left:0;top:' + (-B) + 'px;width:' + r1(W + 60 * s) + 'px;height:' + (rows * B) + 'px;will-change:transform;';
-        m.innerHTML = '<svg width="100%" height="100%" style="position:absolute;inset:0;overflow:visible"><g stroke="#c8d6ff" stroke-width="' + r1(sw * s) + '" stroke-linecap="round" opacity="' + op + '" fill="none">' + body + '</g></svg>';
+        m.innerHTML = '<svg width="100%" height="100%" style="position:absolute;inset:0;overflow:visible"><g stroke="' + (SNOW ? '#ffffff' : '#c8d6ff') + '" stroke-width="' + r1(sw * s) + '" stroke-linecap="round" opacity="' + op + '" fill="none">' + body + '</g></svg>';
         rainL.appendChild(m);
         rainAnims.push(m.animate([{ transform: 'translate(0px,0px)' }, { transform: 'translate(' + r1(-B * DX) + 'px,' + B + 'px)' }], { duration: Math.round(B / (v * s) * 1000), iterations: Infinity, easing: 'linear' }));
       });
     }
     rainBuild(); cleanups.push(() => rainAnims.forEach(a => { try { a.cancel(); } catch (e) { /* gone */ } }));
-    // (the dawn fades the rain's old group opacity, 0.5, to 0: the layer's opacity follows it)
-    const rainG = { setAttribute: (k, v) => { rainL.style.opacity = String(Math.min(1, +v * 2)); } }, fxG = top.querySelector('.si-fx'), ring = top.querySelector('.si-ring');
+    // (WEATHER: the dawn faded the rain out here, rainG; it now keeps falling into the morning)
+    const fxG = top.querySelector('.si-fx'), ring = top.querySelector('.si-ring');
     const ringAt = (x, y, r) => { if (x == null) { ring.setAttribute('opacity', 0); return; } ring.setAttribute('opacity', 1); ring.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', r); }); };
 
     // ---- the box: back = its inside + the two top flaps (behind Mittens), front = its face (in front of him) ----
@@ -335,24 +356,25 @@
         cleanups.push(() => { off(); res(); });
       }); if (dead) return;
       ringAt(null); await wait(700); if (dead) return;
-      // 5. the whole house glows, then dawn: the rain stops, a sunny morning, the squad peeks out
+      // 5. the whole house glows, then dawn: a morning in today's weather (WEATHER: was always "the rain stops, a sunny
+      // morning"), the squad peeks out
       REST.forEach((room, i) => { const t = setTimeout(() => { if (dead) return; chime([NOTE.C6, NOTE.E6, NOTE.G6][i] / 2); tween(450, (e, t) => setLit(room, e, Math.sin(t * Math.PI))); }, i * 280); timers.push(t); });
       const dl = scene.querySelector('.mm-doorlight'); if (dl) tween(900, e => dl.setAttribute('opacity', (0.95 * e).toFixed(2)));
       await wait(1200); if (dead) return; hush();
       chime(NOTE.C5, 0); chime(NOTE.G5, 0.14); chime(NOTE.C6, 0.28); chime(NOTE.E6, 0.42);
-      sceneB.innerHTML = api.sceneSvg({ level: 1, season: 'sunny' }); noSigns(sceneB);
-      const sunny = api.lightFor(Sc.state({ level: 1, season: 'sunny' }));
+      sceneB.innerHTML = api.sceneSvg({ level: 1, season: WX }); noSigns(sceneB);
+      const sunny = api.lightFor(Sc.state({ level: 1, season: WX }));   // (the morning's light, in today's weather)
       play('dance');
       [night, moon, dawn].forEach(e => { e.style.opacity = e.getAttribute('opacity'); e.style.willChange = 'opacity'; });
       await tween(2800, (e, t) => {
         night.style.opacity = (0.8 * (1 - e)).toFixed(3); moon.style.opacity = (0.6 * (1 - Math.min(1, t * 2))).toFixed(3);
-        dawn.style.opacity = (0.6 * Math.sin(Math.min(1, t * 1.1) * Math.PI)).toFixed(3); rainG.setAttribute('opacity', (0.5 * (1 - Math.min(1, t * 1.8))).toFixed(3));
+        dawn.style.opacity = (0.6 * Math.sin(Math.min(1, t * 1.1) * Math.PI)).toFixed(3);   // (WEATHER: the rain or snow no longer fades out here: it's the morning's too)
         sceneB.style.opacity = clamp((t - 0.2) / 0.6, 0, 1).toFixed(3);
         const day = clamp((t - 0.45) / 0.5, 0, 1); Object.keys(WIN).forEach(r => setLit(r, 1 - 0.7 * day, 0, true));
         if (Math.floor(t * 12) !== Math.floor((t - 0.02) * 12)) api.light(t < 0.55 ? nightLight(3) : sunny);
       }, t => t); if (dead) return;
       api.light(sunny);
-      rainAnims.forEach(a => { try { a.cancel(); } catch (e) { /* gone */ } }); rainAnims.length = 0; rainL.innerHTML = '';
+      // (WEATHER: the rain or snow keeps falling to the end, into the menu's own: the intro's layers go when it ends)
       [night, moon, dawn].forEach(e => { e.style.display = 'none'; });
       // the squad peeks out of the windows and waves
       const peeks = PEEK.map(([key, room, wi, pcx], i) => { const w = WIN[room][wi], [x, y, ww, hh] = box(w), id = 'siPk' + i, sz = Math.min(ww * 1.1, hh * 1.3), cx = pcx || x + ww / 2;

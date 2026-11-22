@@ -1283,6 +1283,11 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
   const barW = root ? 124 : 200;
   const nextBeat = (view.hops + 1) % 3;
   const slotSize = n > 4 ? 19 : n > 2 ? 21 : n > 1 ? 24 : 27;
+  // (2026-11-21, on the phone "the distance between the widgets gets destroyed": the A15 gives the app 796 dp, not the
+  // 852 this was laid out at, and the board ran edge to edge between a 250 dp column and the buttons) the left column
+  // is only as wide as its goal card needs (the stars and the BEAT pill on one line), so the board gets the room; Blitz
+  // keeps one width for the run (its boards gain friends as it goes)
+  const leftW = blitz ? 230 : 10 + Math.max(spec.beats ? 186 : 156, goalCardW(n, slotSize) + 16);
   const playing = phase === 'play' && !paused;
   const shakeX = useMemo(() => shake.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, -6, 6, -3, 0] }), [shake]);
   const beatShakeX = useMemo(() => beatShake.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, -6, 6, -3, 0] }), [beatShake]);
@@ -1446,7 +1451,7 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
     <View style={styles.fill} onLayout={onRoot}>
       {root ? <Room room={spec.room} phase={spec.phase} width={root.w} height={root.h} /> : null}
       <View style={styles.row}>
-        <View style={styles.left}>
+        <View style={[styles.left, { width: leftW }]}>
           {hudEl}
           {stripEl}
           <View style={styles.fill} />
@@ -1501,12 +1506,16 @@ export default function HopGame({ startLv = 1, blitz = false, cast, profile, uid
 }
 
 const GLASS = 'rgba(91,58,41,0.75)';
+// the goal card's width with n friends of `slot` points: its two cushions, the friends and the › with the row's 3-point
+// gaps, then its padding and border (styles.goalCard, goalRow, miniGoal)
+const goalCardW = (n, slot) => Math.max(104, 36 * 2 + n * slot + 8 + (n + 2) * 3 + 16);
 const styles = StyleSheet.create({
-  // the top bar, the goal and the arrow keys on the left, the board, the buttons (Blitz: the rule and the clock) right
+  // the top bar, the goal and the arrow keys on the left (its width: leftW), the board, the buttons (Blitz: the rule
+  // and the clock) right
   row: { flex: 1, flexDirection: 'row' },
-  left: { width: 250, paddingTop: 8, paddingLeft: 10, paddingBottom: 8, gap: 8, zIndex: 3 },
+  left: { paddingTop: 8, paddingLeft: 10, paddingBottom: 8, gap: 8, zIndex: 3 },
   right: { width: 150, justifyContent: 'center', zIndex: 3 },
-  rightLow: { justifyContent: 'flex-end', paddingBottom: 10 },
+  rightLow: { width: 138, justifyContent: 'flex-end', paddingBottom: 10 },
   fill: { flex: 1 },
   hud: { flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 3 },
   titleBox: { flex: 1, minWidth: 0 },
@@ -1543,7 +1552,7 @@ const styles = StyleSheet.create({
   beatDot: { width: 9, height: 9, borderRadius: 3, opacity: 0.5 },
   beatNow: { width: 13, height: 13, opacity: 1, borderWidth: 2, borderColor: '#ffffff' },
   // RESTART over HINT
-  controls: { alignItems: 'stretch', gap: 10, paddingHorizontal: 14, zIndex: 1 },
+  controls: { alignItems: 'stretch', gap: 10, paddingRight: 12, paddingLeft: 6, zIndex: 1 },
   ctrlFace: { paddingHorizontal: 6, paddingVertical: 10 },
   // the arrow keys: a cross of four, each key KEY_W × KEY_H with its lip (the rows overlap by the lip's shadow)
   pad: { width: KEY_W * 3 - 4, height: KEY_H * 3 - 12, zIndex: 3 },

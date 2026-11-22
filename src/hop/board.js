@@ -11,6 +11,9 @@
 
 export const TILT = 38; // degrees (a board can lean less: layout's `tilt`)
 export const DEPTH = 13;
+// how far the board's widest (front) edge keeps from the sides of its area (2026-11-21: it was 5, and on the phone
+// the board ran into the goal panel and RESTART)
+export const GUTTER = 20;
 
 // a point on a w × h plane leaned back by an angle with cosine c and sine s,
 // relative to its middle on screen, with T = 1: { x, y, s } (s: how big a
@@ -37,7 +40,7 @@ export function layout(w, h, aw, ah, floorY = 0, tilt = TILT, maxT = 96) {
   const uh = front.y - back.y;
   const top = Math.max(0, floorY);
   const space = ah - top + ah * 0.06;
-  const T = Math.max(26, Math.floor(Math.min((aw - 10) / uw, space / uh, maxT)));
+  const T = Math.max(26, Math.floor(Math.min((aw - 2 * GUTTER) / uw, space / uh, maxT)));
   const bottom = Math.min(ah - 8, top + (ah - top) / 2 + (uh * T) / 2);
   return { w, h, T, cx: aw / 2, cy: bottom - front.y * T, tilt, c, sn };
 }

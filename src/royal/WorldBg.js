@@ -1,6 +1,7 @@
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import Room from '../hop/Room';
+import { weatherToday } from '../weather';
 import { useGameDims } from './GameFrame';
 
 // The mini-games' level maps' backgrounds. Until 2026-11-17 all four stood in the main menu's world (a picture of it
@@ -8,11 +9,8 @@ import { useGameDims } from './GameFrame';
 // which takes the season from here), Squishdoku and Squish Hop the room their levels are played in, Squish Sort the
 // kitchen (RoomBackdrop below).
 
-// the season, as the menu's world picks it (main-menu-scene.js autoSeason)
-export const seasonNow = () => {
-  const mo = new Date().getMonth();
-  return mo === 11 || mo <= 1 ? 'snowy' : mo >= 4 && mo <= 8 ? 'sunny' : 'rainy';
-};
+// the season, as the menu's world shows it: today's weather from config/weather (src/weather.js)
+export const seasonNow = () => weatherToday();
 
 // where a map's row of levels runs over a whole room (the maps' rowAt): along the floor, under the furniture
 export const ROW_ON_FLOOR = 0.75;

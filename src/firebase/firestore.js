@@ -346,6 +346,19 @@ export function subscribeToRoster(onChange) {
     );
 }
 
+// The weathers the game may show — a hand-edited doc, config/weather
+// { options: ['sunny', 'rainy', 'snowy'] } (src/weather.js). `onChange` gets
+// null until it exists.
+export function subscribeToWeather(onChange) {
+  return firestore()
+    .collection('config')
+    .doc('weather')
+    .onSnapshot(
+      (snap) => onChange(snap.exists ? snap.data() : null),
+      () => onChange(null),
+    );
+}
+
 // The real-money price levels — a hand-edited doc, config/pricing (see
 // setPricing in src/economy.js). `onChange` gets null until it exists.
 export function subscribeToPricing(onChange) {

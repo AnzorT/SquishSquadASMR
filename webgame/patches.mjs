@@ -830,6 +830,18 @@ export const PATCHES = [
     replace: '<div data-screen-label="House map" style="position:absolute; inset:0; z-index:1000; overflow:hidden; background:{{ mx.seaBg }}; background:linear-gradient(180deg, {{ mx.sea0 }} {{ rmY }}px, {{ mx.sea1 }} {{ rmB }}px);">',
   },
   {
+    file: 'main-menu-scene.js',
+    why: '2026-11-21 (the user: Firebase says how many weathers we have; more than one, today\'s is picked as before): the menu\'s world takes today\'s weather from the app (Firestore config/weather, src/weather.js, sent in the state: app/bridge.js SquishWeatherNow) before its own month rule. Its once-a-minute season check (main-menu.js) redraws the world when that changes.',
+    find: 'const autoSeason = () => { const mo = new Date().getMonth();',
+    replace: 'const autoSeason = () => { const sqW = window.SquishWeatherNow && window.SquishWeatherNow(); if (sqW) return sqW; const mo = new Date().getMonth();',
+  },
+  {
+    file: 'Squad House v6.dc.html',
+    why: '2026-11-21 (config/weather, as the menu\'s world above): the house (its map, the Dance Room\'s glass dome, the beach) takes today\'s weather from the app before its own month rule; a season picked in the design\'s own test panel still comes first',
+    find: 'if (SEASON[o]) return o; const mo = new Date().getMonth();',
+    replace: 'if (SEASON[o]) return o; const sqW = window.SquishWeatherNow && window.SquishWeatherNow(); if (sqW) return sqW; const mo = new Date().getMonth();',
+  },
+  {
     file: 'Squad House v6.dc.html',
     why: 'PERF 2026-11-21 (the user: "the dance room has 1 fps all the time"): the Dance Room\'s glass-dome sky (glassSky, an SVG picture of 22 KB behind the glass panes) had 4 clouds drifting by SMIL (80-110 s loops). An animated SVG shown as an image is drawn again by the browser every frame, and with it the room\'s whole 796 x 308 layer: ~0.7 s a frame on the Galaxy A16, 2.5 fps (3 s traced at 4x CPU: the layer painted 136 times, 4.2 s of raster). The sky is shown still (SquishStill, app/perf.js: its clouds move relative to their place, so they stay where they are); the room then draws only when something in it moves.',
     find: "gls: cur === 'dance' ? this.glassSky() : ''",

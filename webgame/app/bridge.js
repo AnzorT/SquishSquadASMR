@@ -22,6 +22,15 @@
   // the real timers (app/perf.js): the house's save and the app's answers must not wait for the page to wake
   var NT = (window.SquishSleep && window.SquishSleep.native) || { setTimeout: window.setTimeout.bind(window), clearTimeout: window.clearTimeout.bind(window) };
 
+  // Today's weather as the app picks it (Firestore config/weather, src/weather.js: one option, always it; more, the
+  // month's), sent in the state as `weather`. The design's own month checks ask this first (webgame/patches.mjs: the
+  // menu's world, main-menu-scene.js autoSeason; the house, its seasonNow), so the menu, the house's map, its dome and
+  // the beach show the same weather. Null (no app, an old state): they keep their month rule.
+  window.SquishWeatherNow = function () {
+    var w = App.state && App.state.weather;
+    return w === 'sunny' || w === 'rainy' || w === 'snowy' ? w : null;
+  };
+
   function readJSON(k) { try { return JSON.parse(ls.getItem(k)); } catch (e) { return null; } }
   function write(k, v) { quiet++; try { rawSet.call(ls, k, typeof v === 'string' ? v : JSON.stringify(v)); } catch (e) { /* storage full */ } quiet--; }
 

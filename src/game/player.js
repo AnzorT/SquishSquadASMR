@@ -5,6 +5,7 @@ import { BY_ID, GROUPS, ROSTER, SIZE_I, isOut, owns, shownSize, wallet } from '.
 import { CHEST_NAMES } from '../squad/groupChestArt';
 import { todayKey } from '../dailySpin';
 import { menuLooks } from '../squad/looks';
+import { weatherToday } from '../weather';
 import { levelsConfig, roadView, xpView } from '../playerXp';
 import { selectedId } from '../squad/lobby';
 import { LEVELS as SDK_LEVELS, record as sdkRecord } from '../squishdoku/levels';
@@ -54,6 +55,9 @@ export function gamePlayer(profile, { level, hidden, rosterCfg }) {
     road: roadPrizes(p, hidden),
     // the creatures' still pictures: their border look (config/roster look / looks, src/squad/looks.js)
     looks: menuLooks(rosterCfg),
+    // today's weather (config/weather, src/weather.js): the menu's world and the house show it (app/bridge.js
+    // SquishWeatherNow)
+    weather: weatherToday(),
   };
 }
 

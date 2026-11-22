@@ -65,6 +65,23 @@ const coll = await page.evaluate(() => ({ sel: window.SquadLobby.selected(), mit
 check(coll.sel === 0 && coll.mit && coll.mit.eq === 'g' && coll.mit.st === 2 && coll.gems === 321, 'the app\'s selected creature (Nimbo), Mittens\' gold finish and stage, and gems reach the game', coll);
 check((await page.evaluate(() => window.__sent.map(m => m.type))).includes('ready'), 'the game says ready');
 
+// ---- the weather (Firestore config/weather -> the app picks today's, src/weather.js -> state.weather) ----
+const wx = await page.evaluate(() => {
+  const mo = new Date().getMonth(), month = mo === 11 || mo <= 1 ? 'snowy' : mo >= 4 && mo <= 8 ? 'sunny' : 'rainy';
+  const seasonOf = () => window.MainMenuScene.state({ level: 8 }).season;
+  const before = { now: window.SquishWeatherNow(), season: seasonOf(), month };
+  const other = month === 'sunny' ? 'snowy' : 'sunny';
+  window.SquishApp.receive({ type: 'state', state: { weather: other } });
+  const after = { now: window.SquishWeatherNow(), season: seasonOf(), want: other };
+  window.SquishApp.receive({ type: 'state', state: { weather: 'foggy' } });
+  const bad = seasonOf();
+  window.SquishApp.receive({ type: 'state', state: { weather: null } });
+  return { before, after, bad, month };
+});
+check(wx.before.now === null && wx.before.season === wx.before.month, 'no weather from the app: the menu\'s world keeps the month\'s', wx.before);
+check(wx.after.now === wx.after.want && wx.after.season === wx.after.want, 'the app\'s weather (config/weather) is the menu\'s world\'s, even against the month', wx.after);
+check(wx.bad === wx.month, 'a weather the game doesn\'t have is ignored (the month\'s)', wx.bad);
+
 // ---- animations ----
 const anim = await page.evaluate(() => {
   const h = document.body.appendChild(document.createElement('div'));
