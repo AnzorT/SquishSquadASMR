@@ -18,6 +18,10 @@ namespace PlushCrush.App.MainMenu
         public int Level = 1;
         public long Coins = 100;
         public long Gems = 600;
+        /// <summary>XP into the current level and needed for the next (state.xp); no XP ring without them.</summary>
+        public float? XpInto, XpNeed;
+        /// <summary>Prizes waiting on the Level Pass (state.road's claimable ones): the crest's badge.</summary>
+        public int Claimable;
         /// <summary>sunny, rainy or snowy; null = by the month, as main-menu-scene.js autoSeason() does.
         /// (The React Native app can also set it from Firestore config/weather: wired with Firebase.)</summary>
         public string Season;
@@ -64,17 +68,53 @@ namespace PlushCrush.App.MainMenu
             // 2. the world (creature, name plate, name), 3. the weather over it, 4. the HUD on top
             foreach (var part in _layout.parts) if (part.layer == "world") AddPart(root, part, W, H);
             root.Add(new MenuWeather(_layout.weather, _state.SeasonNow(), W, H));
+            if (MenuBirds.Shown(_state.SeasonNow(), _state.Level)) root.Add(new MenuBirds());
+            // the moving HUD pieces (crest, PLAY) when hud.json is there; their still pictures otherwise
+            var hudSpec = HudSpec.Load();
+            var hud = hudSpec != null ? new MenuHud(hudSpec) : null;
             foreach (var part in _layout.parts)
             {
                 if (part.layer == "world") continue;
+                if (hud != null && part.name == "play") { AddPlay(root, hud, hudSpec, part, W, H); continue; }
+                if (hud != null && part.name == "crest") { AddCrest(root, hud, hudSpec, W, H); continue; }
+                if (hud != null && (part.name == "crest-level" || part.name.StartsWith("crest-spark"))) continue; // in the crest
                 AddPart(root, part, W, H);
                 foreach (var t in _layout.texts) if (t.parent == part.name) AddText(root, t, W, H);
             }
+            hud?.Run(root);
 
             SetNumber("coins", _state.Coins);
             SetNumber("gems", _state.Gems);
             return root;
         }
+
+        void AddCrest(VisualElement root, MenuHud hud, HudSpec spec, float W, float H)
+        {
+            // the level's number: its own picture and box (Levels/index.json), the default's otherwise
+            var levelPart = System.Array.Find(_layout.parts, p => p.value == "level");
+            Texture2D num = null; int[] numPx = null;
+            if (levelPart != null)
+            {
+                num = PictureFor(levelPart, out var spec2);
+                numPx = spec2.px;
+            }
+            float? xp = _state.XpInto.HasValue && _state.XpNeed.HasValue && _state.XpNeed.Value > 0
+                ? _state.XpInto.Value / _state.XpNeed.Value : (float?)null;
+            var crest = hud.BuildCrest(num, numPx, xp, _state.Claimable);
+            Place(crest, "bottom-right", Box(spec.crest.box), W, H);
+            crest.RegisterCallback<ClickEvent>(_ => Tapped("crest"));
+            root.Add(crest);
+        }
+
+        void AddPlay(VisualElement root, MenuHud hud, HudSpec spec, MenuLayout.PartSpec part, float W, float H)
+        {
+            var play = hud.BuildPlay(MenuLayout.Picture(part.image), part.px);
+            Place(play, part.anchor, Box(spec.play.box), W, H);
+            play.RegisterCallback<ClickEvent>(_ => Tapped("play"));
+            root.Add(play);
+        }
+
+        static MenuLayout.PartSpec Box(int[] px) => new MenuLayout.PartSpec { px = px };
 
         // The scene for the player's level (the drawing stops changing at 30) and the season; the level 1 rainy one,
         // always in the project, when the generated ones haven't been made (tools/unity-port/export-menu-states.mjs).
