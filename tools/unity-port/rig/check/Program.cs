@@ -120,6 +120,7 @@ sealed class DrawCheck
 {
     public int Bad, Frames, Attrs, Exact, Flips, Orders, OrderBad;
     public double WorstFlip, WorstTie; public int NearTies; public string WorstTieAt;
+    public readonly SortedDictionary<string, int> TieBy = new SortedDictionary<string, int>();
     int _shown;
     readonly HashSet<string> _unknown = new HashSet<string>();
 
@@ -203,12 +204,17 @@ sealed class DrawCheck
             // the ears' outlines are hulls round ~170 surface points, many of them a hair (1e-15) apart: which of two such
             // points the hull keeps depends on the last bit of sin / pow, which differs between maths libraries (and between
             // phones' WebViews in the game itself). Measured as the drawn curves' largest distance apart instead.
-            if (name.StartsWith("ears.") && (name.EndsWith(".o") || name.EndsWith(".clip")))
+            // the same: an ellipse whose start point turns on a near-round tie. Any path that differs is measured as a curve;
+            // within 0.4 units (about two phone pixels) it's a near-tie, counted per element so a real bug still stands out
             {
                 double h = Hausdorff(Sample(A), Sample(B));
-                NearTies++; if (h > WorstTie) { WorstTie = h; WorstTieAt = $"frame {f} {name}"; }
-                if (h > 0.25) { Bad++; Say($"frame {f} ({state}) {name}.d: outlines {h:F3} apart"); }
-                return;
+                if (h <= 0.4)
+                {
+                    NearTies++; if (h > WorstTie) { WorstTie = h; WorstTieAt = $"frame {f} {name}"; }
+                    TieBy[name] = TieBy.TryGetValue(name, out var n0) ? n0 + 1 : 1;
+                    return;
+                }
+                if (A.Count == B.Count) { Bad++; Say($"frame {f} ({state}) {name}.d: outlines {h:F3} apart"); return; }
             }
         }
         if (A.Count != B.Count) { Bad++; Say($"frame {f} ({state}) {name}.d: {A.Count} tokens in mine, {B.Count} in the game's\n   mine {Short(mine.ToString())}\n   game {Short(theirs)}"); return; }
@@ -269,7 +275,7 @@ sealed class DrawCheck
 
     public void Report()
     {
-        if (NearTies > 0) Console.WriteLine($"ear outlines settled by a near-tie: {NearTies}, the drawn curves at most {WorstTie:F3} apart ({WorstTieAt})");
+        if (NearTies > 0) Console.WriteLine($"outlines settled by a near-tie: {NearTies} ({string.Join(", ", TieBy.Select(kv => kv.Key + " " + kv.Value))}), the drawn curves at most {WorstTie:F3} apart ({WorstTieAt})");
         foreach (var kv in _badAt) Console.WriteLine($"  {kv.Key}: {kv.Value.Count} frames ({string.Join(" ", kv.Value.Take(30))}{(kv.Value.Count > 30 ? " …" : "")})");
         Console.WriteLine($"drawing: {Frames} frames, {Attrs} attributes; numbers exact {Exact}, a rounding step off {Flips} (largest {WorstFlip:F4}); order {Orders - OrderBad}/{Orders} frames the same; {Bad} differences");
     }

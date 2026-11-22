@@ -105,13 +105,14 @@ namespace PlushCrush.Core.Rig
         public void Refresh()
         {
             if (Node == null) return;
-            var e = Node.El; bool any = e != null && e.Str.Count > 0;
+            var e = Node.El; bool any = e != null && (e.Str.Count > 0 || !double.IsNaN(e.Cx) || !double.IsNaN(e.Cy));
             foreach (var st in Node.C) if (st.El != null && st.El.Str.Count > 0) any = true;
             if (!any) return;
             if (e != null)
             {
-                if (e.Str.TryGetValue("cx", out var v)) Cx = RigTree.Len(v);
-                if (e.Str.TryGetValue("cy", out v)) Cy = RigTree.Len(v);
+                if (!double.IsNaN(e.Cx)) Cx = (float)e.Cx; else if (e.Str.TryGetValue("cx", out var sx)) Cx = RigTree.Len(sx);   // the rig writes cx / cy as numbers
+                if (!double.IsNaN(e.Cy)) Cy = (float)e.Cy; else if (e.Str.TryGetValue("cy", out var sy)) Cy = RigTree.Len(sy);
+                string v;
                 if (e.Str.TryGetValue("r", out v)) R = RigTree.Len(v);
                 if (e.Str.TryGetValue("gradientTransform", out v) && v != _seen) { _seen = v; Inv = RigXf.Parse(v).Inverse(); }
                 if (Radial) { Fx = Cx; Fy = Cy; }

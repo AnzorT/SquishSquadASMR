@@ -12,7 +12,7 @@ namespace PlushCrush.Core.Rig
 
         RigEl _tailF, _tailS, _tailSC;
         // hwAt(i) = tw * _hwA[i] * _hwB[i]: the taper and the root's flare (they don't change)
-        double[] _hwA, _hwB, _hw;
+        double[] _hwA, _hwB, _tailHw;
         (double x, double y)[] _nr;
         readonly List<(double x, double y)> _tfPts = new List<(double x, double y)>(64);
         static readonly double[] CapF = { 0.25, 0.5, 0.75 }, BaseF = { 0.2, 0.4, 0.6, 0.8 };
@@ -25,7 +25,7 @@ namespace PlushCrush.Core.Rig
             if (!tail3 || !_g.Has("tailTaper") || _g.Tail == null) return;
             _tailF = El("tailF"); _tailS = El("tailS"); _tailSC = El("tailSC");
             var tt = _g.A("tailTaper"); double wb = tt[0], wt = tt[1];
-            int n = _g.Tail.Length; _hwA = new double[n]; _hwB = new double[n]; _hw = new double[n]; _nr = new (double x, double y)[n];
+            int n = _g.Tail.Length; _hwA = new double[n]; _hwB = new double[n]; _tailHw = new double[n]; _nr = new (double x, double y)[n];
             for (int i = 0; i < n; i++)
             {
                 _hwA[i] = wb + (wt - wb) * Math.Pow((double)i / (n - 1), 0.85);
@@ -38,7 +38,7 @@ namespace PlushCrush.Core.Rig
         void TailTaper((double x, double y)[] sp3, double tw)
         {
             if (_tailF == null) return;
-            int n = sp3.Length; var NR = _nr; var hw = _hw;
+            int n = sp3.Length; var NR = _nr; var hw = _tailHw;
             for (int i = 0; i < n; i++)
             {
                 hw[i] = tw * _hwA[i] * _hwB[i];
