@@ -94,6 +94,17 @@ namespace PlushCrush.Core.Rig
             tail3 = geo.Has("tail3"); hasTail = geo.Has("tail");
             tailK = geo.Or("tailK", 7); tailW = geo.Or("tailW", 7); tailHLW = geo.Or("tailHLW", 0.3); tailWag = geo.Or("tailWag", 1.3);
             hasNoseHL = geo.Has("noseHL");
+            // every creature but Mittens: hand moves (made for Mittens) mapped onto its own paws, mouth and eyes (mount: I.mapHand / toM / fromM)
+            if (key != "mittens" && !geo.Has("mittensFrame") && geo.Has("mouth") && geo.Has("eyes") && geo.Has("arms"))
+            {
+                double ay0 = _g.Arms[0].E[1], ay1 = _g.Arms[1].E[1], pawX = _g.Arms[0].E[0];
+                _pawY = (ay0 + ay1) / 2;
+                var src = new[] { _g.N("top"), eyes[0][1], mouthAt[1], _pawY, G };
+                _CY = new double[src.Length];
+                for (int i = 0; i < src.Length; i++) _CY[i] = i > 0 && src[i] <= src[i - 1] ? src[i - 1] + 1 : src[i];   // (map's third argument is the source array)
+                _mkx = Math.Max(0.5, Math.Abs(50 - pawX) / 18);
+                _mapHand = true;
+            }
 
             RigEl el(string n) => El(n);
             RigEl[] els(string f, int n) => Els(f, n);
@@ -145,6 +156,19 @@ namespace PlushCrush.Core.Rig
         public readonly List<bool> LumpFront = new List<bool>();
         /// <summary>D.snout.occlude: the snout's elements moved behind the skull.</summary>
         public bool SnoutBehind;
+
+        // I.mapHand / I.toM / I.fromM
+        bool _mapHand; double _pawY, _mkx; double[] _CY;
+        static readonly double[] MY = { 17, 47, 58, 76, 95.5 };
+        static double Pl(double[] A, double[] B, double v)
+        {
+            for (int i = 1; i < A.Length; i++) if (v <= A[i] || i == A.Length - 1) return B[i - 1] + (v - A[i - 1]) * (B[i] - B[i - 1]) / (A[i] - A[i - 1]);
+            return double.NaN;
+        }
+        /// <summary>I.fromM: a point on Mittens' frame (a move's tap) onto this creature (null for Mittens).</summary>
+        public Func<double, double, (double x, double y)> FromM => _mapHand ? (Func<double, double, (double x, double y)>)((x, y) => (HX + (x - 50) / 29 * HR, Pl(MY, _CY, y))) : null;
+        /// <summary>I.toM: a point on this creature onto Mittens' frame.</summary>
+        public (double x, double y) ToM(double x, double y) => _mapHand ? (50 + (x - HX) / HR * 29, Pl(_CY, MY, y)) : (x, y);
 
         static double[][] Rows(object v)
         {
@@ -357,8 +381,11 @@ namespace PlushCrush.Core.Rig
                 var A = _g.Arms[i]; bool Lf = A.Side < 0;
                 double av = Lf ? P["armL"] : P["armR"], bse = Lf ? 20 : -20, wr = SM(Math.Abs(av) / 45), ang = ((Lf ? P["armL"] : -P["armR"]) + (bse - A.E[4]) * wr) * D2R,
                     c = Math.Cos(ang), s = Math.Sin(ang), px = A.Pivot[0], py = A.Pivot[1], vx = A.E[0] - px, vy = A.E[1] - py;
-                double mhx = (Lf ? P["hLx"] : -P["hRx"]) * hkx, mhy = Lf ? P["hLy"] : P["hRy"], hy = mhy, hz = Lf ? P["hLz"] : P["hRz"],
-                    cx = px + vx * c - vy * s + (Lf ? mhx : -mhx) + Ied * 0.35, cy = py + vx * s + vy * c + hy, z = (armZ ?? 9) + hz + Math.Max(0, -hy) * 0.25;
+                double mhx, mhy;
+                if (_mapHand) { mhx = (Lf ? P["hLx"] : -P["hRx"]) * _mkx; mhy = Pl(MY, _CY, 76 + (Lf ? P["hLy"] : P["hRy"])) - _pawY; }
+                else { mhx = (Lf ? P["hLx"] : -P["hRx"]) * hkx; mhy = Lf ? P["hLy"] : P["hRy"]; }
+                double hy = mhy, hz = Lf ? P["hLz"] : P["hRz"],
+                    cx = px + vx * c - vy * s + (Lf ? mhx : -mhx) + Ied * 0.35 + (_mapHand ? A.Side * 7 * wr : 0), cy = py + vx * s + vy * c + hy, z = (armZ ?? 9) + hz + Math.Max(0, -hy) * 0.25;
                 double sx = px - A.Side * 1.2, sy0 = py + 1.5, ddx = cx - sx, ddy = cy - sy0, len = RigGeometry.Hypot(ddx, ddy);
                 double r0 = A.E[4] * D2R + ang;
                 if (len > 9) { double want = Math.Atan2(ddy, ddx) - Math.PI / 2, df = want - r0; df = ((df % TAU) + TAU * 1.5) % TAU - Math.PI; r0 += df * SM((len - 9) / 8); }

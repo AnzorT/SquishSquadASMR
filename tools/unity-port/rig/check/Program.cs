@@ -51,6 +51,7 @@ static class Program
         var shots = trace.TryGetValue("shots", out var so) && so is Dictionary<string, object> sd ? sd : null;
         var shotFrames = shots != null ? new HashSet<int>(((List<object>)shots["frames"]).Select(o => (int)(double)o)) : new HashSet<int>();
         Shots shooter = shots != null && Rd != null && Environment.GetEnvironmentVariable("RIG_NOSHOTS") != "1" ? Shots.Make(shots, geo, Rd, Path.GetDirectoryName(Path.GetFullPath(args[1])), key, Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[2])), "fabric.png")) : null;
+        if (Rd != null) R.FromM = Rd.FromM;
         var dc = new DrawCheck();
         int dbgFrame = Environment.GetEnvironmentVariable("HULL_FRAME") is string hf ? int.Parse(hf) : -1, curF = 0;
         if (Rd != null && dbgFrame >= 0) Rd.EarPointsHook = (ear, pts) =>

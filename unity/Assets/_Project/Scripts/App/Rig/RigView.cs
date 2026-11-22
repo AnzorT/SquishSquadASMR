@@ -122,6 +122,7 @@ namespace PlushCrush.App.Rig
             double now = Now();
             Engine = new RigEngine(data, key, now, () => _rnd.NextDouble());
             _render = new RigRender(geo, key);
+            Engine.FromM = _render.FromM;
             _display = new RigDisplay(RigTree.FromGeo(geo, _render), _render) { Fx = _fx };
             // mounting runs one frame (dt 0.016), as the game's mount() does
             var P = Engine.Tick(now, 0.016); _render.Render(P, Engine, now); _last = now;

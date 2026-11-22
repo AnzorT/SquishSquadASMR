@@ -152,6 +152,8 @@ namespace PlushCrush.Core.Rig
         public RigStretch Ms;
         public RigDent Dent;
         public RigState St;   // the move tick() ended on (render reads its propZ)
+        /// <summary>I.fromM: a move's tap point from Mittens' frame onto this creature (RigRender.FromM; null for Mittens).</summary>
+        public Func<double, double, (double x, double y)> FromM;
 
         public RigEngine(RigData data, string key, double now, Func<double> random)
         {
@@ -224,7 +226,7 @@ namespace PlushCrush.Core.Rig
             var st = Data.State(name);
             _bd = st.Blend != 0 ? st.Blend : 280;
             _evC = -1; _evF = new HashSet<int>();
-            if (st.Tap != null) Shots.Add(new RigShot { S = DENT, T0 = now, X = st.Tap[0], Y = st.Tap[1] });
+            if (st.Tap != null) { var tp = FromM != null ? FromM(st.Tap[0], st.Tap[1]) : (x: st.Tap[0], y: st.Tap[1]); Shots.Add(new RigShot { S = DENT, T0 = now, X = tp.x, Y = tp.y }); }
             OnState?.Invoke(name);
         }
 
