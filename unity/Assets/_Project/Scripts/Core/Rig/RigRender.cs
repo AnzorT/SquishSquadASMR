@@ -125,7 +125,11 @@ namespace PlushCrush.Core.Rig
         {
             if (g.Generic) return "the generic rig (rive-generic.js)";
             foreach (var k in Needs)
-                if ((k == "ear:lobe" ? Array.Exists(g.Ears, e => e.Lobe != null) : g.Has(k)) && !Ported(k)) return k == "ear:lobe" ? "lobe ears" : "D." + k;
+            {
+                // headD / bodyD need a branch only as fur rings (furRing: 8+ scallops; else they're plain outlines, already drawn)
+                bool uses = k == "ear:lobe" ? Array.Exists(g.Ears, e => e.Lobe != null) : k == "headD" ? g.FurH : k == "bodyD" ? g.FurB : g.Has(k);
+                if (uses && !Ported(k)) return k == "ear:lobe" ? "lobe ears" : k == "headD" || k == "bodyD" ? "D." + k + " (fur ring)" : "D." + k;
+            }
             if (g.Ears.Length > 2) return "more than two ears";
             return null;
         }
