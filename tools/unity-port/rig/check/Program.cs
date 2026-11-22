@@ -101,7 +101,8 @@ static class Program
             if ((ms == null) != (R.Ms == null)) { if (bad++ < 12) Console.WriteLine($"frame {f}: stretch {(R.Ms == null ? "missing in mine" : "only in mine")}"); }
             else if (ms != null) { Cmp("ms.s", R.Ms.S, ms["s"]); Cmp("ms.c", R.Ms.C, ms["c"]); Cmp("ms.n", R.Ms.N, ms["n"]); }
             bool hasDraw = fr.TryGetValue("draw", out var dw) && dw is Dictionary<string, object>;
-            if (Rd != null && f > 0 && (hasDraw || shotFrames.Contains(f))) Rd.Render(P, R, now);
+            // frame 0 is drawn too (the game's mount runs a frame; pools write everything on their first frame), not compared
+            if (Rd != null && (f == 0 || hasDraw || shotFrames.Contains(f))) Rd.Render(P, R, now);
             if (Rd != null && f > 0 && hasDraw) dc.Frame(f, R.CurName, Rd, (Dictionary<string, object>)dw, fr.TryGetValue("order", out var od) ? od as string : null);
             if (shooter != null && Rd != null && f > 0 && (hasDraw || shotFrames.Contains(f))) shooter.Track();
             if (shooter != null && shotFrames.Contains(f)) shooter.Frame(f, R, Rd, now);
@@ -164,7 +165,7 @@ sealed class DrawCheck
         foreach (var e in R.All)
             foreach (var an in new[] { "d", "opacity", "stroke-width", "cx", "cy", "rx", "ry" })
                 if ((e.Written & Bit(an)) != 0 && !(draw.TryGetValue(e.Name, out var at) && ((Dictionary<string, object>)at).ContainsKey(an)))
-                { Bad++; Say($"frame {f} ({state}) {e.Name}.{an}: mine wrote it, the game didn't"); }
+                { _el = e.Name; Bad++; Say($"frame {f} ({state}) {e.Name}.{an}: mine wrote it, the game didn't"); }
         _el = "order";
         if (order != null) { Orders++; if (order != R.OrderKey) { OrderBad++; Bad++; Say($"frame {f} ({state}) order: mine {R.OrderKey}, the game {order}"); } }
     }

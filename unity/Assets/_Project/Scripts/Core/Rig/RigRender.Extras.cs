@@ -51,7 +51,7 @@ namespace PlushCrush.Core.Rig
         // ---- D.collar ----
         int _collarKind;   // 0 none, 1 the 3D ring (E.cr), 2 on the head, 3 on the body, 4 plain
         RigEl _collar, _tag; List<RigSeg> _collarSegs; double _tX, _tY, _tR, _cZ; RigMap _collarMap, _tagBodyMap;
-        double _cfl, _cca, _csa, _ccz;
+        double _cfl, _colCa, _colSa, _ccz;
         RigEl CrSh, CrHl, CrLo, CrSt, CrBk, CrBki, CrBkp, CrRg, CrTg, CrTi, CrGl; RigEl[] CrSegs, CrMk;
         double _rYs, _rAf, _rAb, _rW, _rRx, _rRz, _rPad, _rbY, _rbW, _rbH; int[] _rcD, _rcB, _rcL;
         readonly List<int> _rVis = new List<int>(48);
@@ -59,12 +59,9 @@ namespace PlushCrush.Core.Rig
         bool _tgHas; double _tgA, _tgV, _tgX, _tgY, _tgVx, _tgVy, _tgT;   // I.tgp: the tag's pendulum
         double _rotA = double.NaN, _rotX = double.NaN, _rotY = double.NaN; string _rot;
 
-        static Dictionary<string, object> Obj(object v) => v as Dictionary<string, object>;
         static object Get(Dictionary<string, object> o, string k) => o != null && o.TryGetValue(k, out var v) ? v : null;
         /// <summary>o.k as JS reads it in arithmetic (undefined: NaN).</summary>
-        static double NumOf(Dictionary<string, object> o, string k) => o != null && o.TryGetValue(k, out var v) ? RigGeo.Num(v) : double.NaN;
         static double OrOf(Dictionary<string, object> o, string k, double def) { double v = NumOf(o, k); return Truthy(v) ? v : def; }
-        static double[] ArrOf(Dictionary<string, object> o, string k) => Get(o, k) is List<object> l ? RigGeo.Arr(l) : null;
 
         void InitExtras()
         {
@@ -562,14 +559,14 @@ namespace PlushCrush.Core.Rig
             else if (_collarKind == 2)
             {
                 double fa = (-_ied * 4 + Plean * 1.5 + P["htilt"] * 0.4 - _ild * 1.2 + Math.Sin(now / 520) * 2) * D2R;
-                _cca = Math.Cos(fa); _csa = Math.Sin(fa); _cfl = 1 + Math.Sin(now / 430) * 0.05 + Clamp(_ild, -10, 10) * 0.012;
+                _colCa = Math.Cos(fa); _colSa = Math.Sin(fa); _cfl = 1 + Math.Sin(now / 430) * 0.05 + Clamp(_ild, -10, 10) * 0.012;
                 RigGeometry.ToD(Dp(_collar), _collarSegs, _collarMap); Op(_collar, R2(Zc(_tX, _tY)));
                 RigGeometry.EllS(Dp(_tag), _tX, _tY, _tR, _tR, 0, 8, _face); Op(_tag, R2(Zc(_tX, _tY)));
             }
             else if (_collarKind == 3)
             {
                 double fa = (Math.Sin(now / 520) * 3 + Plean * 1.5 - _ild * 1.2) * D2R;
-                _cca = Math.Cos(fa); _csa = Math.Sin(fa); _cfl = 1 + Math.Sin(now / 430) * 0.05; _ccz = _cZ;
+                _colCa = Math.Cos(fa); _colSa = Math.Sin(fa); _cfl = 1 + Math.Sin(now / 430) * 0.05; _ccz = _cZ;
                 RigGeometry.ToD(Dp(_collar), _collarSegs, _collarMap); Op(_collar, R2(SM(BywZ(_tX, _cZ) / 4)));
                 _ccz = _cZ + 0.5; RigGeometry.EllS(Dp(_tag), _tX, _tY, _tR, _tR, 0, 8, _tagBodyMap); Op(_tag, R2(SM(BywZ(_tX, _ccz) / 4)));
             }
@@ -585,12 +582,12 @@ namespace PlushCrush.Core.Rig
         (double x, double y) CollarHeadMap(double x, double y)
         {
             double u = (x - _tX) * _cfl, v = y - _tY;
-            return Face(_tX + u * _cca - v * _csa, _tY + u * _csa + v * _cca);
+            return Face(_tX + u * _colCa - v * _colSa, _tY + u * _colSa + v * _colCa);
         }
         (double x, double y) CollarBodyMap(double x, double y)
         {
             double u = (x - _tX) * _cfl, v = y - _tY;
-            return Byw(_tX + u * _cca - v * _csa, _tY + u * _csa + v * _cca, _ccz);
+            return Byw(_tX + u * _colCa - v * _colSa, _tY + u * _colSa + v * _colCa, _ccz);
         }
 
         // 3D ring collar: 48 slices round the neck, the near ones drawn and shaded by the light; edge lines, a buckle at the back,
