@@ -103,6 +103,7 @@ namespace PlushCrush.App.Rig
         public readonly RigEngine Engine;
         readonly RigRender _render;
         readonly RigDisplay _display;
+        readonly RigFx _fx = new RigFx();
         RigDrawer _drawer;
         readonly VisualElement _img;
         readonly System.Random _rnd = new System.Random();
@@ -121,7 +122,7 @@ namespace PlushCrush.App.Rig
             double now = Now();
             Engine = new RigEngine(data, key, now, () => _rnd.NextDouble());
             _render = new RigRender(geo, key);
-            _display = new RigDisplay(RigTree.FromGeo(geo, _render), _render);
+            _display = new RigDisplay(RigTree.FromGeo(geo, _render), _render) { Fx = _fx };
             // mounting runs one frame (dt 0.016), as the game's mount() does
             var P = Engine.Tick(now, 0.016); _render.Render(P, Engine, now); _last = now;
 
@@ -159,6 +160,7 @@ namespace PlushCrush.App.Rig
             double dt = Math.Max(0.001, Math.Min(0.05, (now - _last) / 1000.0)); _last = now;
             var P = Engine.Tick(now, dt);
             _render.Render(P, Engine, now);
+            _fx.Build(Engine.CurName, now - Engine.CurT0, _render.TopW);
             if (_drawer == null || _drawer.Output == null) return;
             _display.Build();
             _drawer.Draw(_display.Cmds);

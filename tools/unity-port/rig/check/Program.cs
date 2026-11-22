@@ -99,7 +99,7 @@ static class Program
             bool hasDraw = fr.TryGetValue("draw", out var dw) && dw is Dictionary<string, object>;
             if (Rd != null && f > 0 && (hasDraw || shotFrames.Contains(f))) Rd.Render(P, R, now);
             if (Rd != null && f > 0 && hasDraw) dc.Frame(f, R.CurName, Rd, (Dictionary<string, object>)dw, fr.TryGetValue("order", out var od) ? od as string : null);
-            if (shooter != null && shotFrames.Contains(f)) shooter.Frame(f);
+            if (shooter != null && shotFrames.Contains(f)) shooter.Frame(f, R, Rd, now);
         }
         if (Rd != null) dc.Report();
         if (Rd != null && Environment.GetEnvironmentVariable("RIG_PERF") == "1") Perf(data, key, geo, t0, fps);
@@ -268,12 +268,15 @@ sealed class Shots
         _w = (int)Math.Round((double)clip["width"] * dsf); _h = (int)Math.Round((double)clip["height"] * dsf);
         float[] grain = null; int gw = 0, gh = 0;
         if (File.Exists(fabric)) { var px = RigRaster.LoadPng(fabric, out gw, out gh); grain = new float[gw * gh]; for (int i = 0; i < grain.Length; i++) grain[i] = px[i * 4 + 3] / 255f; }
-        _d = new RigDisplay(RigTree.FromGeo(geo, R), R) { PxPerUnit = k };
+        _d = new RigDisplay(RigTree.FromGeo(geo, R), R) { PxPerUnit = k, Fx = _fx };
         _r = new RigRaster(_w, _h, k, ox, oy, grain, gw, gh);
     }
 
-    public void Frame(int f)
+    readonly RigFx _fx = new RigFx();
+
+    public void Frame(int f, RigEngine E, RigRender R, double now)
     {
+        _fx.Build(E.CurName, now - E.CurT0, R.TopW);
         _d.Build();
         var mine = _r.Play(_d.Cmds);
         string mp = Path.Combine(_dir, $"mine-{_key}-{f}.png"); RigRaster.SavePng(mp, mine, _w, _h);

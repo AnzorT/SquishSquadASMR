@@ -36,6 +36,9 @@ namespace PlushCrush.Core.Rig
         readonly RigContours _c = new RigContours();
         readonly List<RigNode> _rootOrder = new List<RigNode>(24);
 
+        /// <summary>The move's own effect (stars, strokes), drawn over the creature as the game's fx layer is.</summary>
+        public RigFx Fx;
+
         public RigDisplay(RigTree tree, RigRender render) { _t = tree; _r = render; }
 
         public void Build()
@@ -43,6 +46,17 @@ namespace PlushCrush.Core.Rig
             _nCmd = 0; _nMesh = 0; Cmds.Clear();
             if (_t.Shadow != null) Walk(_t.Shadow, 1);
             if (_t.Root != null) Walk(_t.Root, 1);
+            if (Fx != null)
+                foreach (var s in Fx.Shapes)
+                {
+                    if (!(s.Opacity > 0) || s.D.Empty) continue;
+                    RigTess.Flatten(s.D, Tolerance / PxPerUnit, _c);
+                    var m = Mesh();
+                    if (s.Stroke) RigTess.Stroke(_c, s.Width, s.Cap, "miter", 4, PxPerUnit, m); else RigTess.Fill(_c, m);
+                    if (m.Empty) continue;
+                    var c = Cmd(RigCmdKind.Draw); c.Mesh = m; c.Paint = s.Paint; c.Alpha = s.Opacity; c.Name = "fx";
+                    c.GX0 = _c.MinX; c.GY0 = _c.MinY; c.GX1 = _c.MaxX; c.GY1 = _c.MaxY;
+                }
         }
 
         RigCmd Cmd(RigCmdKind k)
