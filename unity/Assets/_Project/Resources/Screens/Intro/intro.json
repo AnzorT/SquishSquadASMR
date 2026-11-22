@@ -1,0 +1,2712 @@
+{
+ "version": 1,
+ "screen": {
+  "width": 832,
+  "height": 384,
+  "scale": 2.8125
+ },
+ "veil": [
+  [
+   0,
+   "#090d2e"
+  ],
+  [
+   0.55,
+   "#141a46"
+  ],
+  [
+   1,
+   "#1b1838"
+  ]
+ ],
+ "dawn": [
+  [
+   0,
+   "#ff7a8a"
+  ],
+  [
+   0.5,
+   "#ffaa66"
+  ],
+  [
+   1,
+   "#ffd890"
+  ]
+ ],
+ "script": {
+  "tapBox": 6400,
+  "squish": [
+   [
+    10400,
+    10550
+   ],
+   [
+    12400,
+    12550
+   ],
+   [
+    14400,
+    14550
+   ]
+  ],
+  "start": 25500
+ },
+ "references": [
+  {
+   "name": "intro-rainy-02400-night",
+   "season": "rainy",
+   "t": 2400
+  },
+  {
+   "name": "intro-rainy-06000-box",
+   "season": "rainy",
+   "t": 6000
+  },
+  {
+   "name": "intro-rainy-07300-popped",
+   "season": "rainy",
+   "t": 7300
+  },
+  {
+   "name": "intro-rainy-10300-squish",
+   "season": "rainy",
+   "t": 10300
+  },
+  {
+   "name": "intro-rainy-12000-living",
+   "season": "rainy",
+   "t": 12000
+  },
+  {
+   "name": "intro-rainy-13450-bedroom-lighting",
+   "season": "rainy",
+   "t": 13450
+  },
+  {
+   "name": "intro-rainy-15900-three-rooms",
+   "season": "rainy",
+   "t": 15900
+  },
+  {
+   "name": "intro-rainy-17100-house-glows",
+   "season": "rainy",
+   "t": 17100
+  },
+  {
+   "name": "intro-rainy-18400-dawn",
+   "season": "rainy",
+   "t": 18400
+  },
+  {
+   "name": "intro-rainy-19300-dawn-late",
+   "season": "rainy",
+   "t": 19300
+  },
+  {
+   "name": "intro-rainy-21000-peeks",
+   "season": "rainy",
+   "t": 21000
+  },
+  {
+   "name": "intro-rainy-24000-logo",
+   "season": "rainy",
+   "t": 24000
+  },
+  {
+   "name": "intro-rainy-25850-finish",
+   "season": "rainy",
+   "t": 25850
+  },
+  {
+   "name": "intro-snowy-06000-box",
+   "season": "snowy",
+   "t": 6000
+  },
+  {
+   "name": "intro-snowy-17100-house-glows",
+   "season": "snowy",
+   "t": 17100
+  },
+  {
+   "name": "intro-snowy-21000-peeks",
+   "season": "snowy",
+   "t": 21000
+  },
+  {
+   "name": "intro-sunny-06000-box",
+   "season": "sunny",
+   "t": 6000
+  },
+  {
+   "name": "intro-sunny-17100-house-glows",
+   "season": "sunny",
+   "t": 17100
+  },
+  {
+   "name": "intro-sunny-18400-dawn",
+   "season": "sunny",
+   "t": 18400
+  },
+  {
+   "name": "intro-sunny-21000-peeks",
+   "season": "sunny",
+   "t": 21000
+  },
+  {
+   "name": "intro-rainy-12550-skipped",
+   "season": "rainy",
+   "t": 12550,
+   "skipAt": 12200
+  }
+ ],
+ "seasons": {
+  "rainy": {
+   "night": "rainy/night",
+   "pixels": [
+    2348,
+    1080
+   ],
+   "morning": null,
+   "doorlight": null,
+   "cuts": {
+    "living": {
+     "image": "rainy/cut-living",
+     "px": [
+      1018,
+      512,
+      312,
+      94
+     ]
+    },
+    "bedroom": {
+     "image": "rainy/cut-bedroom",
+     "px": [
+      699,
+      385,
+      232,
+      114
+     ]
+    },
+    "bathroom": {
+     "image": "rainy/cut-bathroom",
+     "px": [
+      1436,
+      385,
+      242,
+      105
+     ]
+    },
+    "kitchen": {
+     "image": "rainy/cut-kitchen",
+     "px": [
+      662,
+      578,
+      274,
+      85
+     ]
+    },
+    "movie": {
+     "image": "rainy/cut-movie",
+     "px": [
+      1417,
+      568,
+      293,
+      95
+     ]
+    },
+    "dance": {
+     "image": "rainy/cut-dance",
+     "px": [
+      1065,
+      291,
+      218,
+      109
+     ]
+    }
+   },
+   "dawnKeys": [
+    0,
+    0.25,
+    0.45,
+    0.65,
+    1
+   ],
+   "halos": {
+    "living": [
+     {
+      "image": "rainy/halo-living-k000",
+      "px": [
+       940,
+       456,
+       468,
+       205
+      ]
+     },
+     {
+      "image": "rainy/halo-living-k025",
+      "px": [
+       940,
+       456,
+       468,
+       205
+      ]
+     },
+     {
+      "image": "rainy/halo-living-k045",
+      "px": [
+       940,
+       456,
+       468,
+       205
+      ]
+     },
+     {
+      "image": "rainy/halo-living-k065",
+      "px": [
+       940,
+       456,
+       468,
+       205
+      ]
+     },
+     {
+      "image": "rainy/halo-living-k100",
+      "px": [
+       940,
+       456,
+       468,
+       205
+      ]
+     }
+    ],
+    "bedroom": [
+     {
+      "image": "rainy/halo-bedroom-k000",
+      "px": [
+       604,
+       319,
+       381,
+       246
+      ]
+     },
+     {
+      "image": "rainy/halo-bedroom-k025",
+      "px": [
+       604,
+       319,
+       381,
+       246
+      ]
+     },
+     {
+      "image": "rainy/halo-bedroom-k045",
+      "px": [
+       604,
+       319,
+       381,
+       246
+      ]
+     },
+     {
+      "image": "rainy/halo-bedroom-k065",
+      "px": [
+       604,
+       319,
+       381,
+       246
+      ]
+     },
+     {
+      "image": "rainy/halo-bedroom-k100",
+      "px": [
+       604,
+       319,
+       381,
+       246
+      ]
+     }
+    ],
+    "bathroom": [
+     {
+      "image": "rainy/halo-bathroom-k000",
+      "px": [
+       1374,
+       319,
+       388,
+       236
+      ]
+     },
+     {
+      "image": "rainy/halo-bathroom-k025",
+      "px": [
+       1374,
+       319,
+       388,
+       236
+      ]
+     },
+     {
+      "image": "rainy/halo-bathroom-k045",
+      "px": [
+       1374,
+       319,
+       388,
+       236
+      ]
+     },
+     {
+      "image": "rainy/halo-bathroom-k065",
+      "px": [
+       1374,
+       319,
+       388,
+       236
+      ]
+     },
+     {
+      "image": "rainy/halo-bathroom-k100",
+      "px": [
+       1374,
+       319,
+       388,
+       236
+      ]
+     }
+    ],
+    "kitchen": [
+     {
+      "image": "rainy/halo-kitchen-k000",
+      "px": [
+       547,
+       460,
+       436,
+       319
+      ]
+     },
+     {
+      "image": "rainy/halo-kitchen-k025",
+      "px": [
+       547,
+       460,
+       436,
+       319
+      ]
+     },
+     {
+      "image": "rainy/halo-kitchen-k045",
+      "px": [
+       547,
+       460,
+       436,
+       319
+      ]
+     },
+     {
+      "image": "rainy/halo-kitchen-k065",
+      "px": [
+       547,
+       460,
+       436,
+       319
+      ]
+     },
+     {
+      "image": "rainy/halo-kitchen-k100",
+      "px": [
+       547,
+       460,
+       436,
+       319
+      ]
+     }
+    ],
+    "movie": [
+     {
+      "image": "rainy/halo-movie-k000",
+      "px": [
+       1247,
+       379,
+       559,
+       473
+      ]
+     },
+     {
+      "image": "rainy/halo-movie-k025",
+      "px": [
+       1247,
+       379,
+       559,
+       473
+      ]
+     },
+     {
+      "image": "rainy/halo-movie-k045",
+      "px": [
+       1247,
+       379,
+       559,
+       473
+      ]
+     },
+     {
+      "image": "rainy/halo-movie-k065",
+      "px": [
+       1247,
+       379,
+       559,
+       473
+      ]
+     },
+     {
+      "image": "rainy/halo-movie-k100",
+      "px": [
+       1247,
+       379,
+       559,
+       473
+      ]
+     }
+    ],
+    "dance": [
+     {
+      "image": "rainy/halo-dance-k000",
+      "px": [
+       1029,
+       255,
+       290,
+       145
+      ]
+     },
+     {
+      "image": "rainy/halo-dance-k025",
+      "px": [
+       1029,
+       255,
+       290,
+       145
+      ]
+     },
+     {
+      "image": "rainy/halo-dance-k045",
+      "px": [
+       1029,
+       255,
+       290,
+       145
+      ]
+     },
+     {
+      "image": "rainy/halo-dance-k065",
+      "px": [
+       1029,
+       255,
+       290,
+       145
+      ]
+     },
+     {
+      "image": "rainy/halo-dance-k100",
+      "px": [
+       1029,
+       255,
+       290,
+       145
+      ]
+     }
+    ]
+   },
+   "panes": {
+    "living": [
+     {
+      "image": "rainy/pane-living-k000",
+      "px": [
+       1018,
+       511,
+       312,
+       96
+      ]
+     },
+     {
+      "image": "rainy/pane-living-k025",
+      "px": [
+       1018,
+       511,
+       312,
+       96
+      ]
+     },
+     {
+      "image": "rainy/pane-living-k045",
+      "px": [
+       1018,
+       511,
+       312,
+       96
+      ]
+     },
+     {
+      "image": "rainy/pane-living-k065",
+      "px": [
+       1018,
+       511,
+       312,
+       96
+      ]
+     },
+     {
+      "image": "rainy/pane-living-k100",
+      "px": [
+       1018,
+       511,
+       312,
+       96
+      ]
+     }
+    ],
+    "bedroom": [
+     {
+      "image": "rainy/pane-bedroom-k000",
+      "px": [
+       699,
+       385,
+       232,
+       114
+      ]
+     },
+     {
+      "image": "rainy/pane-bedroom-k025",
+      "px": [
+       699,
+       385,
+       232,
+       114
+      ]
+     },
+     {
+      "image": "rainy/pane-bedroom-k045",
+      "px": [
+       699,
+       385,
+       232,
+       114
+      ]
+     },
+     {
+      "image": "rainy/pane-bedroom-k065",
+      "px": [
+       699,
+       385,
+       232,
+       114
+      ]
+     },
+     {
+      "image": "rainy/pane-bedroom-k100",
+      "px": [
+       699,
+       385,
+       232,
+       114
+      ]
+     }
+    ],
+    "bathroom": [
+     {
+      "image": "rainy/pane-bathroom-k000",
+      "px": [
+       1436,
+       385,
+       242,
+       105
+      ]
+     },
+     {
+      "image": "rainy/pane-bathroom-k025",
+      "px": [
+       1436,
+       385,
+       242,
+       105
+      ]
+     },
+     {
+      "image": "rainy/pane-bathroom-k045",
+      "px": [
+       1436,
+       385,
+       242,
+       105
+      ]
+     },
+     {
+      "image": "rainy/pane-bathroom-k065",
+      "px": [
+       1436,
+       385,
+       242,
+       105
+      ]
+     },
+     {
+      "image": "rainy/pane-bathroom-k100",
+      "px": [
+       1436,
+       385,
+       242,
+       105
+      ]
+     }
+    ],
+    "kitchen": [
+     {
+      "image": "rainy/pane-kitchen-k000",
+      "px": [
+       662,
+       578,
+       274,
+       85
+      ]
+     },
+     {
+      "image": "rainy/pane-kitchen-k025",
+      "px": [
+       662,
+       578,
+       274,
+       85
+      ]
+     },
+     {
+      "image": "rainy/pane-kitchen-k045",
+      "px": [
+       662,
+       578,
+       274,
+       85
+      ]
+     },
+     {
+      "image": "rainy/pane-kitchen-k065",
+      "px": [
+       662,
+       578,
+       274,
+       85
+      ]
+     },
+     {
+      "image": "rainy/pane-kitchen-k100",
+      "px": [
+       662,
+       578,
+       274,
+       85
+      ]
+     }
+    ],
+    "movie": [
+     {
+      "image": "rainy/pane-movie-k000",
+      "px": [
+       1417,
+       568,
+       293,
+       95
+      ]
+     },
+     {
+      "image": "rainy/pane-movie-k025",
+      "px": [
+       1417,
+       568,
+       293,
+       95
+      ]
+     },
+     {
+      "image": "rainy/pane-movie-k045",
+      "px": [
+       1417,
+       568,
+       293,
+       95
+      ]
+     },
+     {
+      "image": "rainy/pane-movie-k065",
+      "px": [
+       1417,
+       568,
+       293,
+       95
+      ]
+     },
+     {
+      "image": "rainy/pane-movie-k100",
+      "px": [
+       1417,
+       568,
+       293,
+       95
+      ]
+     }
+    ],
+    "dance": [
+     {
+      "image": "rainy/pane-dance-k000",
+      "px": [
+       1065,
+       291,
+       218,
+       109
+      ]
+     },
+     {
+      "image": "rainy/pane-dance-k025",
+      "px": [
+       1065,
+       291,
+       218,
+       109
+      ]
+     },
+     {
+      "image": "rainy/pane-dance-k045",
+      "px": [
+       1065,
+       291,
+       218,
+       109
+      ]
+     },
+     {
+      "image": "rainy/pane-dance-k065",
+      "px": [
+       1065,
+       291,
+       218,
+       109
+      ]
+     },
+     {
+      "image": "rainy/pane-dance-k100",
+      "px": [
+       1065,
+       291,
+       218,
+       109
+      ]
+     }
+    ]
+   }
+  },
+  "snowy": {
+   "night": "snowy/night",
+   "pixels": [
+    2348,
+    1080
+   ],
+   "morning": null,
+   "doorlight": null,
+   "cuts": {
+    "living": {
+     "image": "snowy/cut-living",
+     "px": [
+      1018,
+      512,
+      312,
+      94
+     ]
+    },
+    "bedroom": {
+     "image": "snowy/cut-bedroom",
+     "px": [
+      699,
+      385,
+      232,
+      114
+     ]
+    },
+    "bathroom": {
+     "image": "snowy/cut-bathroom",
+     "px": [
+      1436,
+      385,
+      242,
+      105
+     ]
+    },
+    "kitchen": {
+     "image": "snowy/cut-kitchen",
+     "px": [
+      662,
+      577,
+      274,
+      86
+     ]
+    },
+    "movie": {
+     "image": "snowy/cut-movie",
+     "px": [
+      1417,
+      568,
+      294,
+      95
+     ]
+    },
+    "dance": {
+     "image": "snowy/cut-dance",
+     "px": [
+      1065,
+      291,
+      218,
+      109
+     ]
+    }
+   },
+   "dawnKeys": [
+    0,
+    0.25,
+    0.45,
+    0.65,
+    1
+   ],
+   "halos": {
+    "living": [
+     {
+      "image": "snowy/halo-living-k000",
+      "px": [
+       940,
+       456,
+       468,
+       205
+      ]
+     },
+     {
+      "image": "snowy/halo-living-k025",
+      "px": [
+       940,
+       456,
+       468,
+       205
+      ]
+     },
+     {
+      "image": "snowy/halo-living-k045",
+      "px": [
+       940,
+       456,
+       468,
+       205
+      ]
+     },
+     {
+      "image": "snowy/halo-living-k065",
+      "px": [
+       940,
+       456,
+       468,
+       205
+      ]
+     },
+     {
+      "image": "snowy/halo-living-k100",
+      "px": [
+       940,
+       456,
+       468,
+       205
+      ]
+     }
+    ],
+    "bedroom": [
+     {
+      "image": "snowy/halo-bedroom-k000",
+      "px": [
+       604,
+       319,
+       382,
+       246
+      ]
+     },
+     {
+      "image": "snowy/halo-bedroom-k025",
+      "px": [
+       604,
+       319,
+       382,
+       246
+      ]
+     },
+     {
+      "image": "snowy/halo-bedroom-k045",
+      "px": [
+       604,
+       319,
+       382,
+       246
+      ]
+     },
+     {
+      "image": "snowy/halo-bedroom-k065",
+      "px": [
+       604,
+       319,
+       382,
+       246
+      ]
+     },
+     {
+      "image": "snowy/halo-bedroom-k100",
+      "px": [
+       604,
+       319,
+       382,
+       246
+      ]
+     }
+    ],
+    "bathroom": [
+     {
+      "image": "snowy/halo-bathroom-k000",
+      "px": [
+       1374,
+       319,
+       388,
+       236
+      ]
+     },
+     {
+      "image": "snowy/halo-bathroom-k025",
+      "px": [
+       1374,
+       319,
+       388,
+       236
+      ]
+     },
+     {
+      "image": "snowy/halo-bathroom-k045",
+      "px": [
+       1374,
+       319,
+       388,
+       236
+      ]
+     },
+     {
+      "image": "snowy/halo-bathroom-k065",
+      "px": [
+       1374,
+       319,
+       388,
+       236
+      ]
+     },
+     {
+      "image": "snowy/halo-bathroom-k100",
+      "px": [
+       1374,
+       319,
+       388,
+       236
+      ]
+     }
+    ],
+    "kitchen": [
+     {
+      "image": "snowy/halo-kitchen-k000",
+      "px": [
+       547,
+       461,
+       436,
+       318
+      ]
+     },
+     {
+      "image": "snowy/halo-kitchen-k025",
+      "px": [
+       547,
+       461,
+       436,
+       318
+      ]
+     },
+     {
+      "image": "snowy/halo-kitchen-k045",
+      "px": [
+       547,
+       461,
+       436,
+       318
+      ]
+     },
+     {
+      "image": "snowy/halo-kitchen-k065",
+      "px": [
+       547,
+       461,
+       436,
+       318
+      ]
+     },
+     {
+      "image": "snowy/halo-kitchen-k100",
+      "px": [
+       547,
+       461,
+       436,
+       318
+      ]
+     }
+    ],
+    "movie": [
+     {
+      "image": "snowy/halo-movie-k000",
+      "px": [
+       1247,
+       379,
+       559,
+       473
+      ]
+     },
+     {
+      "image": "snowy/halo-movie-k025",
+      "px": [
+       1247,
+       379,
+       559,
+       473
+      ]
+     },
+     {
+      "image": "snowy/halo-movie-k045",
+      "px": [
+       1247,
+       379,
+       559,
+       473
+      ]
+     },
+     {
+      "image": "snowy/halo-movie-k065",
+      "px": [
+       1247,
+       379,
+       559,
+       473
+      ]
+     },
+     {
+      "image": "snowy/halo-movie-k100",
+      "px": [
+       1247,
+       379,
+       559,
+       473
+      ]
+     }
+    ],
+    "dance": [
+     {
+      "image": "snowy/halo-dance-k000",
+      "px": [
+       1029,
+       255,
+       290,
+       145
+      ]
+     },
+     {
+      "image": "snowy/halo-dance-k025",
+      "px": [
+       1029,
+       255,
+       290,
+       145
+      ]
+     },
+     {
+      "image": "snowy/halo-dance-k045",
+      "px": [
+       1029,
+       255,
+       290,
+       145
+      ]
+     },
+     {
+      "image": "snowy/halo-dance-k065",
+      "px": [
+       1029,
+       255,
+       290,
+       145
+      ]
+     },
+     {
+      "image": "snowy/halo-dance-k100",
+      "px": [
+       1029,
+       255,
+       290,
+       145
+      ]
+     }
+    ]
+   },
+   "panes": {
+    "living": [
+     {
+      "image": "snowy/pane-living-k000",
+      "px": [
+       1018,
+       511,
+       312,
+       96
+      ]
+     },
+     {
+      "image": "snowy/pane-living-k025",
+      "px": [
+       1018,
+       511,
+       312,
+       96
+      ]
+     },
+     {
+      "image": "snowy/pane-living-k045",
+      "px": [
+       1018,
+       511,
+       312,
+       96
+      ]
+     },
+     {
+      "image": "snowy/pane-living-k065",
+      "px": [
+       1018,
+       511,
+       312,
+       96
+      ]
+     },
+     {
+      "image": "snowy/pane-living-k100",
+      "px": [
+       1018,
+       511,
+       312,
+       96
+      ]
+     }
+    ],
+    "bedroom": [
+     {
+      "image": "snowy/pane-bedroom-k000",
+      "px": [
+       699,
+       385,
+       232,
+       114
+      ]
+     },
+     {
+      "image": "snowy/pane-bedroom-k025",
+      "px": [
+       699,
+       385,
+       232,
+       114
+      ]
+     },
+     {
+      "image": "snowy/pane-bedroom-k045",
+      "px": [
+       699,
+       385,
+       232,
+       114
+      ]
+     },
+     {
+      "image": "snowy/pane-bedroom-k065",
+      "px": [
+       699,
+       385,
+       232,
+       114
+      ]
+     },
+     {
+      "image": "snowy/pane-bedroom-k100",
+      "px": [
+       699,
+       385,
+       232,
+       114
+      ]
+     }
+    ],
+    "bathroom": [
+     {
+      "image": "snowy/pane-bathroom-k000",
+      "px": [
+       1436,
+       385,
+       242,
+       105
+      ]
+     },
+     {
+      "image": "snowy/pane-bathroom-k025",
+      "px": [
+       1436,
+       385,
+       242,
+       105
+      ]
+     },
+     {
+      "image": "snowy/pane-bathroom-k045",
+      "px": [
+       1436,
+       385,
+       242,
+       105
+      ]
+     },
+     {
+      "image": "snowy/pane-bathroom-k065",
+      "px": [
+       1436,
+       385,
+       242,
+       105
+      ]
+     },
+     {
+      "image": "snowy/pane-bathroom-k100",
+      "px": [
+       1436,
+       385,
+       242,
+       105
+      ]
+     }
+    ],
+    "kitchen": [
+     {
+      "image": "snowy/pane-kitchen-k000",
+      "px": [
+       662,
+       577,
+       274,
+       86
+      ]
+     },
+     {
+      "image": "snowy/pane-kitchen-k025",
+      "px": [
+       662,
+       577,
+       274,
+       86
+      ]
+     },
+     {
+      "image": "snowy/pane-kitchen-k045",
+      "px": [
+       662,
+       577,
+       274,
+       86
+      ]
+     },
+     {
+      "image": "snowy/pane-kitchen-k065",
+      "px": [
+       662,
+       577,
+       274,
+       86
+      ]
+     },
+     {
+      "image": "snowy/pane-kitchen-k100",
+      "px": [
+       662,
+       577,
+       274,
+       86
+      ]
+     }
+    ],
+    "movie": [
+     {
+      "image": "snowy/pane-movie-k000",
+      "px": [
+       1417,
+       568,
+       294,
+       95
+      ]
+     },
+     {
+      "image": "snowy/pane-movie-k025",
+      "px": [
+       1417,
+       568,
+       294,
+       95
+      ]
+     },
+     {
+      "image": "snowy/pane-movie-k045",
+      "px": [
+       1417,
+       568,
+       294,
+       95
+      ]
+     },
+     {
+      "image": "snowy/pane-movie-k065",
+      "px": [
+       1417,
+       568,
+       294,
+       95
+      ]
+     },
+     {
+      "image": "snowy/pane-movie-k100",
+      "px": [
+       1417,
+       568,
+       294,
+       95
+      ]
+     }
+    ],
+    "dance": [
+     {
+      "image": "snowy/pane-dance-k000",
+      "px": [
+       1065,
+       291,
+       218,
+       109
+      ]
+     },
+     {
+      "image": "snowy/pane-dance-k025",
+      "px": [
+       1065,
+       291,
+       218,
+       109
+      ]
+     },
+     {
+      "image": "snowy/pane-dance-k045",
+      "px": [
+       1065,
+       291,
+       218,
+       109
+      ]
+     },
+     {
+      "image": "snowy/pane-dance-k065",
+      "px": [
+       1065,
+       291,
+       218,
+       109
+      ]
+     },
+     {
+      "image": "snowy/pane-dance-k100",
+      "px": [
+       1065,
+       291,
+       218,
+       109
+      ]
+     }
+    ]
+   }
+  },
+  "sunny": {
+   "night": "sunny/night",
+   "pixels": [
+    2348,
+    1080
+   ],
+   "morning": "sunny/morning",
+   "doorlight": null,
+   "cuts": {
+    "living": {
+     "image": "sunny/cut-living",
+     "px": [
+      1018,
+      511,
+      312,
+      95
+     ]
+    },
+    "bedroom": {
+     "image": "sunny/cut-bedroom",
+     "px": [
+      699,
+      385,
+      232,
+      114
+     ]
+    },
+    "bathroom": {
+     "image": "sunny/cut-bathroom",
+     "px": [
+      1436,
+      385,
+      242,
+      105
+     ]
+    },
+    "kitchen": {
+     "image": "sunny/cut-kitchen",
+     "px": [
+      662,
+      577,
+      274,
+      86
+     ]
+    },
+    "movie": {
+     "image": "sunny/cut-movie",
+     "px": [
+      1418,
+      568,
+      293,
+      95
+     ]
+    },
+    "dance": {
+     "image": "sunny/cut-dance",
+     "px": [
+      1065,
+      291,
+      218,
+      109
+     ]
+    }
+   },
+   "dawnKeys": [
+    0,
+    0.25,
+    0.45,
+    0.65,
+    1
+   ],
+   "halos": {
+    "living": [
+     {
+      "image": "sunny/halo-living-k000",
+      "px": [
+       940,
+       456,
+       468,
+       205
+      ]
+     },
+     {
+      "image": "sunny/halo-living-k025",
+      "px": [
+       940,
+       456,
+       468,
+       205
+      ]
+     },
+     {
+      "image": "sunny/halo-living-k045",
+      "px": [
+       940,
+       456,
+       468,
+       205
+      ]
+     },
+     {
+      "image": "sunny/halo-living-k065",
+      "px": [
+       940,
+       456,
+       468,
+       205
+      ]
+     },
+     {
+      "image": "sunny/halo-living-k100",
+      "px": [
+       940,
+       456,
+       468,
+       205
+      ]
+     }
+    ],
+    "bedroom": [
+     {
+      "image": "sunny/halo-bedroom-k000",
+      "px": [
+       603,
+       319,
+       382,
+       246
+      ]
+     },
+     {
+      "image": "sunny/halo-bedroom-k025",
+      "px": [
+       603,
+       319,
+       382,
+       246
+      ]
+     },
+     {
+      "image": "sunny/halo-bedroom-k045",
+      "px": [
+       603,
+       319,
+       382,
+       246
+      ]
+     },
+     {
+      "image": "sunny/halo-bedroom-k065",
+      "px": [
+       603,
+       319,
+       382,
+       246
+      ]
+     },
+     {
+      "image": "sunny/halo-bedroom-k100",
+      "px": [
+       603,
+       319,
+       382,
+       246
+      ]
+     }
+    ],
+    "bathroom": [
+     {
+      "image": "sunny/halo-bathroom-k000",
+      "px": [
+       1374,
+       319,
+       388,
+       236
+      ]
+     },
+     {
+      "image": "sunny/halo-bathroom-k025",
+      "px": [
+       1374,
+       319,
+       388,
+       236
+      ]
+     },
+     {
+      "image": "sunny/halo-bathroom-k045",
+      "px": [
+       1374,
+       319,
+       388,
+       236
+      ]
+     },
+     {
+      "image": "sunny/halo-bathroom-k065",
+      "px": [
+       1374,
+       319,
+       388,
+       236
+      ]
+     },
+     {
+      "image": "sunny/halo-bathroom-k100",
+      "px": [
+       1374,
+       319,
+       388,
+       236
+      ]
+     }
+    ],
+    "kitchen": [
+     {
+      "image": "sunny/halo-kitchen-k000",
+      "px": [
+       547,
+       461,
+       436,
+       318
+      ]
+     },
+     {
+      "image": "sunny/halo-kitchen-k025",
+      "px": [
+       547,
+       461,
+       436,
+       318
+      ]
+     },
+     {
+      "image": "sunny/halo-kitchen-k045",
+      "px": [
+       547,
+       461,
+       436,
+       318
+      ]
+     },
+     {
+      "image": "sunny/halo-kitchen-k065",
+      "px": [
+       547,
+       461,
+       436,
+       318
+      ]
+     },
+     {
+      "image": "sunny/halo-kitchen-k100",
+      "px": [
+       547,
+       461,
+       436,
+       318
+      ]
+     }
+    ],
+    "movie": [
+     {
+      "image": "sunny/halo-movie-k000",
+      "px": [
+       1247,
+       379,
+       558,
+       473
+      ]
+     },
+     {
+      "image": "sunny/halo-movie-k025",
+      "px": [
+       1247,
+       379,
+       558,
+       473
+      ]
+     },
+     {
+      "image": "sunny/halo-movie-k045",
+      "px": [
+       1247,
+       379,
+       558,
+       473
+      ]
+     },
+     {
+      "image": "sunny/halo-movie-k065",
+      "px": [
+       1247,
+       379,
+       558,
+       473
+      ]
+     },
+     {
+      "image": "sunny/halo-movie-k100",
+      "px": [
+       1247,
+       379,
+       558,
+       473
+      ]
+     }
+    ],
+    "dance": [
+     {
+      "image": "sunny/halo-dance-k000",
+      "px": [
+       1029,
+       255,
+       290,
+       145
+      ]
+     },
+     {
+      "image": "sunny/halo-dance-k025",
+      "px": [
+       1029,
+       255,
+       290,
+       145
+      ]
+     },
+     {
+      "image": "sunny/halo-dance-k045",
+      "px": [
+       1029,
+       255,
+       290,
+       145
+      ]
+     },
+     {
+      "image": "sunny/halo-dance-k065",
+      "px": [
+       1029,
+       255,
+       290,
+       145
+      ]
+     },
+     {
+      "image": "sunny/halo-dance-k100",
+      "px": [
+       1029,
+       255,
+       290,
+       145
+      ]
+     }
+    ]
+   },
+   "panes": {
+    "living": [
+     {
+      "image": "sunny/pane-living-k000",
+      "px": [
+       1018,
+       511,
+       312,
+       96
+      ]
+     },
+     {
+      "image": "sunny/pane-living-k025",
+      "px": [
+       1018,
+       511,
+       312,
+       96
+      ]
+     },
+     {
+      "image": "sunny/pane-living-k045",
+      "px": [
+       1018,
+       511,
+       312,
+       96
+      ]
+     },
+     {
+      "image": "sunny/pane-living-k065",
+      "px": [
+       1018,
+       511,
+       312,
+       96
+      ]
+     },
+     {
+      "image": "sunny/pane-living-k100",
+      "px": [
+       1018,
+       511,
+       312,
+       96
+      ]
+     }
+    ],
+    "bedroom": [
+     {
+      "image": "sunny/pane-bedroom-k000",
+      "px": [
+       699,
+       385,
+       232,
+       114
+      ]
+     },
+     {
+      "image": "sunny/pane-bedroom-k025",
+      "px": [
+       699,
+       385,
+       232,
+       114
+      ]
+     },
+     {
+      "image": "sunny/pane-bedroom-k045",
+      "px": [
+       699,
+       385,
+       232,
+       114
+      ]
+     },
+     {
+      "image": "sunny/pane-bedroom-k065",
+      "px": [
+       699,
+       385,
+       232,
+       114
+      ]
+     },
+     {
+      "image": "sunny/pane-bedroom-k100",
+      "px": [
+       699,
+       385,
+       232,
+       114
+      ]
+     }
+    ],
+    "bathroom": [
+     {
+      "image": "sunny/pane-bathroom-k000",
+      "px": [
+       1436,
+       385,
+       242,
+       105
+      ]
+     },
+     {
+      "image": "sunny/pane-bathroom-k025",
+      "px": [
+       1436,
+       385,
+       242,
+       105
+      ]
+     },
+     {
+      "image": "sunny/pane-bathroom-k045",
+      "px": [
+       1436,
+       385,
+       242,
+       105
+      ]
+     },
+     {
+      "image": "sunny/pane-bathroom-k065",
+      "px": [
+       1436,
+       385,
+       242,
+       105
+      ]
+     },
+     {
+      "image": "sunny/pane-bathroom-k100",
+      "px": [
+       1436,
+       385,
+       242,
+       105
+      ]
+     }
+    ],
+    "kitchen": [
+     {
+      "image": "sunny/pane-kitchen-k000",
+      "px": [
+       662,
+       577,
+       274,
+       85
+      ]
+     },
+     {
+      "image": "sunny/pane-kitchen-k025",
+      "px": [
+       662,
+       577,
+       274,
+       85
+      ]
+     },
+     {
+      "image": "sunny/pane-kitchen-k045",
+      "px": [
+       662,
+       577,
+       274,
+       85
+      ]
+     },
+     {
+      "image": "sunny/pane-kitchen-k065",
+      "px": [
+       662,
+       577,
+       274,
+       85
+      ]
+     },
+     {
+      "image": "sunny/pane-kitchen-k100",
+      "px": [
+       662,
+       577,
+       274,
+       85
+      ]
+     }
+    ],
+    "movie": [
+     {
+      "image": "sunny/pane-movie-k000",
+      "px": [
+       1418,
+       568,
+       293,
+       94
+      ]
+     },
+     {
+      "image": "sunny/pane-movie-k025",
+      "px": [
+       1418,
+       568,
+       293,
+       94
+      ]
+     },
+     {
+      "image": "sunny/pane-movie-k045",
+      "px": [
+       1418,
+       568,
+       293,
+       94
+      ]
+     },
+     {
+      "image": "sunny/pane-movie-k065",
+      "px": [
+       1418,
+       568,
+       293,
+       94
+      ]
+     },
+     {
+      "image": "sunny/pane-movie-k100",
+      "px": [
+       1418,
+       568,
+       293,
+       94
+      ]
+     }
+    ],
+    "dance": [
+     {
+      "image": "sunny/pane-dance-k000",
+      "px": [
+       1065,
+       291,
+       218,
+       109
+      ]
+     },
+     {
+      "image": "sunny/pane-dance-k025",
+      "px": [
+       1065,
+       291,
+       218,
+       109
+      ]
+     },
+     {
+      "image": "sunny/pane-dance-k045",
+      "px": [
+       1065,
+       291,
+       218,
+       109
+      ]
+     },
+     {
+      "image": "sunny/pane-dance-k065",
+      "px": [
+       1065,
+       291,
+       218,
+       109
+      ]
+     },
+     {
+      "image": "sunny/pane-dance-k100",
+      "px": [
+       1065,
+       291,
+       218,
+       109
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "plain": {
+  "halo": {
+   "living": {
+    "image": "halo-living-plain",
+    "px": [
+     940,
+     456,
+     468,
+     205
+    ]
+   },
+   "bedroom": {
+    "image": "halo-bedroom-plain",
+    "px": [
+     604,
+     319,
+     381,
+     246
+    ]
+   },
+   "bathroom": {
+    "image": "halo-bathroom-plain",
+    "px": [
+     1374,
+     319,
+     388,
+     236
+    ]
+   },
+   "kitchen": {
+    "image": "halo-kitchen-plain",
+    "px": [
+     547,
+     460,
+     436,
+     319
+    ]
+   },
+   "movie": {
+    "image": "halo-movie-plain",
+    "px": [
+     1247,
+     379,
+     559,
+     473
+    ]
+   },
+   "dance": {
+    "image": "halo-dance-plain",
+    "px": [
+     1029,
+     255,
+     290,
+     145
+    ]
+   }
+  },
+  "pane": {
+   "living": {
+    "image": "pane-living-plain",
+    "px": [
+     1018,
+     511,
+     312,
+     96
+    ]
+   },
+   "bedroom": {
+    "image": "pane-bedroom-plain",
+    "px": [
+     699,
+     385,
+     232,
+     114
+    ]
+   },
+   "bathroom": {
+    "image": "pane-bathroom-plain",
+    "px": [
+     1436,
+     385,
+     242,
+     105
+    ]
+   },
+   "kitchen": {
+    "image": "pane-kitchen-plain",
+    "px": [
+     662,
+     578,
+     274,
+     85
+    ]
+   },
+   "movie": {
+    "image": "pane-movie-plain",
+    "px": [
+     1417,
+     568,
+     293,
+     95
+    ]
+   },
+   "dance": {
+    "image": "pane-dance-plain",
+    "px": [
+     1065,
+     291,
+     218,
+     109
+    ]
+   }
+  }
+ },
+ "moon": {
+  "image": "moon",
+  "px": [
+   1814,
+   0,
+   345,
+   304
+  ]
+ },
+ "box": {
+  "face": {
+   "image": "box-face",
+   "px": [
+    973,
+    738,
+    402,
+    280
+   ]
+  },
+  "shadow": {
+   "image": "box-shadow",
+   "px": [
+    936,
+    995,
+    475,
+    44
+   ]
+  },
+  "inside": "#24170d",
+  "flapL": "#826445",
+  "flapR": "#78593b",
+  "stroke": "#352112",
+  "strokeWidth": 2
+ },
+ "glow": {
+  "image": "spark-glow",
+  "px": [
+   1132,
+   427,
+   84,
+   85
+  ],
+  "at": [
+   500,
+   200
+  ]
+ },
+ "peeks": [
+  {
+   "key": "biscuit",
+   "room": "living",
+   "wi": 0,
+   "cx": 452,
+   "sz": 39.6,
+   "image": "peek-biscuit",
+   "px": [
+    243,
+    248,
+    77,
+    76
+   ],
+   "at": [
+    100,
+    100
+   ]
+  },
+  {
+   "key": "berri",
+   "room": "living",
+   "wi": 1,
+   "cx": 548,
+   "sz": 39.6,
+   "image": "peek-berri",
+   "px": [
+    240,
+    241,
+    83,
+    85
+   ],
+   "at": [
+    100,
+    100
+   ]
+  },
+  {
+   "key": "nibbles",
+   "room": "bedroom",
+   "wi": 0,
+   "cx": 319,
+   "sz": 46.2,
+   "image": "peek-nibbles",
+   "px": [
+    256,
+    249,
+    66,
+    90
+   ],
+   "at": [
+    100,
+    100
+   ]
+  },
+  {
+   "key": "appy",
+   "room": "bedroom",
+   "wi": 1,
+   "cx": 381,
+   "sz": 33,
+   "image": "peek-appy",
+   "px": [
+    241,
+    247,
+    64,
+    62
+   ],
+   "at": [
+    100,
+    100
+   ]
+  },
+  {
+   "key": "peachy",
+   "room": "bathroom",
+   "wi": 0,
+   "cx": 629,
+   "sz": 37.400000000000006,
+   "image": "peek-peachy",
+   "px": [
+    239,
+    243,
+    79,
+    78
+   ],
+   "at": [
+    100,
+    100
+   ]
+  },
+  {
+   "key": "scoop",
+   "room": "bathroom",
+   "wi": 1,
+   "cx": 691,
+   "sz": 50.6,
+   "image": "peek-scoop",
+   "px": [
+    254,
+    234,
+    80,
+    117
+   ],
+   "at": [
+    100,
+    100
+   ]
+  },
+  {
+   "key": "truffle",
+   "room": "kitchen",
+   "wi": 0,
+   "cx": 313,
+   "sz": 46.800000000000004,
+   "image": "peek-truffle",
+   "px": [
+    256,
+    248,
+    71,
+    92
+   ],
+   "at": [
+    100,
+    100
+   ]
+  },
+  {
+   "key": "boba",
+   "room": "movie",
+   "wi": 0,
+   "cx": 628,
+   "sz": 52,
+   "image": "peek-boba",
+   "px": [
+    251,
+    234,
+    89,
+    112
+   ],
+   "at": [
+    100,
+    100
+   ]
+  },
+  {
+   "key": "bao",
+   "room": "movie",
+   "wi": 0,
+   "cx": 672,
+   "sz": 52,
+   "image": "peek-bao",
+   "px": [
+    240,
+    259,
+    111,
+    91
+   ],
+   "at": [
+    100,
+    100
+   ]
+  }
+ ],
+ "scene": {
+  "pixels": [
+   2348,
+   1080
+  ],
+  "sceneScale": 2.347826,
+  "shift": 0.087
+ },
+ "logo": [
+  {
+   "image": "logo-0",
+   "px": [
+    333,
+    113,
+    156,
+    217
+   ],
+   "box": [
+    110.3664,
+    3.9084,
+    71.1298,
+    121.1603
+   ]
+  },
+  {
+   "image": "logo-1",
+   "px": [
+    459,
+    113,
+    209,
+    217
+   ],
+   "box": [
+    155.7863,
+    3.9084,
+    89.9847,
+    121.1603
+   ]
+  },
+  {
+   "image": "logo-2",
+   "px": [
+    643,
+    116,
+    180,
+    214
+   ],
+   "box": [
+    220.0916,
+    3.9084,
+    81.5878,
+    121.1603
+   ]
+  },
+  {
+   "image": "logo-3",
+   "px": [
+    803,
+    116,
+    83,
+    212
+   ],
+   "box": [
+    276.0763,
+    3.9084,
+    47.1909,
+    121.1603
+   ]
+  },
+  {
+   "image": "logo-4",
+   "px": [
+    860,
+    113,
+    156,
+    217
+   ],
+   "box": [
+    297.6641,
+    3.9084,
+    71.1298,
+    121.1603
+   ]
+  },
+  {
+   "image": "logo-5",
+   "px": [
+    990,
+    116,
+    173,
+    212
+   ],
+   "box": [
+    343.0992,
+    3.9084,
+    79.6336,
+    121.1603
+   ]
+  },
+  {
+   "image": "logo-6",
+   "px": [
+    1195,
+    113,
+    156,
+    217
+   ],
+   "box": [
+    417.1603,
+    3.9084,
+    71.1298,
+    121.1603
+   ]
+  },
+  {
+   "image": "logo-7",
+   "px": [
+    1322,
+    113,
+    209,
+    217
+   ],
+   "box": [
+    462.5954,
+    3.9084,
+    89.9847,
+    121.1603
+   ]
+  },
+  {
+   "image": "logo-8",
+   "px": [
+    1506,
+    116,
+    180,
+    214
+   ],
+   "box": [
+    526.9924,
+    3.9084,
+    81.5878,
+    121.1603
+   ]
+  },
+  {
+   "image": "logo-9",
+   "px": [
+    1661,
+    116,
+    197,
+    214
+   ],
+   "box": [
+    582.8855,
+    3.9084,
+    84.4122,
+    121.1603
+   ]
+  },
+  {
+   "image": "logo-10",
+   "px": [
+    1830,
+    116,
+    178,
+    212
+   ],
+   "box": [
+    641.7099,
+    3.9084,
+    80.0153,
+    121.1603
+   ]
+  }
+ ],
+ "tap": {
+  "image": "tap",
+  "px": [
+   896,
+   954,
+   541,
+   125
+  ],
+  "box": [
+   335.6412,
+   353.7099,
+   160.7176,
+   24.4275
+  ],
+  "span": [
+   335.6412,
+   353.7099,
+   160.7176,
+   24.4275
+  ]
+ },
+ "skip": {
+  "image": "skip",
+  "px": [
+   2070,
+   23,
+   257,
+   146
+  ],
+  "box": [
+   746.6565,
+   13.6794,
+   69.7099,
+   29.313
+  ]
+ },
+ "captions": {
+  "house": {
+   "image": "caption-house",
+   "px": [
+    697,
+    19,
+    948,
+    166
+   ],
+   "box": [
+    259.6412,
+    13.6794,
+    312.7175,
+    33.2214
+   ]
+  },
+  "box": {
+   "image": "caption-box",
+   "px": [
+    688,
+    19,
+    965,
+    166
+   ],
+   "box": [
+    256.5954,
+    13.6794,
+    318.8092,
+    33.2214
+   ]
+  },
+  "squish0": {
+   "image": "caption-squish0",
+   "px": [
+    629,
+    19,
+    1083,
+    166
+   ],
+   "box": [
+    235.626,
+    13.6794,
+    360.748,
+    33.2214
+   ]
+  },
+  "squish1": {
+   "image": "caption-squish1",
+   "px": [
+    677,
+    15,
+    986,
+    170
+   ],
+   "box": [
+    252.626,
+    13.6794,
+    326.748,
+    33.2214
+   ]
+  },
+  "squish2": {
+   "image": "caption-squish2",
+   "px": [
+    713,
+    15,
+    915,
+    170
+   ],
+   "box": [
+    265.4427,
+    13.6794,
+    301.1145,
+    33.2214
+   ]
+  },
+  "squish3": {
+   "image": "caption-squish3",
+   "px": [
+    698,
+    15,
+    945,
+    170
+   ],
+   "box": [
+    260.0153,
+    13.6794,
+    311.9695,
+    33.2214
+   ]
+  }
+ }
+}

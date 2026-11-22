@@ -58,7 +58,8 @@ namespace PlushCrush.App.MainMenu
 
         // the page's layers: the world (scene, vignette, the Game Park's picture, creature, name plate: the camera pans
         // it), the weather over it (fixed to the screen), the HUD on top (fades while the creature walks)
-        VisualElement _world, _hud, _vignette, _creatureEl, _nameEl, _park;
+        VisualElement _world, _hud, _vignette, _creatureEl, _nameEl, _park, _scene, _creaturePic, _birds;
+        MenuWeather _weather;
         MenuLayout.PartSpec _creatureSpec;
         IMenuCreature _creature;
         bool _busy;
@@ -112,10 +113,12 @@ namespace PlushCrush.App.MainMenu
             // the live rig where it's ported (the still picture until its moves have loaded, and for creatures not ported
             // yet); its 100 x 100 box sits where the page puts .mm-stage
             if (_creatureEl != null && _creatureSpec != null && LiveCreature.Possible(_state.CreatureKey))
-                _creature = new LiveCreature(_creatureEl, pic, _state.CreatureKey, PlaceStage);
+                _creature = new LiveCreature(_creatureEl, pic, _state.CreatureKey, PlaceStageIn(_creatureSpec));
             else _creature = new StillCreature(pic, 169f);
-            root.Add(new MenuWeather(_layout.weather, _state.SeasonNow(), W, H));
-            if (MenuBirds.Shown(_state.SeasonNow(), _state.Level)) root.Add(new MenuBirds());
+            _creaturePic = pic;
+            _weather = new MenuWeather(_layout.weather, _state.SeasonNow(), W, H);
+            root.Add(_weather);
+            if (MenuBirds.Shown(_state.SeasonNow(), _state.Level)) root.Add(_birds = new MenuBirds());
 
             _hud = new VisualElement { name = "hud", pickingMode = PickingMode.Ignore };
             Fill(_hud);
@@ -138,6 +141,8 @@ namespace PlushCrush.App.MainMenu
             SetNumber("coins", _state.Coins);
             SetNumber("gems", _state.Gems);
             root.RegisterCallback<AttachToPanelEvent>(_ => root.schedule.Execute(RelayoutPills));
+            _scene = scene;
+            MaybeIntro(root);   // the game intro, on the app's first menu of a launch (MainMenuScreen.Intro.cs)
             return root;
         }
 
@@ -330,6 +335,7 @@ namespace PlushCrush.App.MainMenu
 
         public override bool OnBack()
         {
+            if (_intro != null && _intro.Running) { _intro.Skip(); return true; }   // (menu.js introBack: back skips it)
             if (_games != null) return _games.HandleBack();
             if (_walk != null) { LeavePark(); return true; }
             return false;
@@ -503,25 +509,31 @@ namespace PlushCrush.App.MainMenu
         }
 
         /// <summary>The rig's 100 x 100 box where main-menu.js puts .mm-stage (S = 0.44 of the frame's height, its feet on
-        /// the path's pad at scene (500, 421), 95.5% down the box), inside the creature's picture box (which follows the
-        /// scene the same way); and the screen's pixels per UI unit.</summary>
-        void PlaceStage(VisualElement box, Action<float> pixelsPerUnit)
+        /// the path's pad at scene (500, 421), 95.5% down the box), inside a creature's picture box (placed by its spec,
+        /// following the scene the same way); and the screen's pixels per UI unit.</summary>
+        Action<VisualElement, Action<float>> PlaceStageIn(MenuLayout.PartSpec p) => (box, pixelsPerUnit) =>
         {
-            var p = _creatureSpec;
-            float w = p.px != null && p.px.Length == 4 ? p.px[2] / 2.8125f : p.w, h = p.px != null && p.px.Length == 4 ? p.px[3] / 2.8125f : p.h;
             void Layout()
             {
-                float Wu = View.layout.width, Hu = View.layout.height;
-                if (float.IsNaN(Wu) || Wu <= 0 || Hu <= 0) return;
-                float s = Mathf.Max(Wu / 1000f, Hu / 460f), sx0 = (Wu - 1000f * s) / 2f, sy0 = Hu - 460f * s, S = Hu * 0.44f;
-                float cl = sx0 + p.sceneAt[0] * s - w / 2f, ct = sy0 + p.sceneAt[1] * s - h;
+                var r = StageBoxIn(p);
+                if (r.width <= 0) return;
                 box.style.position = Position.Absolute;
-                box.style.left = sx0 + 500f * s - S / 2f - cl; box.style.top = sy0 + 421f * s - 0.955f * S - ct;
-                box.style.width = S; box.style.height = S;
-                pixelsPerUnit(Screen.height / Hu);
+                box.style.left = r.x; box.style.top = r.y; box.style.width = r.width; box.style.height = r.height;
+                pixelsPerUnit(Screen.height / View.layout.height);
             }
             View.RegisterCallback<GeometryChangedEvent>(_ => Layout());
             Layout();
+        };
+
+        /// <summary>That box (.mm-stage) in the coordinates of a creature picture box placed by spec p.</summary>
+        Rect StageBoxIn(MenuLayout.PartSpec p)
+        {
+            float w = p.px != null && p.px.Length == 4 ? p.px[2] / 2.8125f : p.w, h = p.px != null && p.px.Length == 4 ? p.px[3] / 2.8125f : p.h;
+            float Wu = View.layout.width, Hu = View.layout.height;
+            if (float.IsNaN(Wu) || Wu <= 0 || Hu <= 0) return default;
+            float s = Mathf.Max(Wu / 1000f, Hu / 460f), sx0 = (Wu - 1000f * s) / 2f, sy0 = Hu - 460f * s, S = Hu * 0.44f;
+            float cl = sx0 + p.sceneAt[0] * s - w / 2f, ct = sy0 + p.sceneAt[1] * s - h;
+            return new Rect(sx0 + 500f * s - S / 2f - cl, sy0 + 421f * s - 0.955f * S - ct, S, S);
         }
 
         static void Fill(VisualElement e)

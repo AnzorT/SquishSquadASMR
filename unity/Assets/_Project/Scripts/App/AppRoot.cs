@@ -62,7 +62,8 @@ namespace PlushCrush.App
 
             Router = new ScreenRouter(this, screenLayer);
             // The Main Menu once its pictures are exported (tools/unity-port/export-menu.mjs); the setup check before.
-            if (MainMenu.MenuLayout.Exists) Router.Show(new MainMenu.MainMenuScreen());
+            // The launch's first menu plays the game intro (App.js: once a launch, start data `intro`).
+            if (MainMenu.MenuLayout.Exists) Router.Show(new MainMenu.MainMenuScreen(new MainMenu.MenuState { Intro = true }));
             else Router.Show(new SetupCheckScreen());
         }
 

@@ -17,6 +17,9 @@ Plan, decisions and progress: [`PORT_PLAN.md`](PORT_PLAN.md).
    node tools/unity-port/export-game-park.mjs creatures
    # the live creature: the rig's moves, Mittens' geometry, the fabric grain (Art/Generated/Resources/Rig)
    node tools/unity-port/rig/record-rig.mjs mittens
+   # the game intro (its pictures are in git: only after the game's intro changes): Resources/Screens/Intro and
+   # Reference/game/intro-*.jpg, and its self-check
+   node tools/unity-port/export-intro.mjs
    ```
 3. Unity Hub → **Add** → **Add project from disk** → pick this `unity` folder. Open it.
 4. On first open the project sets itself up (menu **PlushCrush > Setup** to run it again):
@@ -33,7 +36,8 @@ Plan, decisions and progress: [`PORT_PLAN.md`](PORT_PLAN.md).
 ## Checking a screen against the original
 
 Press Play, open **PlushCrush > Reference Overlay**, tick **Show overlay** and pick a screenshot (`game/menu.jpg`
-for the Main Menu). It's laid over the game, half see-through; move the opacity slider to compare. Tick **Freeze
+for the Main Menu; the game intro's moments with **PlushCrush > Intro > Reference moments...**, which holds the intro
+at each `game/intro-*.jpg`'s moment). It's laid over the game, half see-through; move the opacity slider to compare. Tick **Freeze
 animations** to hold the rain where the screenshot has it.
 
 ## Layout

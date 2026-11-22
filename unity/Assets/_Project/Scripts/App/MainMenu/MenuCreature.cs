@@ -80,6 +80,8 @@ namespace PlushCrush.App.MainMenu
             _host.Add(rig);
             if (_picture != null) _picture.style.display = DisplayStyle.None;
             rig.Engine.SpinOff = _spin;
+            rig.ColorFilter = _filter;
+            if (_lastMove != null) rig.Play(_lastMove);
             _rig = rig;
             var bob = new CssAnimation { Duration = 0.32f, Iterations = float.PositiveInfinity, Timing = Easing.EaseInOut };
             bob.Key(new CssKeyframe(0f).Move(0, 0).Rot(-2f));
@@ -89,7 +91,25 @@ namespace PlushCrush.App.MainMenu
             if (_walking) { _bob.Trigger(); _bob.Hold = null; }
         }
 
-        public void Play(string move) { if (_rig != null) _rig.Play(move); }
+        public void Play(string move) { _lastMove = move; if (_rig != null) _rig.Play(move); }
+        string _lastMove;
+
+        /// <summary>The live rig (null until its moves have loaded).</summary>
+        public RigView Rig => _rig;
+
+        /// <summary>A CSS filter on the creature (menu.js light(): the intro's night) as a colour matrix; null: none.
+        /// The still picture (before the rig is there) only gets its brightness, as a tint.</summary>
+        public void Filter(UnityEngine.Matrix4x4? m)
+        {
+            _filter = m;
+            if (_rig != null) _rig.ColorFilter = m;
+            if (_picture != null)
+            {
+                float b = m.HasValue ? (m.Value.m00 + m.Value.m01 + m.Value.m02 + m.Value.m10 + m.Value.m11 + m.Value.m12 + m.Value.m20 + m.Value.m21 + m.Value.m22) / 3f : 1f;
+                _picture.style.unityBackgroundImageTintColor = m.HasValue ? new UnityEngine.Color(b, b, b, 1f) : UnityEngine.Color.white;
+            }
+        }
+        UnityEngine.Matrix4x4? _filter;
 
         public void SpinOff(float degrees) { _spin = degrees; if (_rig != null) _rig.Engine.SpinOff = degrees; }
 
