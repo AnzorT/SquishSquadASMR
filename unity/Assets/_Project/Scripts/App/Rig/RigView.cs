@@ -127,7 +127,7 @@ namespace PlushCrush.App.Rig
             else
             {
                 _render = new RigRender(geo, key);
-                Engine.FromM = _render.FromM;
+                Engine.FromM = _render.FromM; Engine.W = _render.W;
                 _display = new RigDisplay(RigTree.FromGeo(geo, _render), _render) { Fx = _fx };
                 // mounting runs one frame (dt 0.016), as the game's mount() does
                 var P = Engine.Tick(now, 0.016); _render.Render(P, Engine, now);
@@ -168,7 +168,7 @@ namespace PlushCrush.App.Rig
             double dt = Math.Max(0.001, Math.Min(0.05, (now - _last) / 1000.0)); _last = now;
             var P = Engine.Tick(now, dt);
             if (_generic != null) _generic.Render(P, Engine, now); else _render.Render(P, Engine, now);
-            _fx.Build(Engine.CurName, now - Engine.CurT0, _generic != null ? _generic.TopW : _render.TopW);
+            _fx.Build(Engine, now, _generic != null ? _generic.TopW : _render.TopW);
             if (_drawer == null || _drawer.Output == null) return;
             _display.Build();
             _drawer.Draw(_display.Cmds);

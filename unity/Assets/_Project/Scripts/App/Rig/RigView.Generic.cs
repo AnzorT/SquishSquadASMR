@@ -40,6 +40,8 @@ namespace PlushCrush.App.Rig
             Resources.UnloadAsset(ta);
             if (root.TryGetValue("STATES", out var st) && st is Dictionary<string, object> sd)
                 foreach (var kv in sd) data.States[kv.Key] = RigData.ReadState(kv.Key, kv.Value as Dictionary<string, object>);
+            if (root.TryGetValue("PRE", out var pre) && pre is Dictionary<string, object> pd)   // particle presets its moves add (Floof's snow...)
+                foreach (var kv in pd) if (kv.Value is Dictionary<string, object> q) data.Pre[kv.Key] = RigData.ReadPre(q);
         }
     }
 
@@ -55,7 +57,7 @@ namespace PlushCrush.App.Rig
             RigLibrary.OwnMoves(key);
             Engine.Generic = true;
             _generic = new RigGeneric(gg, key);
-            Engine.FromM = _generic.FromM;
+            Engine.FromM = _generic.FromM; Engine.W = _generic.W;   // (the particles start where the parts were drawn: I.W)
             var display = new RigDisplay(RigTree.FromTree(gg.Tree, _generic.All), null) { Fx = _fx };
             Engine.Tick(now, 0.016);
             var P = Engine.Tick(now, 0.016); _generic.Render(P, Engine, now);

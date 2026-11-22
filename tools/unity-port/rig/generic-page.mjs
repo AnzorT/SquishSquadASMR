@@ -1,6 +1,7 @@
 // Shared by record-generic.mjs and survey-generic.mjs: the test copy of the built game the generic rig is recorded in
 // (the app's files untouched). rive-rig.js is changed as record-rig.mjs changes it (tick() reachable as
-// RiveRig.__tick, no frame loop, tick()'s random draws from window.__rr, each frame's pose to window.__rigP);
+// RiveRig.__tick, no frame loop, tick()'s and the particles' random draws from window.__rr, each frame's pose to
+// window.__rigP);
 // rive-generic.js gets a hook right after setup(), before the first render (window.__rgSetup(I, { RC, pet, hero })),
 // and render()'s own Math.random() (Nimbo's rain) draws from window.__rr too.
 import fs from 'node:fs';
@@ -17,6 +18,10 @@ export function makeTestCopy(TEST) {
     const a = src.indexOf('  function tick(I, now, dt) {'), b = src.indexOf('  function whipFx(I, P) {');
     if (a < 0 || b < a) throw new Error('rive-rig.js changed: tick()');
     src = src.slice(0, a) + src.slice(a, b).replace(/Math\.random\(\)/g, 'window.__rr()') + src.slice(b);
+    // the particles' random numbers too (emit and drawParts), as record-rig.mjs
+    const pa = src.indexOf('  function emit(I, name, w, n) {'), pb = src.indexOf('  function wPrep(I) {');
+    if (pa < 0 || pb < pa || !src.slice(pa, pb).includes('function drawParts(I, dt) {')) throw new Error('rive-rig.js changed: emit / drawParts');
+    src = src.slice(0, pa) + src.slice(pa, pb).replace(/Math\.random\(\)/g, 'window.__rr()') + src.slice(pb);
   }
   must('    I.propZ = st.propZ;', 'the render call');
   src = src.replace('    I.propZ = st.propZ;', '    if (window.__rigP) window.__rigP(I, P, now, dt);\n    I.propZ = st.propZ;');

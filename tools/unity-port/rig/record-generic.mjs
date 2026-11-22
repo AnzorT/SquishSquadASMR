@@ -19,7 +19,8 @@
 //     entries...), which the shared rig-states.json misses (they're added lazily)
 //   - rig/out/trace-<key>.json: per frame the pose and engine outputs (as record-rig.mjs), the drawing's attribute
 //     writes (null = removed; 'display' = style.display), its DOM moves (a parent's children, by name, whenever render()
-//     reorders them), I.W; 'pre': the ticks before frame 0 (mount runs one before the art has loaded: no drawing)
+//     reorders them), I.W, the fx layer's markup; 'pre': the ticks before frame 0 (mount runs one before the art has
+//     loaded: no drawing). The script is record-rig.mjs's (moves, particles, a hold, a drag).
 //
 //   node webgame/build.mjs --out webgame/test/out/webgame
 //   node tools/unity-port/rig/record-generic.mjs bao [--seconds 40] [--draw-frames 2400] [--shots 1,700,...]
@@ -69,7 +70,12 @@ if (cdp) await cdp.send('Profiler.startPreciseCoverage', { callCount: true, deta
 
 // ---- mount, wait for the art, name everything, export setup()'s data, drive 60 frames a second ----
 const FPS = 60;
-const SCRIPT = [[600, 'play:hop'], [1100, 'play:look'], [1600, 'press'], [1750, 'release'], [1900, 'play:happy'], [2300, 'drag:40'], [2330, 'drag:120'], [2360, 'dragEnd']];
+// the same as record-rig.mjs: moves, particles of every kind (emit:<preset>:<where>[:<n>]), a hold and its release, a drag
+const SCRIPT = [[600, 'play:hop'], [640, 'emit:duck:sideR'], [650, 'emit:note:head'], [655, 'emit:dustbath:body'], [660, 'emit:bubble:mouth'],
+  [665, 'emit:stink:tail'], [670, 'emit:gust:sideL'], [675, 'emit:featherY:head'], [680, 'emit:spark:body'], [685, 'emit:heart:head:2'],
+  [690, 'emit:crumb:mouth'], [692, 'emit:seed:mouth'], [694, 'emit:steam:head'], [696, 'emit:drop:30,40'], [698, 'emit:bigbubble:head'],
+  [1100, 'play:look'], [1200, 'emit:dust:belly:150'], [1600, 'press'], [1660, 'emit:splash:footL'], [1670, 'emit:tear:eyeL'], [1680, 'emit:sneeze:nose'],
+  [1690, 'emit:sprinkle:head'], [1695, 'emit:gush:mouth'], [1750, 'release'], [1900, 'play:happy'], [2300, 'drag:40'], [2330, 'drag:120'], [2360, 'dragEnd']];
 // --more dance,eat_apple,...: more moves after the 40 s (each --more-each seconds, default 6), to see (and check) more of
 // render() than the standard script reaches
 const MORE = opt('--more', '') ? opt('--more').split(',') : [], EACH = +opt('--more-each', 6);
@@ -134,7 +140,8 @@ await page.evaluate(({ key, FPS, SCRIPT, DRAWN, HOST, SHOT }) => {
   const keep = I => ({ rr: draws, hs: I.hs, ed: I.ed, ld: I.ld, spTw: I.spTw, spF: I.spF, ms: I.ms, dent: I.dent, state: I.cur.name, spinOff: I.spinOff, W: I.W || null });
   pre.push({ now: 0, P: cur, ...keep(I) });   // mount's own tick (the art not loaded yet: nothing drawn)
   cur = null;
-  window.__R.frame0 = () => { frames.push({ f: 0, now: 0, P: cur, ...keep(I), draw: drawn(), dom: doms() }); };
+  const fxm = () => I.fxG.innerHTML || undefined;   // the fx layer's markup (particles, the move's effect), when there is any
+  window.__R.frame0 = () => { frames.push({ f: 0, now: 0, P: cur, ...keep(I), draw: drawn(), dom: doms(), fx: fxm() }); };
   const sc = new Map(SCRIPT.map(([f, w]) => [f, w]));
   let f = 0;
   window.__R.step = to => { for (f++; f <= to; f++) {
@@ -144,17 +151,18 @@ await page.evaluate(({ key, FPS, SCRIPT, DRAWN, HOST, SHOT }) => {
     if (w) {
       if (w.startsWith('play:')) c.play(w.slice(5));
       else if (w === 'press') { if (I.cur.name !== 'idle') c.play('idle'); I.down = { cx: 100, x: 50, y: 60 }; I.drag = false; I.press = true; I.pressT = now; }
-      else if (w === 'release') { I.press = false; const RS = (I.key && window.RiveRig.REL[I.key]) || window.RiveRig.__RELEASE; I.shots.push({ S: RS, t0: now }); I.down = null; }
+      else if (w === 'release') { I.press = false; const RS = (I.key && window.RiveRig.REL[I.key]) || window.RiveRig.__RELEASE; I.shots.push({ S: RS, t0: now }); (RS.em || []).forEach(m => window.RiveRig.emit(I, m[0], m[1], m[2])); I.down = null; }
+      else if (w.startsWith('emit:')) { const [, nm, wh, n] = w.split(':'); window.RiveRig.emit(I, nm, wh.includes(',') ? wh.split(',').map(Number) : wh, n ? +n : undefined); }
       else if (w.startsWith('drag:')) { if (!I.drag) { I.down = { cx: 100, x: 50, y: 60 }; I.drag = true; I.spinTw = null; I.spin0 = I.spinOff; } I.spinOff = I.spin0 + (+w.slice(5)) / 169 * 360; }
       else if (w === 'dragEnd') { I.spinTw = { from: I.spinOff, to: Math.round(I.spinOff / 360) * 360, t0: now, d: 650 }; I.down = null; I.drag = false; }
     }
     cur = null;
     window.RiveRig.__tick(I, now, dt);
     const fr = { f, now: now - t0, P: cur, ...keep(I) };
-    if (f <= DRAWN) { fr.draw = drawn(); fr.dom = doms(); } else { disp(); writes.clear(); doms(); }
+    if (f <= DRAWN) { fr.draw = drawn(); fr.dom = doms(); fr.fx = fxm(); } else { disp(); writes.clear(); doms(); }
     frames.push(fr);
   } f--; };
-  window.__R.done = () => ({ key, t0, fps: FPS, script: SCRIPT, pre, frames, geo });
+  window.__R.done = () => ({ key, t0, fps: FPS, script: SCRIPT, fxLayer: true, pre, frames, geo });   // fxLayer: frames carry the fx markup
 }, { key, FPS, SCRIPT, DRAWN, HOST, SHOT: SHOTS.length > 0 });
 
 // the art arrives by fetch (a real file read) and setup() may wait for layout (setTimeout, on the page's fake clock)

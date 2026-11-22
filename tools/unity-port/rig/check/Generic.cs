@@ -24,6 +24,7 @@ sealed class Generic
         {
             var o = (Dictionary<string, object>)MiniJson.Parse(File.ReadAllText(own)); int n = 0;
             foreach (var kv in (Dictionary<string, object>)o["STATES"]) { data.States[kv.Key] = RigData.ReadState(kv.Key, kv.Value as Dictionary<string, object>); n++; }
+            if (o.TryGetValue("PRE", out var pre) && pre is Dictionary<string, object> pd) foreach (var kv in pd) if (kv.Value is Dictionary<string, object> q) data.Pre[kv.Key] = RigData.ReadPre(q);
             Console.WriteLine($"{key}'s own moves: {n} (rig-states-{key}.json)");
         }
         else Console.WriteLine($"warning: no rig-states-{key}.json beside the geometry (the moves the mount adds are missing)");
@@ -37,7 +38,7 @@ sealed class Generic
     public static void Perf(RigData data, string key, Dictionary<string, object> geoRoot, double t0, double fps)
     {
         var rnd = new RigRandom(7); var G = new RigGeneric(RigGenericGeo.From(geoRoot), key);
-        var E = new RigEngine(data, key, t0, () => rnd.Next()) { Generic = true, FromM = G.FromM };
+        var E = new RigEngine(data, key, t0, () => rnd.Next()) { Generic = true, FromM = G.FromM, W = G.W };
         var D = new RigDisplay(RigTree.FromTree((Dictionary<string, object>)geoRoot["tree"], G.All), null) { PxPerUnit = 4.753125f };
         var sw = new System.Diagnostics.Stopwatch(); long tick = 0, render = 0, build = 0; int n = 1200, verts = 0, tris = 0, cmds = 0;
         for (int f = 0; f < n; f++)
@@ -128,7 +129,7 @@ sealed partial class Shots
 
     public void Frame(int f, RigEngine E, double now)
     {
-        _fx.Build(E.CurName, now - E.CurT0, _gn.TopW);
+        _fx.Build(E, now, _gn.TopW);
         Compare(f);
     }
 }
