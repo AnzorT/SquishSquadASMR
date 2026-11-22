@@ -1,0 +1,1147 @@
+{
+ "screen": {
+  "width": 832,
+  "height": 384,
+  "scale": 2.8125
+ },
+ "defaults": {
+  "creature": "mittens",
+  "cur": 0
+ },
+ "page": {
+  "k": 0.977099,
+  "designHeight": 393,
+  "carL": 247,
+  "carTop": 56,
+  "CW": 487,
+  "slotHeight": 318
+ },
+ "car": {
+  "box": [
+   678.779,
+   153.893,
+   1661.221,
+   926.107
+  ]
+ },
+ "dim": {
+  "image": "dim",
+  "px": [
+   0,
+   0,
+   2340,
+   1080
+  ]
+ },
+ "header": {
+  "box": [
+   43.969,
+   32.977,
+   2252.061,
+   126.412
+  ],
+  "back": {
+   "image": "back",
+   "px": [
+    10,
+    23,
+    178,
+    179
+   ]
+  },
+  "title": {
+   "image": "title",
+   "px": [
+    198,
+    45,
+    450,
+    96
+   ]
+  }
+ },
+ "rays": {
+  "image": "rays",
+  "px": [
+   840,
+   0,
+   1337,
+   1080
+  ],
+  "drawnAt": 0.55
+ },
+ "halo": {
+  "image": "halo",
+  "px": [
+   1074,
+   145,
+   869,
+   869
+  ],
+  "drawnAt": 1
+ },
+ "arrows": {
+  "left": {
+   "image": "arrow-l",
+   "px": [
+    672,
+    545,
+    179,
+    179
+   ]
+  },
+  "right": {
+   "image": "arrow-r",
+   "px": [
+    2165,
+    546,
+    175,
+    178
+   ]
+  },
+  "leftBox": [
+   706.26,
+   561.985,
+   109.924,
+   109.924
+  ],
+  "rightBox": [
+   2197.099,
+   561.985,
+   109.924,
+   109.924
+  ],
+  "offOpacity": 0.4
+ },
+ "dots": {
+  "on": {
+   "image": "dot-on",
+   "px": [
+    1408,
+    1037,
+    59,
+    28
+   ],
+   "offset": [
+    -5.206,
+    -4.527
+   ]
+  },
+  "off": {
+   "image": "dot-off",
+   "px": [
+    1459,
+    1037,
+    58,
+    28
+   ],
+   "offset": [
+    -5.046,
+    -4.527
+   ]
+  },
+  "slice": 14,
+  "row": [
+   1413.206,
+   1041.527,
+   192.366,
+   19.237
+  ],
+  "wOn": 18,
+  "wOff": 7,
+  "h": 7,
+  "gap": 6,
+  "bottom": 7
+ },
+ "slot": {
+  "box": [
+   840.229,
+   136.031,
+   1338.321,
+   873.893
+  ]
+ },
+ "cards": [
+  {
+   "id": "squish",
+   "name": "Squish Time",
+   "open": true,
+   "win": {
+    "box": [
+     875.954,
+     265.191,
+     1266.87,
+     538.111
+    ],
+    "radius": 43.969,
+    "image": "win-squish",
+    "bright": "win-squish-bright",
+    "px": [
+     876,
+     266,
+     1268,
+     537
+    ]
+   },
+   "shade": {
+    "image": "shade-squish",
+    "px": [
+     876,
+     266,
+     1268,
+     537
+    ]
+   },
+   "go": {
+    "box": [
+     1736.107,
+     835.162,
+     406.717,
+     126.412
+    ],
+    "play": {
+     "image": "go-play",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "dim": {
+     "image": "go-play-dim",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "bright": {
+     "image": "go-play-bright",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    }
+   },
+   "desc": {
+    "text": "Squeeze, poke and stretch Mittens. Every squish pays coins!",
+    "box": [
+     875.954,
+     822.538,
+     827.176,
+     85.706
+    ],
+    "maxWidth": 827.176,
+    "lines": [
+     {
+      "text": "Squeeze, poke and stretch Mittens. Every squish ",
+      "box": [
+       875.954,
+       819.79,
+       812.147,
+       43.969
+      ]
+     },
+     {
+      "text": "pays coins!",
+      "box": [
+       875.954,
+       862.643,
+       184.079,
+       43.969
+      ]
+     }
+    ]
+   },
+   "best": {
+    "text": "Playing as Mittens",
+    "box": [
+     875.954,
+     921.985,
+     336.083,
+     52.214
+    ],
+    "textBox": [
+     903.435,
+     927.481,
+     281.121,
+     41.221
+    ]
+   },
+   "squish": {
+    "imgBox": [
+     1129.294,
+     308.216,
+     760.105,
+     473.531
+    ],
+    "lineL": {
+     "image": "sqz-line-l",
+     "px": [
+      915,
+      470,
+      58,
+      129
+     ]
+    },
+    "lineR": {
+     "image": "sqz-line-r",
+     "px": [
+      2047,
+      470,
+      58,
+      129
+     ]
+    },
+    "creature": {
+     "key": "mittens",
+     "image": "sqz-mittens",
+     "bright": "sqz-mittens-bright",
+     "px": [
+      1353,
+      353,
+      359,
+      407
+     ]
+    },
+    "clip": {
+     "creature": "frybo",
+     "image": "win-squish-clip",
+     "bright": "win-squish-clip-bright",
+     "px": [
+      876,
+      266,
+      1268,
+      537
+     ],
+     "video": "squish-clip",
+     "size": [
+      1000,
+      400
+     ]
+    }
+   },
+   "frame": {
+    "image": "frame-squish",
+    "bright": "frame-squish-bright",
+    "px": [
+     755,
+     90,
+     1510,
+     990
+    ]
+   }
+  },
+  {
+   "id": "squishdoku",
+   "name": "Squishdoku",
+   "open": true,
+   "win": {
+    "box": [
+     875.954,
+     166.26,
+     1266.87,
+     637.042
+    ],
+    "radius": 43.969,
+    "image": "win-squishdoku",
+    "bright": "win-squishdoku-bright",
+    "px": [
+     876,
+     167,
+     1268,
+     636
+    ]
+   },
+   "shade": {
+    "image": "shade-squishdoku",
+    "px": [
+     876,
+     167,
+     1268,
+     636
+    ]
+   },
+   "go": {
+    "box": [
+     1736.107,
+     835.162,
+     406.717,
+     126.412
+    ],
+    "play": {
+     "image": "go-play",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "dim": {
+     "image": "go-play-dim",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "bright": {
+     "image": "go-play-bright",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "locked": {
+     "image": "go-locked",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "lockedDim": {
+     "image": "go-locked-dim",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "lockedBright": {
+     "image": "go-locked-bright",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    }
+   },
+   "desc": {
+    "text": "One creature in every row, column and patch. No two may touch!",
+    "box": [
+     875.954,
+     822.538,
+     827.176,
+     85.706
+    ],
+    "maxWidth": 827.176,
+    "lines": [
+     {
+      "text": "One creature in every row, column and patch. No ",
+      "box": [
+       875.954,
+       819.79,
+       822.238,
+       43.969
+      ]
+     },
+     {
+      "text": "two may touch!",
+      "box": [
+       875.954,
+       862.643,
+       258.449,
+       43.969
+      ]
+     }
+    ]
+   },
+   "best": {
+    "text": "Level 37 / 600",
+    "box": [
+     875.954,
+     921.985,
+     270.859,
+     52.214
+    ],
+    "textBox": [
+     903.435,
+     927.481,
+     215.897,
+     41.221
+    ]
+   },
+   "locked": {
+    "image": "win-squishdoku-locked",
+    "bright": "win-squishdoku-locked-bright",
+    "px": [
+     876,
+     167,
+     1268,
+     636
+    ]
+   },
+   "lock": {
+    "image": "lock",
+    "px": [
+     1462,
+     427,
+     93,
+     114
+    ],
+    "bright": "lock-bright"
+   },
+   "frame": {
+    "image": "frame-squishdoku",
+    "bright": "frame-squishdoku-bright",
+    "px": [
+     755,
+     90,
+     1510,
+     990
+    ]
+   }
+  },
+  {
+   "id": "sort",
+   "name": "Squish Sort",
+   "open": true,
+   "win": {
+    "box": [
+     875.954,
+     166.26,
+     1266.87,
+     637.042
+    ],
+    "radius": 43.969,
+    "image": "win-sort",
+    "bright": "win-sort-bright",
+    "px": [
+     876,
+     167,
+     1268,
+     636
+    ]
+   },
+   "shade": {
+    "image": "shade-squishdoku",
+    "px": [
+     876,
+     167,
+     1268,
+     636
+    ]
+   },
+   "go": {
+    "box": [
+     1736.107,
+     835.162,
+     406.717,
+     126.412
+    ],
+    "play": {
+     "image": "go-play",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "dim": {
+     "image": "go-play-dim",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "bright": {
+     "image": "go-play-bright",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "locked": {
+     "image": "go-locked",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "lockedDim": {
+     "image": "go-locked-dim",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "lockedBright": {
+     "image": "go-locked-bright",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    }
+   },
+   "desc": {
+    "text": "Remember who sits where. The doors shut, it shakes… sort them back!",
+    "box": [
+     875.954,
+     822.538,
+     827.176,
+     85.706
+    ],
+    "maxWidth": 827.176,
+    "lines": [
+     {
+      "text": "Remember who sits where. The doors shut, it ",
+      "box": [
+       875.954,
+       819.79,
+       766.632,
+       43.969
+      ]
+     },
+     {
+      "text": "shakes… sort them back!",
+      "box": [
+       875.954,
+       862.643,
+       413.931,
+       43.969
+      ]
+     }
+    ]
+   },
+   "best": {
+    "text": "Level 4 / 50",
+    "box": [
+     875.954,
+     921.985,
+     232.901,
+     52.214
+    ],
+    "textBox": [
+     903.435,
+     927.481,
+     177.939,
+     41.221
+    ]
+   },
+   "locked": {
+    "image": "win-sort-locked",
+    "bright": "win-sort-locked-bright",
+    "px": [
+     876,
+     167,
+     1268,
+     636
+    ]
+   },
+   "lock": {
+    "image": "lock",
+    "px": [
+     1462,
+     427,
+     93,
+     114
+    ],
+    "bright": "lock-bright"
+   },
+   "frame": {
+    "image": "frame-squishdoku",
+    "bright": "frame-squishdoku-bright",
+    "px": [
+     755,
+     90,
+     1510,
+     990
+    ]
+   }
+  },
+  {
+   "id": "stack",
+   "name": "Squish Stack",
+   "open": true,
+   "win": {
+    "box": [
+     875.954,
+     166.26,
+     1266.87,
+     637.042
+    ],
+    "radius": 43.969,
+    "image": "win-stack",
+    "bright": "win-stack-bright",
+    "px": [
+     876,
+     167,
+     1268,
+     636
+    ]
+   },
+   "shade": {
+    "image": "shade-squishdoku",
+    "px": [
+     876,
+     167,
+     1268,
+     636
+    ]
+   },
+   "go": {
+    "box": [
+     1736.107,
+     835.162,
+     406.717,
+     126.412
+    ],
+    "play": {
+     "image": "go-play",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "dim": {
+     "image": "go-play-dim",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "bright": {
+     "image": "go-play-bright",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "locked": {
+     "image": "go-locked",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "lockedDim": {
+     "image": "go-locked-dim",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "lockedBright": {
+     "image": "go-locked-bright",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    }
+   },
+   "desc": {
+    "text": "Move them one at a time to match the goal. Big never sits on small!",
+    "box": [
+     875.954,
+     822.538,
+     827.176,
+     85.706
+    ],
+    "maxWidth": 827.176,
+    "lines": [
+     {
+      "text": "Move them one at a time to match the goal. Big ",
+      "box": [
+       875.954,
+       819.79,
+       802.872,
+       43.969
+      ]
+     },
+     {
+      "text": "never sits on small!",
+      "box": [
+       875.954,
+       862.643,
+       328.397,
+       43.969
+      ]
+     }
+    ]
+   },
+   "best": {
+    "text": "Level 9 / 50 · ★ 12",
+    "box": [
+     875.954,
+     921.985,
+     340.892,
+     52.214
+    ],
+    "textBox": [
+     903.435,
+     927.481,
+     285.93,
+     41.221
+    ]
+   },
+   "locked": {
+    "image": "win-stack-locked",
+    "bright": "win-stack-locked-bright",
+    "px": [
+     876,
+     167,
+     1268,
+     636
+    ]
+   },
+   "lock": {
+    "image": "lock",
+    "px": [
+     1462,
+     427,
+     93,
+     114
+    ],
+    "bright": "lock-bright"
+   },
+   "frame": {
+    "image": "frame-squishdoku",
+    "bright": "frame-squishdoku-bright",
+    "px": [
+     755,
+     90,
+     1510,
+     990
+    ]
+   }
+  },
+  {
+   "id": "hop",
+   "name": "Squish Hop",
+   "open": true,
+   "win": {
+    "box": [
+     875.954,
+     166.26,
+     1266.87,
+     637.042
+    ],
+    "radius": 43.969,
+    "image": "win-hop",
+    "bright": "win-hop-bright",
+    "px": [
+     876,
+     167,
+     1268,
+     636
+    ]
+   },
+   "shade": {
+    "image": "shade-squishdoku",
+    "px": [
+     876,
+     167,
+     1268,
+     636
+    ]
+   },
+   "go": {
+    "box": [
+     1736.107,
+     835.162,
+     406.717,
+     126.412
+    ],
+    "play": {
+     "image": "go-play",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "dim": {
+     "image": "go-play-dim",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "bright": {
+     "image": "go-play-bright",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "locked": {
+     "image": "go-locked",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "lockedDim": {
+     "image": "go-locked-dim",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    },
+    "lockedBright": {
+     "image": "go-locked-bright",
+     "px": [
+      1700,
+      816,
+      480,
+      199
+     ]
+    }
+   },
+   "desc": {
+    "text": "Hop from cushion to cushion. Clear them all, then hop onto the ★.",
+    "box": [
+     875.954,
+     822.538,
+     827.176,
+     85.706
+    ],
+    "maxWidth": 827.176,
+    "lines": [
+     {
+      "text": "Hop from cushion to cushion. Clear them all, ",
+      "box": [
+       875.954,
+       819.79,
+       753.535,
+       43.969
+      ]
+     },
+     {
+      "text": "then hop onto the ★.",
+      "box": [
+       875.954,
+       862.643,
+       359.055,
+       43.969
+      ]
+     }
+    ]
+   },
+   "best": {
+    "text": "Level 3 / 100",
+    "box": [
+     875.954,
+     921.985,
+     251.88,
+     52.214
+    ],
+    "textBox": [
+     903.435,
+     927.481,
+     196.918,
+     41.221
+    ]
+   },
+   "locked": {
+    "image": "win-hop-locked",
+    "bright": "win-hop-locked-bright",
+    "px": [
+     876,
+     167,
+     1268,
+     636
+    ]
+   },
+   "lock": {
+    "image": "lock",
+    "px": [
+     1462,
+     427,
+     93,
+     114
+    ],
+    "bright": "lock-bright"
+   },
+   "frame": {
+    "image": "frame-squishdoku",
+    "bright": "frame-squishdoku-bright",
+    "px": [
+     755,
+     90,
+     1510,
+     990
+    ]
+   }
+  }
+ ],
+ "chip": {
+  "image": "chip",
+  "px": [
+   876,
+   923,
+   336,
+   53
+  ],
+  "bright": "chip-bright",
+  "box": [
+   875.954,
+   921.985,
+   336.083,
+   52.214
+  ],
+  "slice": 26
+ },
+ "text": {
+  "desc": {
+   "font": "Nunito",
+   "weight": 700,
+   "size": 12,
+   "color": "rgb(255, 255, 255)",
+   "letterSpacing": 0.6,
+   "lineHeight": 15.6,
+   "shadows": [
+    {
+     "color": "rgba(30, 0, 60, 0.55)",
+     "x": 0,
+     "y": 1,
+     "blur": 2
+    }
+   ],
+   "padding": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "background": "rgba(0, 0, 0, 0)"
+  },
+  "best": {
+   "font": "Nunito",
+   "weight": 800,
+   "size": 10.5,
+   "color": "rgb(255, 233, 168)",
+   "letterSpacing": 0.6,
+   "lineHeight": 0,
+   "shadows": [],
+   "padding": [
+    2,
+    10,
+    2,
+    10
+   ],
+   "background": "rgba(30, 0, 60, 0.38)"
+  },
+  "toast": {
+   "font": "Fredoka",
+   "weight": 700,
+   "size": 13,
+   "color": "rgb(107, 68, 38)",
+   "letterSpacing": 0.6,
+   "lineHeight": 0,
+   "shadows": [],
+   "padding": [
+    5,
+    18,
+    5,
+    18
+   ],
+   "border": 2,
+   "background": ""
+  }
+ },
+ "stars": {
+  "desc": {
+   "image": "star-desc",
+   "px": [
+    876,
+    857,
+    37,
+    40
+   ],
+   "bright": "star-desc-bright",
+   "box": [
+    875.954,
+    853.841,
+    36.112,
+    43.97
+   ]
+  },
+  "descSpace": 10.605926513671875,
+  "best": {
+   "image": "star-best",
+   "px": [
+    904,
+    933,
+    29,
+    28
+   ],
+   "bright": "star-best-bright",
+   "box": [
+    903.435,
+    927.481,
+    31.818,
+    41.221
+   ]
+  },
+  "bestSpace": 9.70418930053711
+ },
+ "toast": {
+  "image": "toast",
+  "px": [
+   858,
+   923,
+   626,
+   154
+  ],
+  "box": [
+   891.369,
+   942.595,
+   557.261,
+   82.443
+  ],
+  "textBox": [
+   946.331,
+   961.832,
+   447.338,
+   43.969
+  ],
+  "sample": "Squishdoku isn't open yet",
+  "slice": 77,
+  "bottom": 20,
+  "maxWidth": 0.7
+ }
+}
