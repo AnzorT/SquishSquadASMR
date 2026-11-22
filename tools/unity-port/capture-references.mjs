@@ -32,7 +32,15 @@ const SEED = `(() => { let s = 0x2f6b9a1; Math.random = () => { s ^= s << 13; s 
 const ROOMS = ['living'];
 const click = sel => async p => { await p.click(sel, { timeout: 5000 }); };
 
-// [name, page, real ms to load, game ms to run, then [label, action, game ms] steps each shot after]
+// The app's start data for a page (bridge.js reads window.__SQUISH_INIT__): level, weather, the selected creature,
+// coins, gems, XP and the Level Pass's prizes, as src/game/player.js sends them.
+const road = (n, claimable) => Array.from({ length: n }, (_, i) => ({ lv: i + 1, k: i % 3 === 2 ? 'gems' : 'coins', n: 20 + 10 * i, t: null, got: i < n - claimable - 3, claimable: i >= n - claimable - 3 && i < n - 3 }));
+const STATES = {
+  'L10-snowy-bao': { level: 10, weather: 'snowy', sel: 'bao', owned: ['mittens', 'bao'], coins: 2450, gems: 75, xp: { level: 10, into: 40, need: 110, per: 10 }, road: road(13, 2) },
+  'L27-sunny-tutti': { level: 27, weather: 'sunny', sel: 'tutti', owned: ['mittens', 'tutti'], coins: 125000, gems: 3, xp: { level: 27, into: 230, need: 280, per: 10 }, road: road(30, 0) },
+};
+
+// [name, page, real ms to load, game ms to run, then [label, action, game ms] steps each shot after, start data]
 const CASES = [
   ['menu', 'App.dc.html', 8000, 9000, [
     ['park', click('.mm-play'), 6000],
@@ -40,6 +48,7 @@ const CASES = [
   // Not yet: the Level Pass (tap .mm-crest) is filled with data the React Native app sends over the bridge
   // (app/bridge.js), so offline it stays shut. Needs a stand-in for that message first.
   ...ROOMS.map(room => [`house-${room}`, `App.dc.html?screen=house&room=${room}`, 30000, 6000, []]),
+  ...Object.keys(STATES).map(k => [`menu-${k}`, 'App.dc.html', 8000, 9000, [], { state: STATES[k] }]),
 ];
 
 if (!fs.existsSync(path.join(BUILT, 'App.dc.html'))) {
@@ -56,6 +65,9 @@ async function run(page, ms) {
 
 async function shoot(page, name) {
   await page.evaluate(() => document.fonts.ready);
+  // the XP ring's first-time fill-in is an SVG (SMIL) animation, which the frozen clock doesn't move: show it filled,
+  // as it is from 1.7 s on
+  await page.evaluate(() => document.querySelectorAll('svg.mm-crest').forEach(s => { try { s.setCurrentTime(5); } catch (e) { /* none */ } }));
   await page.waitForTimeout(800);
   const file = path.join(OUT, name + '.jpg');
   await page.screenshot({ path: file, type: 'jpeg', quality: 90 });
@@ -63,7 +75,7 @@ async function shoot(page, name) {
 }
 
 let failed = 0;
-for (const [name, url, realMs, gameMs, steps] of CASES) {
+for (const [name, url, realMs, gameMs, steps, init] of CASES) {
   if (only.length && !only.some(o => name === o || name.startsWith(o + '-'))) continue;
   const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: SCALE, hasTouch: true });
   const page = await ctx.newPage();
@@ -71,6 +83,8 @@ for (const [name, url, realMs, gameMs, steps] of CASES) {
   page.on('pageerror', e => errs.push(e.message));
   await page.route(/^(https?|wss?):/, r => r.abort()); // offline, as on the phone
   await page.addInitScript(SEED);
+  // (the bridge takes the app's data only in the app, or in its tests, which set __squishOutbox: webgame/test/bridge.mjs)
+  if (init) await page.addInitScript(`window.__squishOutbox = []; window.__SQUISH_INIT__ = ${JSON.stringify(init)};`);
   await page.clock.install({ time: T0 });
   await page.clock.pauseAt(T0);
   const cdp = await ctx.newCDPSession(page);

@@ -3,8 +3,9 @@
 // Every piece goes where layout.json says, measured in the game on the Galaxy A15, and keeps its distance to the
 // same screen edges the page's own layout does on other screen shapes.
 //
-// Phase 1 (this): the menu still, at the reference's state (level 1, rainy, Mittens, 100 coins, 600 gems).
-// Phase 2: the creature's rig, the crest and PLAY animations, PLAY -> Game Park, real player data.
+// The pictures follow the player's state (MenuState: creature, level, season, coins, gems, XP, prizes waiting); the HUD
+// moves as in the game (MenuHud); PLAY walks to the Game Park (EnterPark). Still to come: the creature's rig (it's a
+// still picture here) and real player data (Firebase).
 using System.Collections.Generic;
 using UnityEngine;
 using PlushCrush.App.Motion;
@@ -40,6 +41,10 @@ namespace PlushCrush.App.MainMenu
         readonly MenuState _state;
         MenuLayout _layout;
         readonly Dictionary<string, Label[]> _texts = new Dictionary<string, Label[]>();
+        // the coin and gem pills grow with their number (.mm-pill: flex, its width is the text's), and the coin pill
+        // moves left as the gem pill grows (they're in one row, right-aligned)
+        sealed class Pill { public VisualElement El, TextBox; public float Right, Width, TextRight, TextWidth, Delta; public string RefText; }
+        readonly Dictionary<string, Pill> _pills = new Dictionary<string, Pill>();
 
         public MainMenuScreen(MenuState state = null) { _state = state ?? new MenuState(); }
 
@@ -117,9 +122,51 @@ namespace PlushCrush.App.MainMenu
             }
             hud?.Run(root);
 
+            foreach (var t in _layout.texts) RegisterPill(t, W);
             SetNumber("coins", _state.Coins);
             SetNumber("gems", _state.Gems);
+            root.RegisterCallback<AttachToPanelEvent>(_ => root.schedule.Execute(RelayoutPills));
             return root;
+        }
+
+        // A pill's picture stretches in its middle only (9-slice): its ends (the icon, the rounded caps) stay as drawn.
+        void RegisterPill(MenuLayout.TextSpec t, float W)
+        {
+            var el = _hud.Q(t.parent);
+            var box = _hud.Q("text-" + t.key);
+            var part = System.Array.Find(_layout.parts, p => p.name == t.parent);
+            if (el == null || box == null || part == null || part.px == null) return;
+            const float K = 2.8125f;
+            float x = part.px[0] / K, w = part.px[2] / K;
+            int left = Mathf.RoundToInt(t.x * K - part.px[0]), right = Mathf.RoundToInt(part.px[0] + part.px[2] - (t.x + t.w) * K);
+            el.style.unitySliceLeft = Mathf.Max(0, left);
+            el.style.unitySliceRight = Mathf.Max(0, right);
+            el.style.unitySliceTop = 0; el.style.unitySliceBottom = 0;
+            el.style.unitySliceScale = 1f / K;
+            _pills[t.key] = new Pill { El = el, TextBox = box, Right = W - (x + w), Width = w, TextRight = W - (t.x + t.w), TextWidth = t.w, RefText = t.text };
+        }
+
+        // the width each number needs beyond the one the pictures were taken with (both measured by Unity's own text)
+        void RelayoutPills()
+        {
+            foreach (var kv in _pills)
+            {
+                var p = kv.Value;
+                if (!_texts.TryGetValue(kv.Key, out var labels) || labels.Length == 0 || labels[labels.Length - 1].panel == null) continue;
+                var main = labels[labels.Length - 1];
+                float now = main.MeasureTextSize(main.text, 0, VisualElement.MeasureMode.Undefined, 0, VisualElement.MeasureMode.Undefined).x;
+                float then = main.MeasureTextSize(p.RefText, 0, VisualElement.MeasureMode.Undefined, 0, VisualElement.MeasureMode.Undefined).x;
+                p.Delta = now - then;
+            }
+            // right to left along the row: gems, then coins (moved left by however much the gems pill grew)
+            float shift = 0f;
+            foreach (var key in new[] { "gems", "coins" })
+            {
+                if (!_pills.TryGetValue(key, out var p)) continue;
+                p.El.style.right = p.Right + shift; p.El.style.width = p.Width + p.Delta;
+                p.TextBox.style.right = p.TextRight + shift; p.TextBox.style.width = p.TextWidth + p.Delta;
+                shift += p.Delta;
+            }
         }
 
         static void CoverScene(VisualElement e, Texture2D tex)
@@ -381,8 +428,9 @@ namespace PlushCrush.App.MainMenu
         public void SetNumber(string key, long value)
         {
             if (!_texts.TryGetValue(key, out var labels)) return;
-            string s = value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+            string s = value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture); // fmt(): toLocaleString('en-US')
             foreach (var l in labels) l.text = s;
+            if (View != null && View.panel != null) RelayoutPills();
         }
 
         // A box in layout.json (measured on the A15), kept at the same distance to the edges named by its anchor.
